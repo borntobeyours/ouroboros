@@ -14,19 +14,21 @@ import (
 
 // Agent is the Red AI attacker agent.
 type Agent struct {
-	provider ai.Provider
-	crawler  *Crawler
-	scanner  *Scanner
-	logger   *log.Logger
+	provider  ai.Provider
+	crawler   *Crawler
+	scanner   *Scanner
+	exploiter *Exploiter
+	logger    *log.Logger
 }
 
 // NewAgent creates a new Red AI agent.
 func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 	return &Agent{
-		provider: provider,
-		crawler:  NewCrawler(logger),
-		scanner:  NewScanner(provider, logger),
-		logger:   logger,
+		provider:  provider,
+		crawler:   NewCrawler(logger),
+		scanner:   NewScanner(provider, logger),
+		exploiter: NewExploiter(logger),
+		logger:    logger,
 	}
 }
 
@@ -50,7 +52,47 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	}
 	a.logger.Printf("[RED] Found %d potential vulnerabilities", len(findings))
 
-	return findings, nil
+	if len(findings) == 0 {
+		return findings, nil
+	}
+
+	// Phase 3: Active exploitation to confirm findings
+	a.logger.Printf("[RED] Phase 3: Active exploitation (%d targets)...", len(findings))
+	exploitResults := a.exploiter.Exploit(ctx, findings, target)
+
+	// Update findings with exploit results
+	confirmed := make([]types.Finding, 0)
+	for i, f := range findings {
+		if i < len(exploitResults) && exploitResults[i].Exploited {
+			f.Confirmed = true
+			f.ExploitEvidence = exploitResults[i].Evidence
+			f.ExfiltratedData = exploitResults[i].DataExfiled
+			if exploitResults[i].Severity != "" {
+				upgraded, _ := types.ParseSeverity(exploitResults[i].Severity)
+				if upgraded > f.Severity {
+					f.Severity = upgraded
+				}
+			}
+			if exploitResults[i].Payload != "" {
+				f.PoC = exploitResults[i].Payload
+			}
+			confirmed = append(confirmed, f)
+		} else {
+			// Keep unconfirmed findings but mark them
+			f.Confirmed = false
+			confirmed = append(confirmed, f)
+		}
+	}
+
+	exploitedCount := 0
+	for _, r := range exploitResults {
+		if r.Exploited {
+			exploitedCount++
+		}
+	}
+	a.logger.Printf("[RED] Exploitation complete: %d/%d confirmed", exploitedCount, len(findings))
+
+	return confirmed, nil
 }
 
 // buildAttackPrompt creates the Red AI system prompt.

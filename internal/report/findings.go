@@ -82,7 +82,16 @@ func (r *Reporter) printFinding(f types.Finding) {
 	}
 
 	sevColor.Printf("  [%s] ", f.Severity)
-	fmt.Printf("%s\n", f.Title)
+	fmt.Printf("%s", f.Title)
+
+	// Show confirmation status
+	if f.Confirmed {
+		color.New(color.FgGreen, color.Bold).Print(" ✅ EXPLOITED")
+	} else {
+		color.New(color.FgYellow).Print(" ⚠️  unconfirmed")
+	}
+	fmt.Println()
+
 	fmt.Printf("    Endpoint: %s %s\n", f.Method, f.Endpoint)
 	if f.CWE != "" {
 		fmt.Printf("    CWE: %s\n", f.CWE)
@@ -94,6 +103,19 @@ func (r *Reporter) printFinding(f types.Finding) {
 		}
 		fmt.Printf("    %s\n", desc)
 	}
+	if f.ExploitEvidence != "" {
+		color.New(color.FgGreen).Printf("    Exploit: %s\n", f.ExploitEvidence)
+	}
+	if f.ExfiltratedData != "" {
+		color.New(color.FgRed).Printf("    Data Exfiltrated: %s\n", truncateStr(f.ExfiltratedData, 200))
+	}
+}
+
+func truncateStr(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "...[truncated]"
 }
 
 func (r *Reporter) PrintPatches(patches []types.Patch, loop int) {
@@ -155,6 +177,15 @@ func (r *Reporter) PrintSummary(session *types.ScanSession, findings []types.Fin
 	fmt.Printf("Converged: %v\n", session.Converged)
 	fmt.Printf("Total Findings: %d\n", session.TotalFindings)
 
+	// Count confirmed
+	confirmedCount := 0
+	for _, f := range findings {
+		if f.Confirmed {
+			confirmedCount++
+		}
+	}
+	color.New(color.FgGreen, color.Bold).Printf("Confirmed (Exploited): %d/%d\n", confirmedCount, session.TotalFindings)
+
 	// Count by severity
 	counts := map[types.Severity]int{}
 	for _, f := range findings {
@@ -207,14 +238,25 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 	sb.WriteString("## Findings\n\n")
 
 	for i, f := range findings {
-		sb.WriteString(fmt.Sprintf("### %d. [%s] %s\n\n", i+1, f.Severity, f.Title))
+		status := "⚠️ Unconfirmed"
+		if f.Confirmed {
+			status = "✅ EXPLOITED"
+		}
+		sb.WriteString(fmt.Sprintf("### %d. [%s] %s — %s\n\n", i+1, f.Severity, f.Title, status))
 		sb.WriteString(fmt.Sprintf("- **Endpoint:** `%s %s`\n", f.Method, f.Endpoint))
 		sb.WriteString(fmt.Sprintf("- **CWE:** %s\n", f.CWE))
 		sb.WriteString(fmt.Sprintf("- **Technique:** %s\n", f.Technique))
-		sb.WriteString(fmt.Sprintf("- **Found in Loop:** %d\n\n", f.Loop))
+		sb.WriteString(fmt.Sprintf("- **Found in Loop:** %d\n", f.Loop))
+		sb.WriteString(fmt.Sprintf("- **Confirmed:** %v\n\n", f.Confirmed))
 		sb.WriteString(fmt.Sprintf("**Description:** %s\n\n", f.Description))
 		if f.PoC != "" {
 			sb.WriteString(fmt.Sprintf("**PoC:**\n```\n%s\n```\n\n", f.PoC))
+		}
+		if f.ExploitEvidence != "" {
+			sb.WriteString(fmt.Sprintf("**Exploit Evidence:** %s\n\n", f.ExploitEvidence))
+		}
+		if f.ExfiltratedData != "" {
+			sb.WriteString(fmt.Sprintf("**Exfiltrated Data:**\n```\n%s\n```\n\n", f.ExfiltratedData))
 		}
 		if f.Remediation != "" {
 			sb.WriteString(fmt.Sprintf("**Remediation:** %s\n\n", f.Remediation))
