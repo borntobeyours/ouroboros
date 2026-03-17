@@ -2,6 +2,7 @@ package probers
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -20,14 +21,15 @@ type Prober interface {
 
 // ProberConfig holds shared configuration for probers.
 type ProberConfig struct {
-	BaseURL   string
-	AuthToken string // JWT token for authenticated scanning
-	Client    *http.Client
+	BaseURL          string
+	AuthToken        string // JWT token for authenticated scanning
+	Client           *http.Client
+	BaseFingerprint  string // SHA256 prefix of base URL response (SPA detection)
 }
 
 // NewProberConfig creates a ProberConfig from a target.
 func NewProberConfig(target types.Target) *ProberConfig {
-	return &ProberConfig{
+	cfg := &ProberConfig{
 		BaseURL:   strings.TrimRight(target.URL, "/"),
 		AuthToken: target.Headers["Authorization"],
 		Client: &http.Client{
@@ -40,6 +42,35 @@ func NewProberConfig(target types.Target) *ProberConfig {
 			},
 		},
 	}
+	// Fingerprint the base URL for SPA detection
+	cfg.BaseFingerprint = cfg.fingerprintURL(cfg.BaseURL)
+	return cfg
+}
+
+// fingerprintURL returns a hash prefix of the response body.
+func (c *ProberConfig) fingerprintURL(url string) string {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	h := sha256.Sum256(body)
+	return fmt.Sprintf("%x", h[:8])
+}
+
+// IsSPAResponse checks if a URL returns the same response as the base SPA page.
+// If true, it's a SPA catch-all route, NOT a real file/endpoint.
+func (c *ProberConfig) IsSPAResponse(url string) bool {
+	if c.BaseFingerprint == "" {
+		return false
+	}
+	fp := c.fingerprintURL(url)
+	return fp == c.BaseFingerprint
 }
 
 // DoRequest sends an HTTP request and returns status, headers, and body.

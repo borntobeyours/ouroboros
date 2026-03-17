@@ -246,21 +246,26 @@ func (p *InfoLeakProber) testSensitiveFiles(cfg *ProberConfig) []types.Finding {
 		url := cfg.BaseURL + sp.path
 		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
 		if err == nil && status == 200 && len(respBody) > 10 {
-			// Verify it's not just a redirect or error page
-			if !strings.Contains(respBody, "<html") || strings.Contains(sp.path, ".git") {
-				findings = append(findings, MakeFinding(
-					fmt.Sprintf("Sensitive File Exposure - %s", sp.desc),
-					sp.severity,
-					fmt.Sprintf("Sensitive file/directory accessible at %s: %s", sp.path, sp.desc),
-					sp.path,
-					"GET",
-					sp.cwe,
-					fmt.Sprintf(`curl %s`, url),
-					fmt.Sprintf("HTTP %d - Content: %s", status, truncate(respBody, 200)),
-					"info_leak",
-					0,
-				))
+			// SPA detection: skip if response is identical to base URL (catch-all route)
+			if cfg.IsSPAResponse(url) {
+				continue
 			}
+			// Additional check: skip if response is generic HTML without expected file content
+			if strings.Contains(respBody, "<!doctype html>") && !strings.Contains(respBody, "ref:") && !strings.Contains(respBody, "[core]") {
+				continue
+			}
+			findings = append(findings, MakeFinding(
+				fmt.Sprintf("Sensitive File Exposure - %s", sp.desc),
+				sp.severity,
+				fmt.Sprintf("Sensitive file/directory accessible at %s: %s", sp.path, sp.desc),
+				sp.path,
+				"GET",
+				sp.cwe,
+				fmt.Sprintf(`curl %s`, url),
+				fmt.Sprintf("HTTP %d - Content: %s", status, truncate(respBody, 200)),
+				"info_leak",
+				0,
+			))
 		}
 	}
 
@@ -394,7 +399,7 @@ func (p *InfoLeakProber) testSecurityTxt(cfg *ProberConfig) []types.Finding {
 
 	url := cfg.BaseURL + "/.well-known/security.txt"
 	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && len(respBody) > 10 {
+	if err == nil && status == 200 && len(respBody) > 10 && !cfg.IsSPAResponse(url) {
 		findings = append(findings, MakeFinding(
 			"Information Disclosure - security.txt",
 			"Info",
@@ -442,7 +447,7 @@ func (p *InfoLeakProber) testVideoPromotion(cfg *ProberConfig) []types.Finding {
 	for _, path := range paths {
 		url := cfg.BaseURL + path
 		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-		if err == nil && status == 200 && len(respBody) > 0 {
+		if err == nil && status == 200 && len(respBody) > 0 && !cfg.IsSPAResponse(url) {
 			findings = append(findings, MakeFinding(
 				fmt.Sprintf("Unprotected Resource - %s endpoint", path),
 				"Info",

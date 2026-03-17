@@ -85,7 +85,7 @@ func (p *AdditionalProber) testPrivacyViolations(cfg *ProberConfig) []types.Find
 
 	// Test data erasure endpoint
 	status, _, body, err := cfg.DoRequest("GET", cfg.BaseURL+"/dataerasure", nil, nil)
-	if err == nil && status == 200 && len(body) > 100 {
+	if err == nil && status == 200 && len(body) > 100 && !cfg.IsSPAResponse(cfg.BaseURL+"/dataerasure") {
 		findings = append(findings, MakeFinding(
 			"Data Erasure Endpoint - Potential GDPR Abuse",
 			"Medium",

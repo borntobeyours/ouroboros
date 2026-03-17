@@ -2,9 +2,12 @@ package red
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -120,8 +123,50 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		a.logger.Printf("[RED] Exploitation complete: %d/%d AI findings confirmed", exploitedCount, len(aiFindings))
 	}
 
+	// Phase 5: SPA false positive filtering
+	// If the target is a SPA (Single Page App), many paths return the same HTML.
+	// Filter out findings where the endpoint returns identical content to the base URL.
+	if len(allFindings) > 0 {
+		baseFP := fingerprint(target.URL)
+		if baseFP != "" {
+			filtered := make([]types.Finding, 0, len(allFindings))
+			for _, f := range allFindings {
+				epURL := f.Endpoint
+				if !strings.HasPrefix(epURL, "http") {
+					epURL = strings.TrimRight(target.URL, "/") + f.Endpoint
+				}
+				// Only check likely SPA false positives (file paths, admin routes)
+				shouldCheck := strings.Contains(f.Endpoint, ".env") ||
+					strings.Contains(f.Endpoint, ".git") ||
+					strings.Contains(f.Endpoint, "/administration") ||
+					strings.Contains(f.Endpoint, "/accounting") ||
+					strings.Contains(f.Endpoint, "/backup") ||
+					strings.Contains(f.Endpoint, "/dump")
+				if shouldCheck && fingerprint(epURL) == baseFP {
+					a.logger.Printf("[RED] Filtered SPA false positive: %s (%s)", f.Title, f.Endpoint)
+					continue
+				}
+				filtered = append(filtered, f)
+			}
+			allFindings = filtered
+		}
+	}
+
 	a.logger.Printf("[RED] Total findings this loop: %d", len(allFindings))
 	return allFindings, nil
+}
+
+// fingerprint returns a hash of the response body for dedup/SPA detection.
+func fingerprint(url string) string {
+	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(r *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := client.Get(url)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	h := sha256.Sum256(body)
+	return fmt.Sprintf("%x", h[:8])
 }
 
 // buildAttackPrompt creates the Red AI system prompt.

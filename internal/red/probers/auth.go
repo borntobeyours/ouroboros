@@ -48,19 +48,34 @@ func (p *AuthProber) testAdminAccessWithoutAuth(cfg *ProberConfig) []types.Findi
 			continue
 		}
 
+		// Skip SPA catch-all responses (Angular routes return index.html)
+		if cfg.IsSPAResponse(url) {
+			continue
+		}
+
 		if status == 200 && len(respBody) > 50 {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("Missing Authentication - Admin Endpoint (%s)", path),
-				"High",
-				fmt.Sprintf("The admin endpoint %s is accessible without authentication.", path),
-				path,
-				"GET",
-				"CWE-306",
-				fmt.Sprintf(`curl %s`, url),
-				fmt.Sprintf("HTTP %d - Response: %s", status, truncate(respBody, 200)),
-				"auth_bypass",
-				0,
-			))
+			// Must contain actual admin data, not just SPA HTML
+			lowerBody := strings.ToLower(respBody)
+			hasAdminContent := strings.Contains(lowerBody, "version") ||
+				strings.Contains(lowerBody, "config") ||
+				strings.Contains(lowerBody, "application") ||
+				strings.Contains(lowerBody, `"status"`) ||
+				!strings.Contains(lowerBody, "<!doctype html>")
+
+			if hasAdminContent {
+				findings = append(findings, MakeFinding(
+					fmt.Sprintf("Missing Authentication - Admin Endpoint (%s)", path),
+					"High",
+					fmt.Sprintf("The admin endpoint %s is accessible without authentication and returns real admin data.", path),
+					path,
+					"GET",
+					"CWE-306",
+					fmt.Sprintf(`curl %s`, url),
+					fmt.Sprintf("HTTP %d - Response: %s", status, truncate(respBody, 200)),
+					"auth_bypass",
+					0,
+				))
+			}
 		}
 	}
 

