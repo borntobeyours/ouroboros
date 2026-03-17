@@ -12,11 +12,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encoding/json"
+
 	"github.com/borntobeyours/ouroboros/internal/ai"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/engine"
 	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
 	"github.com/borntobeyours/ouroboros/internal/red/probers"
 	"github.com/borntobeyours/ouroboros/internal/report"
@@ -39,6 +42,7 @@ func main() {
 	rootCmd.AddCommand(newReportCmd())
 	rootCmd.AddCommand(newDiffCmd())
 	rootCmd.AddCommand(newCICmd())
+	rootCmd.AddCommand(newReconCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -574,6 +578,163 @@ func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
 // ============================================================
 // CI COMMAND — Exit code based on findings
 // ============================================================
+
+func newReconCmd() *cobra.Command {
+	var (
+		output  string
+		scanAll bool
+		workers int
+	)
+
+	cmd := &cobra.Command{
+		Use:   "recon [domain]",
+		Short: "Subdomain enumeration & reconnaissance",
+		Long: `Enumerate subdomains using certificate transparency (crt.sh) and DNS brute-force.
+
+Each discovered subdomain is probed for:
+  • DNS resolution (A records, CNAMEs)
+  • HTTP/HTTPS availability + title
+  • Subdomain takeover detection (30+ service signatures)
+
+Use --scan to automatically scan all alive subdomains after enumeration.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			domain := args[0]
+			domain = strings.TrimPrefix(domain, "https://")
+			domain = strings.TrimPrefix(domain, "http://")
+			domain = strings.Split(domain, "/")[0]
+
+			fmt.Printf("\n  \033[31m╔══════════════════════════════════════════════════════╗\033[0m\n")
+			fmt.Printf("  \033[31m║\033[0m\033[1m  🔍 OUROBOROS — SUBDOMAIN RECONNAISSANCE            \033[31m║\033[0m\n")
+			fmt.Printf("  \033[31m╚══════════════════════════════════════════════════════╝\033[0m\n\n")
+			fmt.Printf("  \033[36mDOMAIN\033[0m  %s\n", domain)
+			fmt.Printf("  \033[33mMODE\033[0m    crt.sh + DNS wordlist (%d workers)\n\n", workers)
+			fmt.Printf("  \033[90m──────────────────────────────────────────────────────\033[0m\n")
+
+			fmt.Printf("  🌐 \033[33mPhase 1:\033[0m Querying crt.sh (Certificate Transparency)...\n")
+
+			enum := recon.NewSubdomainEnum(domain, func(sub recon.Subdomain) {
+				if sub.Alive {
+					icon := "🟢"
+					scheme := "http"
+					if sub.HTTPS {
+						scheme = "https"
+					}
+					title := ""
+					if sub.HTTPTitle != "" {
+						title = fmt.Sprintf(" \033[90m— %s\033[0m", sub.HTTPTitle)
+					}
+					fmt.Printf("  %s \033[1m%s\033[0m \033[90m(%s://) [%d]\033[0m%s\n",
+						icon, sub.Name, scheme, sub.HTTPCode, title)
+				} else if sub.Takeover != "" {
+					fmt.Printf("  ⚠️  \033[31m%s\033[0m \033[33m%s\033[0m\n", sub.Name, sub.Takeover)
+				} else {
+					fmt.Printf("  ⚫ \033[90m%s (no response)\033[0m\n", sub.Name)
+				}
+			})
+
+			result := enum.Run()
+
+			// Summary
+			fmt.Printf("\n  \033[90m══════════════════════════════════════════════════════\033[0m\n")
+			fmt.Printf("  \033[36m📋 RECON COMPLETE\033[0m\n")
+			fmt.Printf("  \033[90m──────────────────────────────────────────────────────\033[0m\n")
+			fmt.Printf("  Domain:     %s\n", result.Domain)
+			fmt.Printf("  Duration:   %s\n", result.Duration)
+			fmt.Printf("  Subdomains: \033[1m%d\033[0m found, \033[32m%d alive\033[0m, \033[90m%d dead\033[0m\n",
+				result.Total, result.Alive, result.Total-result.Alive)
+
+			// Count takeover candidates
+			takeovers := 0
+			for _, s := range result.Subdomains {
+				if s.Takeover != "" {
+					takeovers++
+				}
+			}
+			if takeovers > 0 {
+				fmt.Printf("  Takeover:   \033[31m%d potential\033[0m\n", takeovers)
+			}
+
+			fmt.Printf("  \033[90m══════════════════════════════════════════════════════\033[0m\n\n")
+
+			// Output to file
+			if output != "" {
+				if strings.HasSuffix(output, ".json") {
+					data, _ := json.MarshalIndent(result, "", "  ")
+					if err := os.WriteFile(output, data, 0644); err != nil {
+						return fmt.Errorf("write output: %w", err)
+					}
+				} else {
+					var sb strings.Builder
+					sb.WriteString(fmt.Sprintf("# Subdomain Enumeration — %s\n\n", result.Domain))
+					sb.WriteString(fmt.Sprintf("**Total:** %d | **Alive:** %d | **Duration:** %s\n\n", result.Total, result.Alive, result.Duration))
+
+					sb.WriteString("## Alive Subdomains\n\n")
+					sb.WriteString("| Subdomain | IPs | HTTP | Title | Source |\n")
+					sb.WriteString("|-----------|-----|------|-------|--------|\n")
+					for _, s := range result.Subdomains {
+						if !s.Alive {
+							continue
+						}
+						scheme := "http"
+						if s.HTTPS {
+							scheme = "https"
+						}
+						sb.WriteString(fmt.Sprintf("| %s | %s | %s %d | %s | %s |\n",
+							s.Name, strings.Join(s.IPs, ", "), scheme, s.HTTPCode, s.HTTPTitle, s.Source))
+					}
+
+					if takeovers > 0 {
+						sb.WriteString("\n## ⚠️ Potential Subdomain Takeovers\n\n")
+						for _, s := range result.Subdomains {
+							if s.Takeover != "" {
+								sb.WriteString(fmt.Sprintf("- **%s** — %s (CNAME: %s)\n",
+									s.Name, s.Takeover, strings.Join(s.CNAMEs, ", ")))
+							}
+						}
+					}
+
+					sb.WriteString("\n## Dead Subdomains\n\n")
+					for _, s := range result.Subdomains {
+						if s.Alive || s.Takeover != "" {
+							continue
+						}
+						sb.WriteString(fmt.Sprintf("- %s (%s)\n", s.Name, s.Source))
+					}
+
+					if err := os.WriteFile(output, []byte(sb.String()), 0644); err != nil {
+						return fmt.Errorf("write output: %w", err)
+					}
+				}
+				fmt.Printf("  Report saved: %s\n\n", output)
+			}
+
+			// If --scan, print alive subdomains ready for scanning
+			if scanAll {
+				fmt.Printf("  \033[33m🐍 Scan targets:\033[0m\n")
+				for _, s := range result.Subdomains {
+					if !s.Alive {
+						continue
+					}
+					scheme := "http"
+					if s.HTTPS {
+						scheme = "https"
+					}
+					fmt.Printf("  ouroboros scan %s://%s\n", scheme, s.Name)
+				}
+				fmt.Println()
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file (.json or .md)")
+	cmd.Flags().BoolVar(&scanAll, "scan", false, "Print scan commands for alive subdomains")
+	cmd.Flags().IntVar(&workers, "workers", 20, "Concurrent workers for DNS/HTTP probing")
+
+	return cmd
+}
 
 func newCICmd() *cobra.Command {
 	var (
