@@ -114,6 +114,22 @@ func adjustByTechnique(f *types.Finding) types.Confidence {
 			conf = types.ConfProven
 		}
 
+	case tech == "ssrf":
+		// Cloud metadata with actual data = proven
+		if strings.Contains(lower, "ami-id") || strings.Contains(lower, "instance-id") ||
+			strings.Contains(lower, "accesskeyid") || strings.Contains(lower, "secretaccesskey") ||
+			strings.Contains(lower, "vmid") || strings.Contains(lower, "subscriptionid") ||
+			strings.Contains(lower, "serviceaccounts") {
+			conf = types.ConfProven + 5
+		} else if strings.Contains(lower, "redis_version") || strings.Contains(lower, "elasticsearch") ||
+			strings.Contains(lower, "etcdserver") {
+			conf = types.ConfProven
+		} else if strings.Contains(lower, "bypass") {
+			conf = types.ConfHigh
+		} else if strings.Contains(lower, "fetched") || strings.Contains(lower, "localhost") {
+			conf = types.ConfHigh
+		}
+
 	case tech == "info_leak":
 		// Git repo with commit hash = proven
 		if strings.Contains(lower, "source code extractable") || strings.Contains(lower, "commit hash:") {
