@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -42,11 +43,14 @@ func main() {
 
 func newScanCmd() *cobra.Command {
 	var (
-		maxLoops  int
-		finalBoss bool
-		provider  string
-		model     string
-		output    string
+		maxLoops      int
+		finalBoss     bool
+		provider      string
+		model         string
+		output        string
+		minConfidence int
+		minCVSS       float64
+		sortBy        string
 	)
 
 	cmd := &cobra.Command{
@@ -56,7 +60,7 @@ func newScanCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetURL := args[0]
-			return runScan(targetURL, maxLoops, finalBoss, provider, model, output)
+			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy)
 		},
 	}
 
@@ -64,12 +68,15 @@ func newScanCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&finalBoss, "final-boss", false, "Enable Final Boss validation after convergence")
 	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model to use")
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file (supports .json, .md)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file (supports .json, .md, .sarif)")
+	cmd.Flags().IntVar(&minConfidence, "min-confidence", 0, "Minimum confidence score to include (0-100)")
+	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score to include (0.0-10.0)")
+	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort findings by: cvss, confidence, severity")
 
 	return cmd
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -140,10 +147,19 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 		if err != nil {
 			logger.Printf("Warning: could not load findings for export: %v", err)
 		} else {
+			// Apply filters
+			findings = filterFindings(findings, minConfidence, minCVSS)
+			// Sort
+			sortFindings(findings, sortBy)
+
 			if err := exportReport(output, findings, session); err != nil {
 				return fmt.Errorf("export report: %w", err)
 			}
-			fmt.Printf("\nReport exported to: %s\n", output)
+			filtered := ""
+			if minConfidence > 0 || minCVSS > 0 {
+				filtered = fmt.Sprintf(" (filtered: min-confidence=%d, min-cvss=%.1f)", minConfidence, minCVSS)
+			}
+			fmt.Printf("\nReport exported to: %s%s\n", output, filtered)
 		}
 	}
 
@@ -152,27 +168,33 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 
 func newReportCmd() *cobra.Command {
 	var (
-		sessionID string
-		format    string
-		output    string
+		sessionID     string
+		format        string
+		output        string
+		minConfidence int
+		minCVSS       float64
+		sortBy        string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "View findings from a scan session",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReport(sessionID, format, output)
+			return runReport(sessionID, format, output, minConfidence, minCVSS, sortBy)
 		},
 	}
 
 	cmd.Flags().StringVar(&sessionID, "session", "", "Session ID to view")
 	cmd.Flags().StringVar(&format, "format", "terminal", "Output format (terminal, json, markdown)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file")
+	cmd.Flags().IntVar(&minConfidence, "min-confidence", 0, "Minimum confidence score (0-100)")
+	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score (0.0-10.0)")
+	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort by: cvss, confidence, severity")
 
 	return cmd
 }
 
-func runReport(sessionID, format, output string) error {
+func runReport(sessionID, format, output string, minConfidence int, minCVSS float64, sortBy string) error {
 	store, err := memory.NewStore("")
 	if err != nil {
 		return fmt.Errorf("initialize store: %w", err)
@@ -213,6 +235,10 @@ func runReport(sessionID, format, output string) error {
 		return fmt.Errorf("load findings: %w", err)
 	}
 
+	// Apply filters and sort
+	findings = filterFindings(findings, minConfidence, minCVSS)
+	sortFindings(findings, sortBy)
+
 	if output != "" {
 		return exportReport(output, findings, session)
 	}
@@ -230,7 +256,60 @@ func runReport(sessionID, format, output string) error {
 	return nil
 }
 
+// filterFindings removes findings below minimum confidence or CVSS thresholds.
+func filterFindings(findings []types.Finding, minConf int, minCVSS float64) []types.Finding {
+	if minConf == 0 && minCVSS == 0 {
+		return findings
+	}
+	filtered := make([]types.Finding, 0, len(findings))
+	for _, f := range findings {
+		if int(f.Confidence) < minConf {
+			continue
+		}
+		if f.CVSS.Score < minCVSS {
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	return filtered
+}
+
+// sortFindings sorts findings by the specified criteria (descending).
+func sortFindings(findings []types.Finding, sortBy string) {
+	switch sortBy {
+	case "confidence":
+		sort.Slice(findings, func(i, j int) bool {
+			return findings[i].Confidence > findings[j].Confidence
+		})
+	case "severity":
+		sort.Slice(findings, func(i, j int) bool {
+			si := findings[i].AdjustedSeverity
+			if si == 0 {
+				si = findings[i].Severity
+			}
+			sj := findings[j].AdjustedSeverity
+			if sj == 0 {
+				sj = findings[j].Severity
+			}
+			if si != sj {
+				return si > sj
+			}
+			return findings[i].CVSS.Score > findings[j].CVSS.Score
+		})
+	default: // "cvss" or anything else
+		sort.Slice(findings, func(i, j int) bool {
+			if findings[i].CVSS.Score != findings[j].CVSS.Score {
+				return findings[i].CVSS.Score > findings[j].CVSS.Score
+			}
+			return findings[i].Confidence > findings[j].Confidence
+		})
+	}
+}
+
 func exportReport(path string, findings []types.Finding, session *types.ScanSession) error {
+	if len(path) > 6 && path[len(path)-6:] == ".sarif" {
+		return report.ExportSARIF(findings, session, path)
+	}
 	if len(path) > 5 && path[len(path)-5:] == ".json" {
 		return report.ExportJSON(findings, session, path)
 	}
