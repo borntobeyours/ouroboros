@@ -1,180 +1,133 @@
-# Ouroboros
+# 🐍 Ouroboros
 
 **Security that attacks itself until nothing can.**
 
-Ouroboros is an open-source AI-powered security platform with a self-learning adversarial loop. Red AI attacks your web application, Blue AI generates fixes, then Red AI attacks again — looping until no new vulnerabilities are found.
+Ouroboros is an AI-powered security scanner that uses adversarial AI loops to find and validate vulnerabilities. A Red AI attacks your application, a Blue AI generates fixes, then the Red AI attacks again — looping until convergence.
+
+Every finding is backed by real HTTP evidence, not theoretical speculation.
 
 ## How It Works
 
 ```
-Target URL
-    │
-    ▼
-┌──────────┐     ┌──────────┐     ┌──────────┐
-│  RED AI   │────▶│ BLUE AI  │────▶│ RE-ATTACK│──┐
-│ (Attack)  │     │  (Fix)   │     │(Escalate)│  │
-└──────────┘     └──────────┘     └──────────┘  │
-                                      │         │
-                             no new   │  new    │
-                             vulns    │  vulns  │
-                               ▼      │         │
-                         ┌─────────┐  │         │
-                         │CONVERGE │◀─┘         │
-                         │  CHECK  │────────────┘
-                         └────┬────┘   (loop back)
-                              │ converged
-                              ▼
-                        ┌──────────┐
-                        │FINAL BOSS│
-                        │(Optional)│
-                        └──────────┘
+┌─────────┐     findings      ┌──────────┐
+│  Red AI  │ ───────────────► │  Blue AI  │
+│ (Attack) │                  │ (Defend)  │
+└─────────┘ ◄─────────────── └──────────┘
+                patches
+        ↻ Loop until convergence
 ```
 
-1. **Red AI** crawls your target and uses AI to identify vulnerabilities (OWASP Top 10)
-2. **Blue AI** analyzes each finding and generates specific patches and hardening recommendations
-3. **Red AI re-attacks** with knowledge of the patches, trying to bypass them
-4. **Loop** continues until convergence (0 new findings) or max iterations reached
-5. **Final Boss** (optional) performs an elite validation scan with advanced techniques
+1. **Red AI** crawls the target, runs 11 technique-specific probers, and uses AI-guided exploitation
+2. **Blue AI** analyzes findings and generates patches/remediations
+3. **Loop** — Red AI attacks again, trying to bypass Blue's fixes
+4. **Convergence** — when no new vulnerabilities are found, the scan completes
 
-All findings, patches, and attack patterns are stored in a local SQLite database for self-learning across sessions.
+## Features
 
-## Installation
-
-### From Source
-
-```bash
-go install github.com/ouroboros-security/ouroboros/cmd/ouroboros@latest
-```
-
-### Build from Repository
-
-```bash
-git clone https://github.com/ouroboros-security/ouroboros.git
-cd ouroboros
-make build
-```
-
-### Docker
-
-```bash
-docker build -t ouroboros .
-docker run --rm -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY ouroboros scan https://target.example.com
-```
+- **11 Active Probers**: SQLi, XSS, IDOR, auth bypass, info leaks, injection, headers, file upload, SSRF, crypto, and more
+- **AI-Guided Exploitation**: Multi-step exploit plans with adaptive retry
+- **SPA Detection**: Fingerprints base URL to eliminate false positives from SPA catch-all routes
+- **Authenticated Scanning**: Auto SQLi login bypass, then scans with JWT token
+- **Self-Learning Memory**: SQLite-backed playbook of successful techniques
+- **Real Evidence**: Every finding includes actual HTTP request/response proof
 
 ## Quick Start
 
-Set your AI provider API key:
-
 ```bash
-export ANTHROPIC_API_KEY=your-key-here
-# or
-export OPENAI_API_KEY=your-key-here
+# Install
+go install github.com/borntobeyours/ouroboros/cmd/ouroboros@latest
+
+# Or build from source
+git clone https://github.com/borntobeyours/ouroboros.git
+cd ouroboros
+go build ./cmd/ouroboros/
+
+# Scan a target (requires OpenAI API key)
+export OPENAI_API_KEY=sk-...
+./ouroboros scan http://localhost:3000
+
+# With options
+./ouroboros scan http://localhost:3000 \
+  --max-loops 3 \
+  --provider openai \
+  --model gpt-4o \
+  -o report.md
 ```
 
-Run a scan:
+## Scan Results (OWASP Juice Shop)
 
-```bash
-# Basic scan with default settings (Anthropic Claude)
-ouroboros scan https://target.example.com
+```
+Target:    http://localhost:3000
+Duration:  2m33s
+Loops:     3
+Converged: true
 
-# Limit to 5 loops
-ouroboros scan https://target.example.com --max-loops 5
+Total Findings: 81
+Confirmed:      79/81 (97.5%)
 
-# Enable Final Boss validation
-ouroboros scan https://target.example.com --final-boss
-
-# Use OpenAI
-ouroboros scan https://target.example.com --provider openai --model gpt-4o
-
-# Use local model via Ollama
-ouroboros scan https://target.example.com --provider ollama --model llama3
-
-# Export report
-ouroboros scan https://target.example.com -o report.json
-ouroboros scan https://target.example.com -o report.md
+  Critical: 4
+  High:     25
+  Medium:   30
+  Low:      17
+  Info:     5
 ```
 
-View reports:
+### Sample Findings
+- **SQLi Login Bypass** — `' OR 1=1--` gets admin JWT token
+- **UNION-based SQLi** — dumps entire SQLite schema via product search
+- **Stored XSS** — persistent payload in product reviews
+- **IDOR** — access any user's basket, profile, payment cards
+- **XXE** — XML entity injection in B2B order endpoint
+- **JWT Key Exposure** — public key readable, enables token forgery
+- **Null Byte Bypass** — download restricted files via `%2500` encoding
+- **Privilege Escalation** — register with `role=admin` accepted
+
+## AI Providers
+
+| Provider | Models | Notes |
+|----------|--------|-------|
+| OpenAI | gpt-4o, gpt-4-turbo | Default, best results |
+| Anthropic | claude-sonnet, claude-opus | Opus reserved for Final Boss mode |
+| Ollama | Any local model | Free, runs locally |
 
 ```bash
-# List recent sessions
-ouroboros report
-
-# View a specific session
-ouroboros report --session <session-id>
+# Use different providers
+./ouroboros scan http://target --provider anthropic --model claude-sonnet-4-20250514
+./ouroboros scan http://target --provider ollama --model llama3
 ```
 
 ## Architecture
 
 ```
-ouroboros/
-├── cmd/ouroboros/          # CLI entry point (cobra)
-├── internal/
-│   ├── ai/                # AI provider abstraction (Anthropic, OpenAI, Ollama)
-│   ├── red/               # Red AI attacker (crawler + AI scanner)
-│   │   └── techniques/    # Attack technique payloads
-│   ├── blue/              # Blue AI defender (analyzer + patcher)
-│   ├── boss/              # Final Boss validator
-│   ├── engine/            # Core loop orchestrator + convergence detection
-│   ├── memory/            # SQLite self-learning store
-│   ├── report/            # Terminal, JSON, and Markdown output
-│   └── target/            # Target management and scope
-├── pkg/
-│   ├── types/             # Shared types (Finding, Severity, Target)
-│   └── plugin/            # Plugin interface for community extensions
-└── plugins/               # Community attack technique plugins
+cmd/ouroboros/          CLI entry point
+internal/
+  ai/                  AI provider abstraction (OpenAI, Anthropic, Ollama)
+  red/                 Red AI agent
+    probers/           11 technique-specific active probers
+    techniques/        SQLi, XSS, auth bypass implementations
+    active_exploit.go  AI-guided multi-step exploitation
+    crawler.go         SPA-aware web crawler
+  blue/                Blue AI agent (patch generation)
+  boss/                Final Boss validation (stub)
+  engine/              Ouroboros loop engine + convergence detection
+  memory/              SQLite persistent store
+  report/              Markdown report generation
+pkg/types/             Shared types (Finding, Patch, Target, etc.)
 ```
 
-### AI Providers
+## Roadmap
 
-Ouroboros supports multiple AI backends:
-
-| Provider | Models | API Key Env Var |
-|----------|--------|-----------------|
-| Anthropic | Claude Sonnet (default), Claude Opus | `ANTHROPIC_API_KEY` |
-| OpenAI | GPT-4o, GPT-4, etc. | `OPENAI_API_KEY` |
-| Ollama | Any local model (llama3, etc.) | Not required |
-
-### Self-Learning Memory
-
-Ouroboros stores findings and patterns in a local SQLite database (`~/.ouroboros/ouroboros.db`):
-
-- **Attack Playbook**: Successful attack patterns per technique
-- **Bypass Library**: When patches fail, the bypass is cataloged
-- **Session History**: All scan sessions with full finding history
-
-## Supported Attack Techniques
-
-- SQL Injection (error-based, blind, time-based, UNION)
-- Cross-Site Scripting (reflected, stored, DOM-based)
-- Server-Side Request Forgery (SSRF)
-- Insecure Direct Object References (IDOR)
-- Authentication/Authorization Bypass
-- Command Injection
-- Path Traversal / LFI
-- Security Misconfigurations
-- Sensitive Data Exposure
-- And more via AI-powered analysis
-
-## Important Notes
-
-- Only scan targets you have explicit authorization to test
-- The crawler respects `robots.txt` and includes rate limiting
-- Findings are AI-generated assessments — always validate manually
-- This tool is for authorized security testing and educational purposes only
-
-## Contributing
-
-Contributions are welcome! Areas where help is needed:
-
-- New attack technique plugins
-- Additional AI provider integrations
-- Dashboard UI (React, Phase 2)
-- Test coverage
-- Documentation
-
-Please open an issue first to discuss significant changes.
+- [ ] Web dashboard (React)
+- [ ] Final Boss mode (Opus-level AI validation)
+- [ ] CI/CD pipeline integration
+- [ ] Compliance report generation (SOC2, ISO27001)
+- [ ] Plugin system for custom probers
+- [ ] OpenRouter provider support
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+Apache 2.0 — see [LICENSE](LICENSE)
+
+---
+
+*The serpent that eats its own tail. The more it attacks, the stronger it becomes.*
