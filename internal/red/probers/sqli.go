@@ -214,6 +214,14 @@ func (p *SQLiProber) testParameterSQLi(cfg *ProberConfig, endpoints []types.Endp
 		}
 
 		for _, param := range ep.Parameters {
+			// Skip read-only parameters (ver, v, cache busters)
+			if IsReadOnlyParam(param) {
+				continue
+			}
+			// Skip static assets (JS/CSS files)
+			if IsStaticAssetURL(ep.URL) {
+				continue
+			}
 			testURL := fmt.Sprintf("%s?%s=%s", strings.Split(ep.URL, "?")[0], param, url.QueryEscape(sqlPayload))
 			status, _, respBody, err := cfg.DoRequest("GET", testURL, nil, nil)
 			if err != nil {

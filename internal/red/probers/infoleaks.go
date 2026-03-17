@@ -190,29 +190,50 @@ func (p *InfoLeakProber) testAPIDataExposure(cfg *ProberConfig) []types.Finding 
 		return findings
 	}
 
-	// Check API endpoints that might expose data without auth
+	// Check API endpoints that might expose sensitive data without auth
+	tested := make(map[string]bool)
 	for _, ep := range cfg.Classified.API {
 		path := extractPath(ep.URL)
+
+		if tested[path] {
+			continue
+		}
+		tested[path] = true
 
 		// Only check endpoints that returned data during discovery
 		if ep.StatusCode != 200 || len(ep.Body) < 20 {
 			continue
 		}
 
+		// Skip known public-by-design CMS APIs
+		lowerPath := strings.ToLower(path)
+		if strings.Contains(lowerPath, "wp-json/wp/v2/posts") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/pages") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/categories") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/tags") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/comments") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/media") ||
+			strings.Contains(lowerPath, "wp-json/oembed") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/types") ||
+			strings.Contains(lowerPath, "wp-json/wp/v2/statuses") ||
+			strings.Contains(lowerPath, "/feed") ||
+			strings.Contains(lowerPath, "/rss") {
+			continue
+		}
+
 		lowerBody := strings.ToLower(ep.Body)
-		sensitiveIndicators := []string{"email", "password", "username", "secret",
-			"token", "card", "ssn", "phone", "address"}
 
-		for _, indicator := range sensitiveIndicators {
+		// Only flag actually sensitive data — passwords, tokens, secrets, cards
+		// NOT just "email" or "name" which appear in public APIs
+		highSensitivity := []string{"password", "passwd", "secret", "token",
+			"api_key", "apikey", "private_key", "credit_card", "cardnum",
+			"ssn", "social_security"}
+
+		for _, indicator := range highSensitivity {
 			if strings.Contains(lowerBody, indicator) {
-				sev := "Medium"
-				if indicator == "password" || indicator == "secret" || indicator == "card" || indicator == "ssn" {
-					sev = "High"
-				}
-
 				findings = append(findings, MakeFinding(
 					fmt.Sprintf("Sensitive Data Exposure - %s API", path),
-					sev,
+					"High",
 					fmt.Sprintf("The %s endpoint exposes data containing '%s' without requiring authentication.", path, indicator),
 					path,
 					"GET",

@@ -177,6 +177,34 @@ func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.E
 	return all
 }
 
+// readOnlyParams are query parameters that are typically read-only cache busters
+// or version strings and should NOT be tested for injection.
+var readOnlyParams = map[string]bool{
+	"ver": true, "v": true, "version": true,
+	"cache": true, "cb": true, "t": true, "ts": true,
+	"_": true, "nocache": true, "rand": true,
+	"hash": true, "etag": true, "rev": true,
+	"build": true, "min": true, "minify": true,
+}
+
+// IsReadOnlyParam checks if a query parameter is a known read-only/cache buster.
+func IsReadOnlyParam(param string) bool {
+	return readOnlyParams[strings.ToLower(param)]
+}
+
+// IsStaticAssetURL checks if a URL points to a static asset (JS, CSS, images, fonts).
+func IsStaticAssetURL(u string) bool {
+	lower := strings.ToLower(u)
+	staticExts := []string{".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+		".ico", ".woff", ".woff2", ".ttf", ".eot", ".map"}
+	for _, ext := range staticExts {
+		if strings.Contains(lower, ext+"?") || strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 // SetClassifiedEndpoints stores the classified endpoints in a package-level
 // variable so probers can access them. This avoids changing the Prober interface.
 var currentClassified *types.ClassifiedEndpoints

@@ -96,22 +96,48 @@ func (p *InjectionProber) testXXE(cfg *ProberConfig, endpoints []types.Endpoint)
 
 	xxePayload := `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root><test>&xxe;</test></root>`
 
-	// Test any endpoint that accepts XML or might accept content type confusion
+	// Test endpoints that accept POST with XML/JSON content
+	tested := make(map[string]bool)
 	for _, ep := range endpoints {
 		if ep.HasCategory(types.CatStatic) {
 			continue
 		}
 
-		ct := strings.ToLower(ep.ContentType)
 		path := extractPath(ep.URL)
-
-		// Target endpoints that accept XML or JSON (for content type confusion)
-		if !strings.Contains(ct, "xml") && !strings.Contains(ct, "json") &&
-			!strings.Contains(strings.ToLower(path), "order") &&
-			!strings.Contains(strings.ToLower(path), "import") &&
-			!strings.Contains(strings.ToLower(path), "upload") {
+		if tested[path] {
 			continue
 		}
+
+		lowerPath := strings.ToLower(path)
+		ct := strings.ToLower(ep.ContentType)
+
+		// Skip RSS/Atom feeds — they serve XML via GET, not accept XML input
+		if strings.Contains(lowerPath, "/feed") || strings.Contains(lowerPath, "/rss") ||
+			strings.Contains(lowerPath, "/atom") || strings.HasSuffix(lowerPath, ".xml") {
+			continue
+		}
+
+		// Skip static assets
+		if IsStaticAssetURL(ep.URL) {
+			continue
+		}
+
+		// Only test endpoints likely to accept XML input:
+		// - POST endpoints, or
+		// - Endpoints with XML/JSON content type that aren't pure read APIs, or
+		// - Upload/import/order endpoints
+		isUploadLike := strings.Contains(lowerPath, "upload") ||
+			strings.Contains(lowerPath, "import") ||
+			strings.Contains(lowerPath, "order") ||
+			strings.Contains(lowerPath, "b2b") ||
+			strings.Contains(lowerPath, "soap")
+		acceptsStructured := strings.Contains(ct, "xml") || strings.Contains(ct, "json")
+
+		if ep.Method != "POST" && !isUploadLike && !acceptsStructured {
+			continue
+		}
+
+		tested[path] = true
 
 		headers := map[string]string{"Content-Type": "application/xml"}
 		if cfg.AuthToken != "" {

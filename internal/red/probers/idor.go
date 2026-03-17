@@ -151,18 +151,25 @@ func (p *IDORProber) testAPIListEndpoints(cfg *ProberConfig) []types.Finding {
 			continue
 		}
 
+		// Skip known public-by-design APIs (CMS REST APIs, etc.)
+		if isPublicAPIByDesign(lowerPath) {
+			continue
+		}
+
 		status, _, respBody, err := cfg.DoRequest("GET", ep.URL, nil, nil)
 		if err != nil || status != 200 {
 			continue
 		}
 
 		lowerBody := strings.ToLower(respBody)
-		hasSensitiveData := strings.Contains(lowerBody, "email") ||
-			strings.Contains(lowerBody, "password") ||
-			strings.Contains(lowerBody, "username") ||
-			strings.Contains(lowerBody, "address") ||
-			strings.Contains(lowerBody, "phone") ||
-			strings.Contains(lowerBody, "card")
+		// Require ACTUALLY sensitive data, not just "name" or "email" in a blog post
+		hasSensitiveData := strings.Contains(lowerBody, "password") ||
+			strings.Contains(lowerBody, "secret") ||
+			strings.Contains(lowerBody, "token") ||
+			strings.Contains(lowerBody, "ssn") ||
+			strings.Contains(lowerBody, "credit_card") ||
+			strings.Contains(lowerBody, "cardnum") ||
+			(strings.Contains(lowerBody, "email") && strings.Contains(lowerBody, "phone"))
 
 		if hasSensitiveData && (strings.Contains(respBody, "data") || strings.Contains(respBody, "[")) {
 			sev := "Medium"
@@ -233,6 +240,28 @@ func isNumericStr(s string) bool {
 		}
 	}
 	return len(s) > 0
+}
+
+// isPublicAPIByDesign checks for known public CMS/framework API patterns
+// that expose data intentionally (WordPress REST API, etc.)
+func isPublicAPIByDesign(path string) bool {
+	publicPatterns := []string{
+		"/wp-json/wp/v2/posts", "/wp-json/wp/v2/pages",
+		"/wp-json/wp/v2/categories", "/wp-json/wp/v2/tags",
+		"/wp-json/wp/v2/comments", "/wp-json/wp/v2/media",
+		"/wp-json/wp/v2/types", "/wp-json/wp/v2/statuses",
+		"/wp-json/wp/v2/taxonomies", "/wp-json/oembed",
+		"/wp-json/", "/wp-json",
+		"/api-docs", "/swagger", "/openapi",
+		"/graphql", // introspection is separate finding
+	}
+	lower := strings.ToLower(path)
+	for _, pp := range publicPatterns {
+		if strings.HasPrefix(lower, pp) || lower == pp {
+			return true
+		}
+	}
+	return false
 }
 
 func isCollectionEndpoint(path string) bool {

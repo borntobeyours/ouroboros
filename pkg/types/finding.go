@@ -3,6 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -28,7 +29,14 @@ type Finding struct {
 
 // Signature returns a unique hash for deduplication.
 func (f *Finding) Signature() string {
-	data := fmt.Sprintf("%s|%s|%s|%s", f.Endpoint, f.Method, f.Technique, f.CWE)
+	// Normalize endpoint: strip query params and trailing slashes for consistent dedup
+	ep := f.Endpoint
+	if idx := strings.Index(ep, "?"); idx != -1 {
+		ep = ep[:idx]
+	}
+	ep = strings.TrimRight(ep, "/")
+	// Also include title for findings with same endpoint but different vulns
+	data := fmt.Sprintf("%s|%s|%s|%s|%s", ep, f.Method, f.Technique, f.CWE, f.Title)
 	hash := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("%x", hash[:8])
 }
