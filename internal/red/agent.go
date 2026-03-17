@@ -111,11 +111,25 @@ func BuildUserPrompt(target types.Target, urls []string, endpoints []types.Endpo
 
 	sb.WriteString(fmt.Sprintf("TARGET: %s\n\n", target.URL))
 
-	sb.WriteString("DISCOVERED ENDPOINTS:\n")
+	sb.WriteString(fmt.Sprintf("DISCOVERED ENDPOINTS (%d total):\n", len(endpoints)))
 	for _, ep := range endpoints {
-		sb.WriteString(fmt.Sprintf("- [%s] %s (status: %d, type: %s)\n", ep.Method, ep.URL, ep.StatusCode, ep.ContentType))
+		sb.WriteString(fmt.Sprintf("\n--- [%s] %s (status: %d, type: %s) ---\n", ep.Method, ep.URL, ep.StatusCode, ep.ContentType))
 		if len(ep.Parameters) > 0 {
 			sb.WriteString(fmt.Sprintf("  Parameters: %s\n", strings.Join(ep.Parameters, ", ")))
+		}
+		if len(ep.ResponseHeaders) > 0 {
+			sb.WriteString("  Security Headers:\n")
+			for k, v := range ep.ResponseHeaders {
+				sb.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+			}
+		}
+		// Include truncated response body for API endpoints
+		if ep.Body != "" && (strings.Contains(ep.ContentType, "json") || strings.Contains(ep.ContentType, "xml") || ep.StatusCode >= 400) {
+			body := ep.Body
+			if len(body) > 1000 {
+				body = body[:1000] + "...[truncated]"
+			}
+			sb.WriteString(fmt.Sprintf("  Response Body:\n  %s\n", body))
 		}
 	}
 	sb.WriteString("\n")

@@ -15,13 +15,14 @@ type Target struct {
 
 // Endpoint represents a discovered endpoint on the target.
 type Endpoint struct {
-	URL         string            `json:"url"`
-	Method      string            `json:"method"`
-	StatusCode  int               `json:"status_code,omitempty"`
-	ContentType string            `json:"content_type,omitempty"`
-	Parameters  []string          `json:"parameters,omitempty"`
-	Headers     map[string]string `json:"headers,omitempty"`
-	Body        string            `json:"body,omitempty"`
+	URL             string            `json:"url"`
+	Method          string            `json:"method"`
+	StatusCode      int               `json:"status_code,omitempty"`
+	ContentType     string            `json:"content_type,omitempty"`
+	Parameters      []string          `json:"parameters,omitempty"`
+	Headers         map[string]string `json:"headers,omitempty"`
+	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
+	Body            string            `json:"body,omitempty"`
 }
 
 // ScanConfig holds configuration for a scan session.
