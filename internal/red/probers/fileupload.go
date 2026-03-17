@@ -7,7 +7,7 @@ import (
 	"mime/multipart"
 	"strings"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // FileUploadProber tests for file upload vulnerabilities.

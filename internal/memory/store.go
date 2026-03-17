@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Store provides persistent storage for findings, patterns, and playbooks.

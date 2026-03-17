@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // DiscoverEndpoints probes a list of URLs and returns endpoint metadata.

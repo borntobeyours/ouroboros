@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Prober is the interface that all technique-specific probers implement.

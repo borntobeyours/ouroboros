@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ouroboros-security/ouroboros/internal/ai"
-	"github.com/ouroboros-security/ouroboros/internal/red/probers"
-	target_pkg "github.com/ouroboros-security/ouroboros/internal/target"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/internal/red/probers"
+	target_pkg "github.com/borntobeyours/ouroboros/internal/target"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Agent is the Red AI attacker agent.

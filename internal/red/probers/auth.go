@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // AuthProber tests for authentication and access control vulnerabilities.

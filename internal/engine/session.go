@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"github.com/ouroboros-security/ouroboros/internal/memory"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // SessionManager handles scan session persistence.

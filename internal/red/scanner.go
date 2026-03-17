@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ouroboros-security/ouroboros/internal/ai"
-	"github.com/ouroboros-security/ouroboros/internal/target"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/internal/target"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Scanner uses AI to analyze endpoints for vulnerabilities.

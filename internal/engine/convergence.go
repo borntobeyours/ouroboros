@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/ouroboros-security/ouroboros/pkg/types"
+import "github.com/borntobeyours/ouroboros/pkg/types"
 
 // ConvergenceChecker tracks unique findings and detects convergence.
 type ConvergenceChecker struct {

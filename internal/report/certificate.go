@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // GenerateCertificate creates an Ouroboros security certificate.

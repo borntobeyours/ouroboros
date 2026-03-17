@@ -1,6 +1,6 @@
 package target
 
-import "github.com/ouroboros-security/ouroboros/pkg/types"
+import "github.com/borntobeyours/ouroboros/pkg/types"
 
 // WebApp represents a web application target with discovered endpoints.
 type WebApp struct {

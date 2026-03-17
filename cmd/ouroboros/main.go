@@ -10,14 +10,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ouroboros-security/ouroboros/internal/ai"
-	"github.com/ouroboros-security/ouroboros/internal/blue"
-	"github.com/ouroboros-security/ouroboros/internal/boss"
-	"github.com/ouroboros-security/ouroboros/internal/engine"
-	"github.com/ouroboros-security/ouroboros/internal/memory"
-	"github.com/ouroboros-security/ouroboros/internal/red"
-	"github.com/ouroboros-security/ouroboros/internal/report"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/internal/blue"
+	"github.com/borntobeyours/ouroboros/internal/boss"
+	"github.com/borntobeyours/ouroboros/internal/engine"
+	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/internal/red"
+	"github.com/borntobeyours/ouroboros/internal/report"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 var (

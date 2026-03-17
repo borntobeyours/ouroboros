@@ -1,4 +1,4 @@
-module github.com/ouroboros-security/ouroboros
+module github.com/borntobeyours/ouroboros
 
 go 1.25.0
 

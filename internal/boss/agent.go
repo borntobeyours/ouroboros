@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ouroboros-security/ouroboros/internal/ai"
-	"github.com/ouroboros-security/ouroboros/internal/red"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/internal/red"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Agent is the Final Boss validator - a more aggressive attacker for final validation.

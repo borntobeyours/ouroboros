@@ -1,6 +1,6 @@
 package blue
 
-import "github.com/ouroboros-security/ouroboros/pkg/types"
+import "github.com/borntobeyours/ouroboros/pkg/types"
 
 // CategorizeFinding determines the category of a finding for targeted remediation.
 func CategorizeFinding(f types.Finding) string {

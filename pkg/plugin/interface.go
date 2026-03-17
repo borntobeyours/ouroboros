@@ -1,6 +1,6 @@
 package plugin
 
-import "github.com/ouroboros-security/ouroboros/pkg/types"
+import "github.com/borntobeyours/ouroboros/pkg/types"
 
 // AttackPlugin defines the interface for community attack technique plugins.
 type AttackPlugin interface {

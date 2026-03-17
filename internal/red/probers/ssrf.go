@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // SSRFProber tests for Server-Side Request Forgery vulnerabilities.

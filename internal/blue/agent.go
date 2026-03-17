@@ -7,8 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/ouroboros-security/ouroboros/internal/ai"
-	"github.com/ouroboros-security/ouroboros/pkg/types"
+	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
 // Agent is the Blue AI defender agent.
