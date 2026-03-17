@@ -13,16 +13,56 @@ type Target struct {
 	Cookies map[string]string `json:"cookies,omitempty"`
 }
 
+// EndpointCategory classifies the role of a discovered endpoint.
+type EndpointCategory string
+
+const (
+	CatLogin      EndpointCategory = "login"
+	CatAPI        EndpointCategory = "api"
+	CatFileUpload EndpointCategory = "file_upload"
+	CatAdmin      EndpointCategory = "admin"
+	CatSearch     EndpointCategory = "search"
+	CatUserData   EndpointCategory = "user_data"
+	CatStatic     EndpointCategory = "static"
+	CatRedirect   EndpointCategory = "redirect"
+	CatGraphQL    EndpointCategory = "graphql"
+	CatUnknown    EndpointCategory = "unknown"
+)
+
 // Endpoint represents a discovered endpoint on the target.
 type Endpoint struct {
-	URL             string            `json:"url"`
-	Method          string            `json:"method"`
-	StatusCode      int               `json:"status_code,omitempty"`
-	ContentType     string            `json:"content_type,omitempty"`
-	Parameters      []string          `json:"parameters,omitempty"`
-	Headers         map[string]string `json:"headers,omitempty"`
-	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
-	Body            string            `json:"body,omitempty"`
+	URL             string             `json:"url"`
+	Method          string             `json:"method"`
+	StatusCode      int                `json:"status_code,omitempty"`
+	ContentType     string             `json:"content_type,omitempty"`
+	Parameters      []string           `json:"parameters,omitempty"`
+	Headers         map[string]string  `json:"headers,omitempty"`
+	ResponseHeaders map[string]string  `json:"response_headers,omitempty"`
+	Body            string             `json:"body,omitempty"`
+	Categories      []EndpointCategory `json:"categories,omitempty"`
+}
+
+// HasCategory returns true if the endpoint has the given category.
+func (e Endpoint) HasCategory(cat EndpointCategory) bool {
+	for _, c := range e.Categories {
+		if c == cat {
+			return true
+		}
+	}
+	return false
+}
+
+// ClassifiedEndpoints provides categorized views of discovered endpoints.
+type ClassifiedEndpoints struct {
+	All        []Endpoint
+	Login      []Endpoint
+	API        []Endpoint
+	FileUpload []Endpoint
+	Admin      []Endpoint
+	Search     []Endpoint
+	UserData   []Endpoint
+	Redirect   []Endpoint
+	GraphQL    []Endpoint
 }
 
 // ScanConfig holds configuration for a scan session.

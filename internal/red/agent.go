@@ -19,13 +19,13 @@ import (
 
 // Agent is the Red AI attacker agent.
 type Agent struct {
-	provider       ai.Provider
-	crawler        *Crawler
-	scanner        *Scanner
-	exploiter      *Exploiter
-	activeExploit  *ActiveExploiter
-	logger         *log.Logger
-	lastEndpoints  []types.Endpoint // cached from last crawl
+	provider      ai.Provider
+	crawler       *Crawler
+	scanner       *Scanner
+	exploiter     *Exploiter
+	activeExploit *ActiveExploiter
+	logger        *log.Logger
+	lastEndpoints []types.Endpoint // cached from last crawl
 }
 
 // NewAgent creates a new Red AI agent.
@@ -56,14 +56,22 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	endpoints := target_pkg.DiscoverEndpoints(urls, target.Headers)
 	a.lastEndpoints = endpoints
 
+	// Phase 1.5: Classify discovered endpoints
+	a.logger.Printf("[RED] Classifying %d endpoints...", len(endpoints))
+	classified := ClassifyEndpoints(endpoints)
+	a.logger.Printf("[RED] Classification: %d login, %d API, %d search, %d admin, %d upload, %d redirect, %d user-data",
+		len(classified.Login), len(classified.API), len(classified.Search),
+		len(classified.Admin), len(classified.FileUpload), len(classified.Redirect),
+		len(classified.UserData))
+
 	// Phase 2: Technique-specific active probers
 	a.logger.Printf("[RED] Phase 2: Running technique-specific probers...")
 
 	// On first loop, try to authenticate for deeper scanning
 	proberTarget := target
 	if loop == 1 {
-		a.logger.Printf("[RED] Attempting authentication via SQLi bypass...")
-		token, err := probers.LoginJuiceShop(target.URL)
+		a.logger.Printf("[RED] Attempting authentication...")
+		token, err := probers.AttemptAuth(target.URL, classified)
 		if err != nil {
 			a.logger.Printf("[RED] Auth attempt failed (will scan unauthenticated): %v", err)
 		} else {
@@ -75,7 +83,7 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		}
 	}
 
-	proberFindings := probers.RunAllProbers(ctx, proberTarget, endpoints, loop)
+	proberFindings := probers.RunAllProbersWithClassified(ctx, proberTarget, endpoints, classified, loop)
 	a.logger.Printf("[RED] Probers found %d findings", len(proberFindings))
 
 	// Phase 3: AI-powered vulnerability analysis (supplements probers)
@@ -124,8 +132,6 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	}
 
 	// Phase 5: SPA false positive filtering
-	// If the target is a SPA (Single Page App), many paths return the same HTML.
-	// Filter out findings where the endpoint returns identical content to the base URL.
 	if len(allFindings) > 0 {
 		baseFP := fingerprint(target.URL)
 		if baseFP != "" {
@@ -135,11 +141,9 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 				if !strings.HasPrefix(epURL, "http") {
 					epURL = strings.TrimRight(target.URL, "/") + f.Endpoint
 				}
-				// Only check likely SPA false positives (file paths, admin routes)
 				shouldCheck := strings.Contains(f.Endpoint, ".env") ||
 					strings.Contains(f.Endpoint, ".git") ||
-					strings.Contains(f.Endpoint, "/administration") ||
-					strings.Contains(f.Endpoint, "/accounting") ||
+					strings.Contains(f.Endpoint, "/admin") ||
 					strings.Contains(f.Endpoint, "/backup") ||
 					strings.Contains(f.Endpoint, "/dump")
 				if shouldCheck && fingerprint(epURL) == baseFP {
@@ -169,7 +173,7 @@ func fingerprint(url string) string {
 	return fmt.Sprintf("%x", h[:8])
 }
 
-// buildAttackPrompt creates the Red AI system prompt.
+// BuildAttackPrompt creates the Red AI system prompt.
 func BuildAttackPrompt() string {
 	return `You are an expert penetration tester and security researcher conducting an authorized security assessment.
 Your approach should be methodical, thorough, and creative - think like a real attacker.
@@ -239,7 +243,6 @@ func BuildUserPrompt(target types.Target, urls []string, endpoints []types.Endpo
 				sb.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
 			}
 		}
-		// Include truncated response body for API endpoints
 		if ep.Body != "" && (strings.Contains(ep.ContentType, "json") || strings.Contains(ep.ContentType, "xml") || ep.StatusCode >= 400) {
 			body := ep.Body
 			if len(body) > 1000 {
@@ -284,7 +287,6 @@ func BuildUserPrompt(target types.Target, urls []string, endpoints []types.Endpo
 
 // ParseFindings parses the AI response into findings.
 func ParseFindings(response string, loop int) ([]types.Finding, error) {
-	// Extract JSON array from response (handle markdown code blocks)
 	response = strings.TrimSpace(response)
 	if idx := strings.Index(response, "["); idx >= 0 {
 		end := strings.LastIndex(response, "]")

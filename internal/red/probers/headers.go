@@ -15,6 +15,9 @@ func (p *HeadersProber) Name() string { return "headers" }
 
 func (p *HeadersProber) Probe(ctx context.Context, target types.Target, endpoints []types.Endpoint) []types.Finding {
 	cfg := NewProberConfig(target)
+	if currentClassified != nil {
+		cfg.Classified = currentClassified
+	}
 	var findings []types.Finding
 
 	findings = append(findings, p.testSecurityHeaders(cfg)...)
@@ -29,7 +32,6 @@ func (p *HeadersProber) Probe(ctx context.Context, target types.Target, endpoint
 func (p *HeadersProber) testSecurityHeaders(cfg *ProberConfig) []types.Finding {
 	var findings []types.Finding
 
-	// Test main page for missing headers
 	status, headers, _, err := cfg.DoRequest("GET", cfg.BaseURL, nil, nil)
 	if err != nil || status != 200 {
 		return findings
@@ -87,53 +89,61 @@ func (p *HeadersProber) testSecurityHeaders(cfg *ProberConfig) []types.Finding {
 func (p *HeadersProber) testCORSMisconfiguration(cfg *ProberConfig) []types.Finding {
 	var findings []types.Finding
 
-	// Test CORS with arbitrary origin
+	// Test CORS on the base URL and on discovered API endpoints
+	testURLs := []string{cfg.BaseURL}
+	if cfg.Classified != nil && len(cfg.Classified.API) > 0 {
+		testURLs = append(testURLs, cfg.Classified.API[0].URL)
+	}
+
 	testOrigins := []string{"https://evil.com", "null"}
 
-	for _, origin := range testOrigins {
-		status, headers, _, err := cfg.DoRequest("GET", cfg.BaseURL+"/rest/user/login", nil,
-			map[string]string{"Origin": origin})
-		if err != nil || status == 404 {
-			continue
-		}
-
-		acao := headers.Get("Access-Control-Allow-Origin")
-		acac := headers.Get("Access-Control-Allow-Credentials")
-
-		if acao == "*" {
-			findings = append(findings, MakeFinding(
-				"CORS Misconfiguration - Wildcard Origin",
-				"Medium",
-				"The application allows any origin via Access-Control-Allow-Origin: *, enabling cross-origin data theft.",
-				"/rest/user/login",
-				"GET",
-				"CWE-942",
-				fmt.Sprintf(`curl -H "Origin: %s" -I %s/rest/user/login`, origin, cfg.BaseURL),
-				fmt.Sprintf("HTTP %d - ACAO: %s", status, acao),
-				"misconfig",
-				0,
-			))
-			break
-		} else if acao == origin {
-			sev := "Medium"
-			desc := fmt.Sprintf("The application reflects the Origin header (%s) in ACAO.", origin)
-			if acac == "true" {
-				sev = "High"
-				desc += " Combined with Access-Control-Allow-Credentials: true, this allows authenticated cross-origin attacks."
+	for _, testURL := range testURLs {
+		for _, origin := range testOrigins {
+			status, headers, _, err := cfg.DoRequest("GET", testURL, nil,
+				map[string]string{"Origin": origin})
+			if err != nil || status == 404 {
+				continue
 			}
-			findings = append(findings, MakeFinding(
-				"CORS Misconfiguration - Origin Reflection",
-				sev,
-				desc,
-				"/rest/user/login",
-				"GET",
-				"CWE-942",
-				fmt.Sprintf(`curl -H "Origin: %s" -I %s/rest/user/login`, origin, cfg.BaseURL),
-				fmt.Sprintf("HTTP %d - ACAO: %s, ACAC: %s", status, acao, acac),
-				"misconfig",
-				0,
-			))
-			break
+
+			acao := headers.Get("Access-Control-Allow-Origin")
+			acac := headers.Get("Access-Control-Allow-Credentials")
+			path := extractPath(testURL)
+
+			if acao == "*" {
+				findings = append(findings, MakeFinding(
+					"CORS Misconfiguration - Wildcard Origin",
+					"Medium",
+					"The application allows any origin via Access-Control-Allow-Origin: *, enabling cross-origin data theft.",
+					path,
+					"GET",
+					"CWE-942",
+					fmt.Sprintf(`curl -H "Origin: %s" -I %s`, origin, testURL),
+					fmt.Sprintf("HTTP %d - ACAO: %s", status, acao),
+					"misconfig",
+					0,
+				))
+				return findings
+			} else if acao == origin {
+				sev := "Medium"
+				desc := fmt.Sprintf("The application reflects the Origin header (%s) in ACAO.", origin)
+				if acac == "true" {
+					sev = "High"
+					desc += " Combined with Access-Control-Allow-Credentials: true, this allows authenticated cross-origin attacks."
+				}
+				findings = append(findings, MakeFinding(
+					"CORS Misconfiguration - Origin Reflection",
+					sev,
+					desc,
+					path,
+					"GET",
+					"CWE-942",
+					fmt.Sprintf(`curl -H "Origin: %s" -I %s`, origin, testURL),
+					fmt.Sprintf("HTTP %d - ACAO: %s, ACAC: %s", status, acao, acac),
+					"misconfig",
+					0,
+				))
+				return findings
+			}
 		}
 	}
 
@@ -143,63 +153,76 @@ func (p *HeadersProber) testCORSMisconfiguration(cfg *ProberConfig) []types.Find
 func (p *HeadersProber) testCookieFlags(cfg *ProberConfig) []types.Finding {
 	var findings []types.Finding
 
-	// Login to get a cookie
-	body := `{"email":"' OR 1=1--","password":"anything"}`
-	_, headers, _, err := cfg.DoRequest("POST", cfg.BaseURL+"/rest/user/login",
-		strings.NewReader(body), map[string]string{"Content-Type": "application/json"})
-	if err != nil {
+	if cfg.Classified == nil || len(cfg.Classified.Login) == 0 {
 		return findings
 	}
 
-	cookies := headers.Values("Set-Cookie")
-	for _, cookie := range cookies {
-		cookieLower := strings.ToLower(cookie)
-		cookieName := strings.Split(cookie, "=")[0]
-
-		if !strings.Contains(cookieLower, "httponly") {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("Insecure Cookie - Missing HttpOnly Flag (%s)", cookieName),
-				"Medium",
-				fmt.Sprintf("Cookie '%s' is set without the HttpOnly flag, making it accessible to JavaScript and vulnerable to XSS-based session theft.", cookieName),
-				"/rest/user/login",
-				"POST",
-				"CWE-1004",
-				fmt.Sprintf(`curl -I -X POST %s/rest/user/login -H "Content-Type: application/json" -d '{"email":"test@test.com","password":"test"}'`, cfg.BaseURL),
-				fmt.Sprintf("Set-Cookie: %s (missing HttpOnly)", truncate(cookie, 100)),
-				"misconfig",
-				0,
-			))
+	// Try to get cookies from login endpoints
+	for _, ep := range cfg.Classified.Login {
+		// Send a login request to get cookies
+		body := `{"email":"test@test.com","password":"test"}`
+		_, headers, _, err := cfg.DoRequest("POST", ep.URL,
+			strings.NewReader(body), map[string]string{"Content-Type": "application/json"})
+		if err != nil {
+			continue
 		}
 
-		if !strings.Contains(cookieLower, "secure") {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("Insecure Cookie - Missing Secure Flag (%s)", cookieName),
-				"Medium",
-				fmt.Sprintf("Cookie '%s' is set without the Secure flag, allowing transmission over unencrypted HTTP connections.", cookieName),
-				"/rest/user/login",
-				"POST",
-				"CWE-614",
-				fmt.Sprintf(`curl -I -X POST %s/rest/user/login`, cfg.BaseURL),
-				fmt.Sprintf("Set-Cookie: %s (missing Secure)", truncate(cookie, 100)),
-				"misconfig",
-				0,
-			))
+		cookies := headers.Values("Set-Cookie")
+		if len(cookies) == 0 {
+			continue
 		}
 
-		if !strings.Contains(cookieLower, "samesite") {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("Insecure Cookie - Missing SameSite Attribute (%s)", cookieName),
-				"Low",
-				fmt.Sprintf("Cookie '%s' is set without the SameSite attribute, making it vulnerable to CSRF attacks.", cookieName),
-				"/rest/user/login",
-				"POST",
-				"CWE-1275",
-				fmt.Sprintf(`curl -I -X POST %s/rest/user/login`, cfg.BaseURL),
-				fmt.Sprintf("Set-Cookie: %s (missing SameSite)", truncate(cookie, 100)),
-				"misconfig",
-				0,
-			))
+		path := extractPath(ep.URL)
+		for _, cookie := range cookies {
+			cookieLower := strings.ToLower(cookie)
+			cookieName := strings.Split(cookie, "=")[0]
+
+			if !strings.Contains(cookieLower, "httponly") {
+				findings = append(findings, MakeFinding(
+					fmt.Sprintf("Insecure Cookie - Missing HttpOnly Flag (%s)", cookieName),
+					"Medium",
+					fmt.Sprintf("Cookie '%s' is set without the HttpOnly flag, making it accessible to JavaScript and vulnerable to XSS-based session theft.", cookieName),
+					path,
+					"POST",
+					"CWE-1004",
+					fmt.Sprintf(`curl -I -X POST %s -H "Content-Type: application/json" -d '{"email":"test@test.com","password":"test"}'`, ep.URL),
+					fmt.Sprintf("Set-Cookie: %s (missing HttpOnly)", truncate(cookie, 100)),
+					"misconfig",
+					0,
+				))
+			}
+
+			if !strings.Contains(cookieLower, "secure") {
+				findings = append(findings, MakeFinding(
+					fmt.Sprintf("Insecure Cookie - Missing Secure Flag (%s)", cookieName),
+					"Medium",
+					fmt.Sprintf("Cookie '%s' is set without the Secure flag, allowing transmission over unencrypted HTTP connections.", cookieName),
+					path,
+					"POST",
+					"CWE-614",
+					fmt.Sprintf(`curl -I -X POST %s`, ep.URL),
+					fmt.Sprintf("Set-Cookie: %s (missing Secure)", truncate(cookie, 100)),
+					"misconfig",
+					0,
+				))
+			}
+
+			if !strings.Contains(cookieLower, "samesite") {
+				findings = append(findings, MakeFinding(
+					fmt.Sprintf("Insecure Cookie - Missing SameSite Attribute (%s)", cookieName),
+					"Low",
+					fmt.Sprintf("Cookie '%s' is set without the SameSite attribute, making it vulnerable to CSRF attacks.", cookieName),
+					path,
+					"POST",
+					"CWE-1275",
+					fmt.Sprintf(`curl -I -X POST %s`, ep.URL),
+					fmt.Sprintf("Set-Cookie: %s (missing SameSite)", truncate(cookie, 100)),
+					"misconfig",
+					0,
+				))
+			}
 		}
+		break // Only need one endpoint
 	}
 
 	return findings
@@ -269,8 +292,12 @@ func (p *HeadersProber) testHTTPMethods(cfg *ProberConfig) []types.Finding {
 		))
 	}
 
-	// Test OPTIONS for unexpected methods
-	status2, headers2, _, err2 := cfg.DoRequest("OPTIONS", cfg.BaseURL+"/rest/user/login", nil, nil)
+	// Test OPTIONS on a discovered API endpoint
+	testURL := cfg.BaseURL
+	if cfg.Classified != nil && len(cfg.Classified.API) > 0 {
+		testURL = cfg.Classified.API[0].URL
+	}
+	status2, headers2, _, err2 := cfg.DoRequest("OPTIONS", testURL, nil, nil)
 	if err2 == nil && status2 == 200 {
 		allow := headers2.Get("Allow")
 		if allow != "" && (strings.Contains(allow, "TRACE") || strings.Contains(allow, "DELETE")) {
@@ -278,10 +305,10 @@ func (p *HeadersProber) testHTTPMethods(cfg *ProberConfig) []types.Finding {
 				"Dangerous HTTP Methods Allowed",
 				"Low",
 				fmt.Sprintf("The endpoint allows potentially dangerous HTTP methods: %s", allow),
-				"/rest/user/login",
+				extractPath(testURL),
 				"OPTIONS",
 				"CWE-749",
-				fmt.Sprintf(`curl -X OPTIONS -I %s/rest/user/login`, cfg.BaseURL),
+				fmt.Sprintf(`curl -X OPTIONS -I %s`, testURL),
 				fmt.Sprintf("HTTP %d - Allow: %s", status2, allow),
 				"misconfig",
 				0,

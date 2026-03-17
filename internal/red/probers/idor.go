@@ -3,6 +3,7 @@ package probers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/borntobeyours/ouroboros/pkg/types"
@@ -15,278 +16,236 @@ func (p *IDORProber) Name() string { return "idor" }
 
 func (p *IDORProber) Probe(ctx context.Context, target types.Target, endpoints []types.Endpoint) []types.Finding {
 	cfg := NewProberConfig(target)
+	if currentClassified != nil {
+		cfg.Classified = currentClassified
+	}
 	var findings []types.Finding
 
-	findings = append(findings, p.testBasketIDOR(cfg)...)
-	findings = append(findings, p.testUserIDOR(cfg)...)
-	findings = append(findings, p.testProductIDOR(cfg)...)
-	findings = append(findings, p.testFeedbackIDOR(cfg)...)
-	findings = append(findings, p.testComplaintIDOR(cfg)...)
-	findings = append(findings, p.testOrderHistoryIDOR(cfg)...)
-	findings = append(findings, p.testAddressIDOR(cfg)...)
-	findings = append(findings, p.testCardIDOR(cfg)...)
+	// 1. Test endpoints with numeric IDs for horizontal access
+	findings = append(findings, p.testNumericIDEndpoints(cfg, endpoints)...)
+
+	// 2. Test API list endpoints without auth
+	findings = append(findings, p.testAPIListEndpoints(cfg)...)
+
+	// 3. Test user data endpoints
+	findings = append(findings, p.testUserDataEndpoints(cfg)...)
 
 	return findings
 }
 
-func (p *IDORProber) testBasketIDOR(cfg *ProberConfig) []types.Finding {
+func (p *IDORProber) testNumericIDEndpoints(cfg *ProberConfig, endpoints []types.Endpoint) []types.Finding {
+	var findings []types.Finding
+	tested := make(map[string]bool)
+
+	for _, ep := range endpoints {
+		path := extractPath(ep.URL)
+		segments := strings.Split(path, "/")
+
+		// Find segments that are numeric — these are IDOR candidates
+		for i, seg := range segments {
+			if seg == "" || !isNumericStr(seg) {
+				continue
+			}
+
+			// Build a base path pattern (e.g., /api/users/{id})
+			basePath := strings.Join(segments[:i], "/")
+			if tested[basePath] {
+				continue
+			}
+			tested[basePath] = true
+
+			// Try accessing different IDs
+			for id := 1; id <= 5; id++ {
+				testSegments := make([]string, len(segments))
+				copy(testSegments, segments)
+				testSegments[i] = fmt.Sprintf("%d", id)
+				testPath := strings.Join(testSegments, "/")
+
+				u, _ := url.Parse(ep.URL)
+				testURL := fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, testPath)
+
+				status, _, respBody, err := cfg.DoRequest("GET", testURL, nil, nil)
+				if err != nil {
+					continue
+				}
+
+				if status == 200 && len(respBody) > 20 {
+					// Check for PII indicators
+					lowerBody := strings.ToLower(respBody)
+					hasPII := strings.Contains(lowerBody, "email") ||
+						strings.Contains(lowerBody, "username") ||
+						strings.Contains(lowerBody, "name") ||
+						strings.Contains(lowerBody, "address") ||
+						strings.Contains(lowerBody, "phone")
+
+					if hasPII {
+						findings = append(findings, MakeFinding(
+							fmt.Sprintf("IDOR - Access Resource (ID: %d) at %s", id, basePath),
+							"High",
+							fmt.Sprintf("Resource at %s with ID %d is accessible, exposing potentially sensitive data.", basePath, id),
+							testPath,
+							"GET",
+							"CWE-639",
+							fmt.Sprintf(`curl %s -H "Authorization: %s"`, testURL, cfg.AuthToken),
+							fmt.Sprintf("HTTP %d - Data returned: %s", status, truncate(respBody, 200)),
+							"idor",
+							0,
+						))
+						break // One finding per path pattern
+					}
+
+					// Also try modification (PUT)
+					modBody := `{"description":"test_idor_probe"}`
+					s2, _, rb2, e2 := cfg.DoRequest("PUT", testURL, strings.NewReader(modBody),
+						map[string]string{"Content-Type": "application/json"})
+					if e2 == nil && s2 == 200 {
+						findings = append(findings, MakeFinding(
+							fmt.Sprintf("IDOR - Modify Resource (ID: %d) at %s", id, basePath),
+							"High",
+							fmt.Sprintf("Resource at %s can be modified by any user via direct API access.", basePath),
+							testPath,
+							"PUT",
+							"CWE-639",
+							fmt.Sprintf(`curl -X PUT %s -H "Content-Type: application/json" -d '{"description":"test"}'`, testURL),
+							fmt.Sprintf("HTTP %d - Resource modified: %s", s2, truncate(rb2, 200)),
+							"idor",
+							0,
+						))
+						break
+					}
+				}
+			}
+		}
+	}
+
+	return findings
+}
+
+func (p *IDORProber) testAPIListEndpoints(cfg *ProberConfig) []types.Finding {
 	var findings []types.Finding
 
-	for id := 1; id <= 5; id++ {
-		url := fmt.Sprintf("%s/rest/basket/%d", cfg.BaseURL, id)
-		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-		if err != nil {
+	if cfg.Classified == nil {
+		return findings
+	}
+
+	// Test API endpoints that might list all records
+	for _, ep := range cfg.Classified.API {
+		path := extractPath(ep.URL)
+		lowerPath := strings.ToLower(path)
+
+		// Skip endpoints with IDs already (we test those above)
+		segments := strings.Split(path, "/")
+		hasID := false
+		for _, s := range segments {
+			if isNumericStr(s) {
+				hasID = true
+				break
+			}
+		}
+		if hasID {
 			continue
 		}
 
-		if status == 200 && (strings.Contains(respBody, "Products") || strings.Contains(respBody, "data")) {
+		// Only test collection-like endpoints
+		if !isCollectionEndpoint(lowerPath) {
+			continue
+		}
+
+		status, _, respBody, err := cfg.DoRequest("GET", ep.URL, nil, nil)
+		if err != nil || status != 200 {
+			continue
+		}
+
+		lowerBody := strings.ToLower(respBody)
+		hasSensitiveData := strings.Contains(lowerBody, "email") ||
+			strings.Contains(lowerBody, "password") ||
+			strings.Contains(lowerBody, "username") ||
+			strings.Contains(lowerBody, "address") ||
+			strings.Contains(lowerBody, "phone") ||
+			strings.Contains(lowerBody, "card")
+
+		if hasSensitiveData && (strings.Contains(respBody, "data") || strings.Contains(respBody, "[")) {
+			sev := "Medium"
+			if strings.Contains(lowerBody, "password") || strings.Contains(lowerBody, "card") {
+				sev = "Critical"
+			}
+
 			findings = append(findings, MakeFinding(
-				fmt.Sprintf("IDOR - Access Other Users' Basket (ID: %d)", id),
-				"High",
-				fmt.Sprintf("Basket ID %d can be accessed by any authenticated user, exposing other users' shopping cart contents.", id),
-				fmt.Sprintf("/rest/basket/%d", id),
+				fmt.Sprintf("IDOR - List All Records at %s", path),
+				sev,
+				fmt.Sprintf("The %s endpoint exposes records with sensitive data without proper authorization.", path),
+				path,
 				"GET",
 				"CWE-639",
-				fmt.Sprintf(`curl %s -H "Authorization: %s"`, url, cfg.AuthToken),
-				fmt.Sprintf("HTTP %d - Basket data returned: %s", status, truncate(respBody, 200)),
+				fmt.Sprintf(`curl %s`, ep.URL),
+				fmt.Sprintf("HTTP %d - Data listed: %s", status, truncate(respBody, 300)),
 				"idor",
 				0,
 			))
-			break // One finding is sufficient to prove the vulnerability
 		}
 	}
 
 	return findings
 }
 
-func (p *IDORProber) testUserIDOR(cfg *ProberConfig) []types.Finding {
+func (p *IDORProber) testUserDataEndpoints(cfg *ProberConfig) []types.Finding {
 	var findings []types.Finding
 
-	// Test accessing individual user records
-	for id := 1; id <= 5; id++ {
-		url := fmt.Sprintf("%s/api/Users/%d", cfg.BaseURL, id)
-		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
+	if cfg.Classified == nil {
+		return findings
+	}
+
+	for _, ep := range cfg.Classified.UserData {
+		path := extractPath(ep.URL)
+
+		// Try accessing without auth first
+		status, _, respBody, err := cfg.DoRequest("GET", ep.URL, nil, nil)
 		if err != nil {
 			continue
 		}
 
-		if status == 200 && (strings.Contains(respBody, "email") || strings.Contains(respBody, "username")) {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("IDOR - Access User Profile (ID: %d)", id),
-				"High",
-				fmt.Sprintf("User profile ID %d is accessible without proper authorization, exposing PII including email and username.", id),
-				fmt.Sprintf("/api/Users/%d", id),
-				"GET",
-				"CWE-639",
-				fmt.Sprintf(`curl %s`, url),
-				fmt.Sprintf("HTTP %d - User data: %s", status, truncate(respBody, 200)),
-				"idor",
-				0,
-			))
-			break
-		}
-	}
-
-	// Test listing all users
-	url := cfg.BaseURL + "/api/Users"
-	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && strings.Contains(respBody, "email") {
-		findings = append(findings, MakeFinding(
-			"IDOR - List All Users Without Authorization",
-			"Critical",
-			"The Users API endpoint exposes all user records without requiring authentication, leaking emails, usernames, and password hashes.",
-			"/api/Users",
-			"GET",
-			"CWE-639",
-			fmt.Sprintf(`curl %s`, url),
-			fmt.Sprintf("HTTP %d - All users listed: %s", status, truncate(respBody, 300)),
-			"idor",
-			0,
-		))
-	}
-
-	return findings
-}
-
-func (p *IDORProber) testProductIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	for id := 1; id <= 3; id++ {
-		url := fmt.Sprintf("%s/api/Products/%d", cfg.BaseURL, id)
-		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-		if err != nil {
-			continue
-		}
-
-		if status == 200 && strings.Contains(respBody, "name") {
-			// Try to modify the product (PUT)
-			modBody := `{"description":"hacked"}`
-			s2, _, rb2, e2 := cfg.DoRequest("PUT", url, strings.NewReader(modBody),
-				map[string]string{"Content-Type": "application/json"})
-			if e2 == nil && s2 == 200 {
+		if status == 200 && len(respBody) > 50 {
+			lowerBody := strings.ToLower(respBody)
+			if strings.Contains(lowerBody, "email") || strings.Contains(lowerBody, "user") {
 				findings = append(findings, MakeFinding(
-					"IDOR - Modify Product Data",
+					fmt.Sprintf("IDOR - User Data Exposed at %s", path),
 					"High",
-					"Products can be modified by any user via direct API access without authorization checks.",
-					fmt.Sprintf("/api/Products/%d", id),
-					"PUT",
+					fmt.Sprintf("User data endpoint %s is accessible and exposes user information.", path),
+					path,
+					"GET",
 					"CWE-639",
-					fmt.Sprintf(`curl -X PUT %s -H "Content-Type: application/json" -d '{"description":"test"}'`, url),
-					fmt.Sprintf("HTTP %d - Product modified: %s", s2, truncate(rb2, 200)),
+					fmt.Sprintf(`curl %s`, ep.URL),
+					fmt.Sprintf("HTTP %d - User data: %s", status, truncate(respBody, 200)),
 					"idor",
 					0,
 				))
 			}
-			break
 		}
 	}
 
 	return findings
 }
 
-func (p *IDORProber) testFeedbackIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	// List feedbacks
-	url := cfg.BaseURL + "/api/Feedbacks"
-	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && strings.Contains(respBody, "data") {
-		findings = append(findings, MakeFinding(
-			"IDOR - Access All Feedback Entries",
-			"Medium",
-			"The Feedbacks API endpoint allows listing all feedback entries without authorization.",
-			"/api/Feedbacks",
-			"GET",
-			"CWE-639",
-			fmt.Sprintf(`curl %s`, url),
-			fmt.Sprintf("HTTP %d - Feedback data: %s", status, truncate(respBody, 200)),
-			"idor",
-			0,
-		))
-	}
-
-	// Try deleting a feedback
-	delURL := cfg.BaseURL + "/api/Feedbacks/1"
-	s2, _, rb2, e2 := cfg.DoRequest("DELETE", delURL, nil, nil)
-	if e2 == nil && s2 == 200 {
-		findings = append(findings, MakeFinding(
-			"IDOR - Delete Other Users' Feedback",
-			"High",
-			"Feedback entries can be deleted by any user without authorization verification.",
-			"/api/Feedbacks/1",
-			"DELETE",
-			"CWE-639",
-			fmt.Sprintf(`curl -X DELETE %s`, delURL),
-			fmt.Sprintf("HTTP %d - Feedback deleted: %s", s2, truncate(rb2, 200)),
-			"idor",
-			0,
-		))
-	}
-
-	return findings
-}
-
-func (p *IDORProber) testComplaintIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	url := cfg.BaseURL + "/api/Complaints"
-	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && strings.Contains(respBody, "data") {
-		findings = append(findings, MakeFinding(
-			"IDOR - Access All Complaints",
-			"Medium",
-			"The Complaints API allows listing all complaint records without proper authorization.",
-			"/api/Complaints",
-			"GET",
-			"CWE-639",
-			fmt.Sprintf(`curl %s`, url),
-			fmt.Sprintf("HTTP %d - Complaint data: %s", status, truncate(respBody, 200)),
-			"idor",
-			0,
-		))
-	}
-
-	return findings
-}
-
-func (p *IDORProber) testOrderHistoryIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	if cfg.AuthToken == "" {
-		return findings
-	}
-
-	// Try accessing other users' order history
-	emails := []string{"admin@juice-sh.op", "jim@juice-sh.op", "bender@juice-sh.op"}
-	for _, email := range emails {
-		url := fmt.Sprintf("%s/rest/order-history/%s", cfg.BaseURL, email)
-		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-		if err != nil {
-			continue
-		}
-
-		if status == 200 && (strings.Contains(respBody, "data") || strings.Contains(respBody, "[")) {
-			findings = append(findings, MakeFinding(
-				fmt.Sprintf("IDOR - Access Order History (%s)", email),
-				"High",
-				fmt.Sprintf("Order history for %s is accessible by any authenticated user.", email),
-				fmt.Sprintf("/rest/order-history/%s", email),
-				"GET",
-				"CWE-639",
-				fmt.Sprintf(`curl %s -H "Authorization: %s"`, url, cfg.AuthToken),
-				fmt.Sprintf("HTTP %d - Order data: %s", status, truncate(respBody, 200)),
-				"idor",
-				0,
-			))
-			break
+func isNumericStr(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
 		}
 	}
-
-	return findings
+	return len(s) > 0
 }
 
-func (p *IDORProber) testAddressIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	url := cfg.BaseURL + "/api/Addresss"
-	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && strings.Contains(respBody, "data") {
-		findings = append(findings, MakeFinding(
-			"IDOR - Access All Addresses",
-			"Medium",
-			"The Addresss API endpoint allows listing all address records.",
-			"/api/Addresss",
-			"GET",
-			"CWE-639",
-			fmt.Sprintf(`curl %s -H "Authorization: %s"`, url, cfg.AuthToken),
-			fmt.Sprintf("HTTP %d - Address data: %s", status, truncate(respBody, 200)),
-			"idor",
-			0,
-		))
+func isCollectionEndpoint(path string) bool {
+	// Endpoints that look like they list collections of resources
+	collectionIndicators := []string{"/users", "/products", "/orders", "/items",
+		"/feedbacks", "/complaints", "/reviews", "/comments", "/messages",
+		"/cards", "/addresses", "/accounts", "/customers", "/records",
+		"/transactions", "/payments", "/notifications", "/files",
+		"/entries", "/data", "/logs", "/events"}
+	for _, ci := range collectionIndicators {
+		if strings.HasSuffix(path, ci) || strings.Contains(path, ci+"/") {
+			return true
+		}
 	}
-
-	return findings
-}
-
-func (p *IDORProber) testCardIDOR(cfg *ProberConfig) []types.Finding {
-	var findings []types.Finding
-
-	url := cfg.BaseURL + "/api/Cards"
-	status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
-	if err == nil && status == 200 && strings.Contains(respBody, "data") {
-		findings = append(findings, MakeFinding(
-			"IDOR - Access Payment Cards",
-			"High",
-			"The Cards API endpoint allows accessing payment card data.",
-			"/api/Cards",
-			"GET",
-			"CWE-639",
-			fmt.Sprintf(`curl %s -H "Authorization: %s"`, url, cfg.AuthToken),
-			fmt.Sprintf("HTTP %d - Card data: %s", status, truncate(respBody, 200)),
-			"idor",
-			0,
-		))
-	}
-
-	return findings
+	return false
 }

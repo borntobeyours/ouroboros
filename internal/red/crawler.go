@@ -32,99 +32,77 @@ func NewCrawler(logger *log.Logger) *Crawler {
 	}
 }
 
-// commonAPIPaths contains well-known API paths to brute-force.
-var commonAPIPaths = []string{
-	// Juice Shop REST endpoints
-	"/rest/user/login",
-	"/rest/user/whoami",
-	"/rest/user/change-password",
-	"/rest/user/reset-password",
-	"/rest/user/authentication-details",
-	"/rest/user/erasure-request",
-	"/rest/products/search",
-	"/rest/products/1/reviews",
-	"/rest/products/2/reviews",
-	"/rest/saveLoginIp",
-	"/rest/deluxe-membership",
-	"/rest/wallet/balance",
-	"/rest/order-history",
-	"/rest/track-order/1",
-	"/rest/basket/1",
-	"/rest/basket/2",
-	"/rest/basket/3",
-	"/rest/admin/application-version",
-	"/rest/admin/application-configuration",
-	"/rest/repeat-notification",
-	"/rest/chatbot/respond",
-	"/rest/chatbot/status",
-	"/rest/captcha",
-	"/rest/image-captcha",
-	"/rest/memories",
-	"/rest/continue-code",
-	"/rest/continue-code-findIt",
-	"/rest/country-mapping",
-	// Juice Shop API model endpoints
-	"/api/Users",
-	"/api/Users/1",
-	"/api/Users/2",
-	"/api/Users/3",
-	"/api/Products",
-	"/api/Products/1",
-	"/api/Products/2",
-	"/api/Feedbacks",
-	"/api/Feedbacks/1",
-	"/api/Challenges",
-	"/api/Complaints",
-	"/api/Recycles",
-	"/api/SecurityQuestions",
-	"/api/SecurityAnswers",
-	"/api/Cards",
-	"/api/Deliverys",
-	"/api/Addresss",
-	"/api/Quantitys",
-	// Juice Shop special endpoints
-	"/b2b/v2/orders",
-	"/file-upload",
-	"/profile",
-	"/profile/image/file",
-	"/profile/image/url",
-	"/redirect",
-	"/dataerasure",
+// commonDiscoveryPaths contains well-known paths to brute-force on any web target.
+// These are generic paths that apply to many web applications, NOT specific to any one app.
+var commonDiscoveryPaths = []string{
+	// Authentication endpoints
+	"/login", "/signin", "/sign-in", "/auth/login", "/api/login",
+	"/api/auth/login", "/api/authenticate", "/oauth/token",
+	"/api/Users/login", "/api/users/login",
+	"/logout", "/signout", "/sign-out",
+	"/register", "/signup", "/sign-up", "/api/register",
+
+	// Password / account recovery
+	"/forgot-password", "/reset-password", "/api/password-reset",
+	"/api/forgot-password", "/change-password",
+
+	// User / profile endpoints
+	"/api/users", "/api/Users", "/api/user", "/api/me", "/api/profile",
+	"/api/accounts", "/api/account",
+	"/profile", "/account", "/settings",
+	"/api/users/1", "/api/users/2",
+
+	// Admin and management
+	"/admin", "/administration", "/dashboard", "/admin/dashboard",
+	"/panel", "/management", "/console", "/backoffice",
 	"/accounting",
-	"/administration",
-	"/privacy-security/last-login-ip",
-	// Sensitive files and directories
-	"/ftp",
-	"/ftp/acquisitions.md",
-	"/ftp/package.json.bak",
-	"/ftp/suspicious_errors.yml",
-	"/ftp/encrypt.pyc",
-	"/ftp/incident-support.kdbx",
-	"/ftp/coupons_2013.md.bak%2500.md",
-	"/ftp/eastere.gg%2500.md",
-	"/encryptionkeys",
-	"/encryptionkeys/jwt.pub",
-	"/support/logs",
-	"/metrics",
-	"/snippets",
-	"/snippets/1",
-	"/snippets/2",
-	"/snippets/3",
-	"/assets/public/images/uploads/",
-	"/.well-known/security.txt",
-	"/robots.txt",
-	"/promotion",
-	"/video",
+
 	// API documentation
-	"/api-docs",
-	"/swagger.json",
-	"/api-docs/swagger.json",
-	// Common discovery paths
-	"/.env",
-	"/.git/config",
-	"/.git/HEAD",
-	"/graphql",
-	"/socket.io",
+	"/api-docs", "/swagger.json", "/api-docs/swagger.json",
+	"/swagger", "/swagger-ui", "/swagger-ui.html",
+	"/openapi.json", "/openapi.yaml", "/docs", "/api/docs",
+	"/redoc",
+
+	// GraphQL
+	"/graphql", "/graphiql", "/api/graphql",
+
+	// Common API model endpoints
+	"/api/products", "/api/Products",
+	"/api/orders", "/api/Orders",
+	"/api/items", "/api/categories",
+	"/api/comments", "/api/reviews",
+	"/api/feedbacks", "/api/Feedbacks",
+	"/api/messages", "/api/notifications",
+
+	// File upload
+	"/upload", "/file-upload", "/api/upload",
+	"/api/files", "/import",
+
+	// Search
+	"/search", "/api/search",
+
+	// Monitoring / diagnostics
+	"/metrics", "/health", "/healthz", "/status",
+	"/api/health", "/api/status",
+	"/actuator", "/actuator/health", "/actuator/env",
+
+	// Sensitive files and directories
+	"/.env", "/.git/config", "/.git/HEAD",
+	"/.well-known/security.txt", "/robots.txt", "/sitemap.xml",
+	"/crossdomain.xml", "/.htaccess", "/web.config",
+	"/backup", "/dump",
+
+	// WebSocket / real-time
+	"/socket.io", "/ws", "/websocket",
+
+	// Redirect endpoints
+	"/redirect", "/goto", "/out",
+
+	// Chatbot / support
+	"/api/chat", "/api/chatbot", "/api/support",
+
+	// CAPTCHA
+	"/api/captcha", "/captcha",
 }
 
 // Crawl discovers URLs on the target site.
@@ -140,8 +118,8 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) ([]string, error)
 	c.logger.Printf("[CRAWLER] Phase 2: Parsing JS files for API routes...")
 	c.parseJSFiles(targetURL, &mu, urls)
 
-	// Phase 3: Common API path brute-force
-	c.logger.Printf("[CRAWLER] Phase 3: API path discovery...")
+	// Phase 3: Common path discovery
+	c.logger.Printf("[CRAWLER] Phase 3: Common path discovery...")
 	c.bruteforceAPIPaths(targetURL, &mu, urls)
 
 	result := make([]string, 0, len(urls))
@@ -243,6 +221,10 @@ func (c *Crawler) parseJSFiles(targetURL string, mu *sync.Mutex, urls map[string
 		regexp.MustCompile(`\.(?:get|post|put|delete|patch)\(["']([^"']+)["']`),
 		regexp.MustCompile(`url:\s*["']([^"']+)["']`),
 		regexp.MustCompile(`endpoint:\s*["']([^"']+)["']`),
+		regexp.MustCompile(`["'](/v[0-9]+/[^"'\s]+)["']`),
+		regexp.MustCompile(`["'](/auth/[^"'\s]+)["']`),
+		regexp.MustCompile(`["'](/admin/[^"'\s]+)["']`),
+		regexp.MustCompile(`["'](/user[s]?/[^"'\s]+)["']`),
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -280,7 +262,7 @@ func (c *Crawler) parseJSFiles(targetURL string, mu *sync.Mutex, urls map[string
 	}
 }
 
-// bruteforceAPIPaths tries common API paths against the target.
+// bruteforceAPIPaths tries common paths against the target.
 func (c *Crawler) bruteforceAPIPaths(targetURL string, mu *sync.Mutex, urls map[string]bool) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
@@ -292,7 +274,7 @@ func (c *Crawler) bruteforceAPIPaths(targetURL string, mu *sync.Mutex, urls map[
 	base := strings.TrimRight(targetURL, "/")
 	found := 0
 
-	for _, path := range commonAPIPaths {
+	for _, path := range commonDiscoveryPaths {
 		fullURL := fmt.Sprintf("%s%s", base, path)
 
 		mu.Lock()
@@ -317,5 +299,5 @@ func (c *Crawler) bruteforceAPIPaths(targetURL string, mu *sync.Mutex, urls map[
 		}
 	}
 
-	c.logger.Printf("[CRAWLER] API brute-force found %d additional endpoints", found)
+	c.logger.Printf("[CRAWLER] Path discovery found %d additional endpoints", found)
 }
