@@ -1,0 +1,203 @@
+package red
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	"github.com/ouroboros-security/ouroboros/internal/ai"
+	"github.com/ouroboros-security/ouroboros/pkg/types"
+)
+
+// Agent is the Red AI attacker agent.
+type Agent struct {
+	provider ai.Provider
+	crawler  *Crawler
+	scanner  *Scanner
+	logger   *log.Logger
+}
+
+// NewAgent creates a new Red AI agent.
+func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
+	return &Agent{
+		provider: provider,
+		crawler:  NewCrawler(logger),
+		scanner:  NewScanner(provider, logger),
+		logger:   logger,
+	}
+}
+
+// Attack performs a full attack cycle against the target.
+func (a *Agent) Attack(ctx context.Context, target types.Target, previousFindings []types.Finding, patches []types.Patch, loop int) ([]types.Finding, error) {
+	a.logger.Printf("[RED] Starting attack loop %d against %s", loop, target.URL)
+
+	// Phase 1: Crawl and discover endpoints
+	a.logger.Printf("[RED] Phase 1: Crawling target...")
+	urls, err := a.crawler.Crawl(ctx, target.URL)
+	if err != nil {
+		return nil, fmt.Errorf("crawl target: %w", err)
+	}
+	a.logger.Printf("[RED] Discovered %d URLs", len(urls))
+
+	// Phase 2: AI-powered vulnerability analysis
+	a.logger.Printf("[RED] Phase 2: AI-powered vulnerability scanning...")
+	findings, err := a.scanner.Scan(ctx, target, urls, previousFindings, patches, loop)
+	if err != nil {
+		return nil, fmt.Errorf("scan target: %w", err)
+	}
+	a.logger.Printf("[RED] Found %d potential vulnerabilities", len(findings))
+
+	return findings, nil
+}
+
+// buildAttackPrompt creates the Red AI system prompt.
+func BuildAttackPrompt() string {
+	return `You are an expert penetration tester and security researcher conducting an authorized security assessment.
+Your approach should be methodical, thorough, and creative - think like a real attacker.
+
+METHODOLOGY:
+1. Analyze the target's technology stack, endpoints, and response patterns
+2. Identify potential attack surfaces (input fields, parameters, headers, cookies)
+3. Test for OWASP Top 10 vulnerabilities systematically
+4. Look for logic flaws, authentication bypasses, and authorization issues
+5. Consider chained attacks where multiple low-severity issues combine into high-severity ones
+
+ATTACK TECHNIQUES TO CONSIDER:
+- SQL Injection (error-based, blind, time-based, UNION-based)
+- Cross-Site Scripting (reflected, stored, DOM-based)
+- Server-Side Request Forgery (SSRF)
+- Insecure Direct Object References (IDOR)
+- Authentication/Authorization bypass
+- Command Injection (OS command, code injection)
+- Path Traversal / Local File Inclusion
+- XML External Entity (XXE)
+- Cross-Site Request Forgery (CSRF)
+- Security Misconfigurations (headers, CORS, verbose errors)
+- Sensitive Data Exposure (information leakage, debug endpoints)
+- Broken Access Control
+
+For each vulnerability found, provide:
+- A clear title
+- Severity (Critical, High, Medium, Low, Info)
+- Detailed description of the vulnerability
+- The specific endpoint and HTTP method affected
+- A proof-of-concept (PoC) showing how to exploit it
+- The relevant CWE identifier
+- Evidence from the response that confirms the vulnerability
+
+OUTPUT FORMAT: Return ONLY a JSON array of findings. Each finding must have these fields:
+{
+  "title": "string",
+  "severity": "Critical|High|Medium|Low|Info",
+  "description": "string",
+  "endpoint": "string",
+  "method": "GET|POST|PUT|DELETE|PATCH",
+  "cwe": "CWE-XXX",
+  "poc": "string",
+  "evidence": "string",
+  "technique": "sqli|xss|ssrf|idor|auth_bypass|command_injection|path_traversal|xxe|csrf|misconfig|info_leak"
+}
+
+If no vulnerabilities are found, return an empty array: []
+Do NOT include any text outside the JSON array.`
+}
+
+// BuildUserPrompt creates the per-request user prompt with context.
+func BuildUserPrompt(target types.Target, urls []string, endpoints []types.Endpoint, previousFindings []types.Finding, patches []types.Patch) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("TARGET: %s\n\n", target.URL))
+
+	sb.WriteString("DISCOVERED ENDPOINTS:\n")
+	for _, ep := range endpoints {
+		sb.WriteString(fmt.Sprintf("- [%s] %s (status: %d, type: %s)\n", ep.Method, ep.URL, ep.StatusCode, ep.ContentType))
+		if len(ep.Parameters) > 0 {
+			sb.WriteString(fmt.Sprintf("  Parameters: %s\n", strings.Join(ep.Parameters, ", ")))
+		}
+	}
+	sb.WriteString("\n")
+
+	if len(previousFindings) > 0 {
+		sb.WriteString("PREVIOUSLY FOUND VULNERABILITIES (find NEW ones or bypasses):\n")
+		for _, f := range previousFindings {
+			sb.WriteString(fmt.Sprintf("- [%s] %s at %s (%s)\n", f.Severity, f.Title, f.Endpoint, f.Technique))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(patches) > 0 {
+		sb.WriteString("PATCHES APPLIED BY BLUE TEAM (try to bypass these):\n")
+		for _, p := range patches {
+			sb.WriteString(fmt.Sprintf("- Finding %s: %s\n", p.FindingID, p.Description))
+			if p.Code != "" {
+				sb.WriteString(fmt.Sprintf("  Patch code: %s\n", p.Code))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("INSTRUCTIONS:\n")
+	if len(previousFindings) > 0 {
+		sb.WriteString("- Focus on finding NEW vulnerabilities not previously discovered\n")
+		sb.WriteString("- Try to BYPASS the patches applied by the Blue team\n")
+		sb.WriteString("- Think creatively about alternative attack vectors\n")
+	} else {
+		sb.WriteString("- Perform a comprehensive initial security assessment\n")
+		sb.WriteString("- Test all discovered endpoints for OWASP Top 10 vulnerabilities\n")
+	}
+
+	return sb.String()
+}
+
+// ParseFindings parses the AI response into findings.
+func ParseFindings(response string, loop int) ([]types.Finding, error) {
+	// Extract JSON array from response (handle markdown code blocks)
+	response = strings.TrimSpace(response)
+	if idx := strings.Index(response, "["); idx >= 0 {
+		end := strings.LastIndex(response, "]")
+		if end > idx {
+			response = response[idx : end+1]
+		}
+	}
+
+	var rawFindings []struct {
+		Title       string `json:"title"`
+		Severity    string `json:"severity"`
+		Description string `json:"description"`
+		Endpoint    string `json:"endpoint"`
+		Method      string `json:"method"`
+		CWE         string `json:"cwe"`
+		PoC         string `json:"poc"`
+		Evidence    string `json:"evidence"`
+		Technique   string `json:"technique"`
+	}
+
+	if err := json.Unmarshal([]byte(response), &rawFindings); err != nil {
+		return nil, fmt.Errorf("parse AI response: %w", err)
+	}
+
+	findings := make([]types.Finding, 0, len(rawFindings))
+	for _, rf := range rawFindings {
+		sev, _ := types.ParseSeverity(rf.Severity)
+		f := types.Finding{
+			Title:       rf.Title,
+			Description: rf.Description,
+			Severity:    sev,
+			Endpoint:    rf.Endpoint,
+			Method:      rf.Method,
+			CWE:         rf.CWE,
+			PoC:         rf.PoC,
+			Evidence:    rf.Evidence,
+			Technique:   rf.Technique,
+			FoundAt:     time.Now(),
+			Loop:        loop,
+		}
+		f.ID = f.Signature()
+		findings = append(findings, f)
+	}
+
+	return findings, nil
+}
