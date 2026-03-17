@@ -16,12 +16,12 @@ import (
 
 // Engine orchestrates the Red → Blue → Re-attack loop.
 type Engine struct {
-	redAgent   *red.Agent
-	blueAgent  *blue.Agent
-	bossAgent  *boss.Agent
-	store      *memory.Store
-	reporter   *report.Reporter
-	logger     *log.Logger
+	redAgent  *red.Agent
+	blueAgent *blue.Agent
+	bossAgent *boss.Agent
+	store     *memory.Store
+	reporter  *report.Reporter
+	logger    *log.Logger
 }
 
 // NewEngine creates a new loop engine.
@@ -41,18 +41,16 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	session := types.NewScanSession(config)
 	convergence := NewConvergenceChecker(3)
 
-	e.logger.Printf("Starting Ouroboros scan session %s", session.ID)
-	e.logger.Printf("Target: %s | Max loops: %d | Final Boss: %v", config.Target.URL, config.MaxLoops, config.FinalBoss)
+	// Live view for attack visualization
+	lv := report.NewLiveView(config.Target.URL)
+	lv.PrintAttackHeader(session.ID, config.MaxLoops, config.Provider)
 
-	e.reporter.PrintBanner()
-	e.reporter.PrintSessionStart(session)
-
-	// Start progress display
+	// Start progress spinner
 	progress := report.NewProgress(config.MaxLoops)
 	progress.Start()
 	defer progress.Stop()
 
-	// Redirect logger output through progress
+	// Redirect logger through progress
 	logWriter := &report.LogWriter{Progress: progress}
 	e.logger.SetOutput(logWriter)
 
@@ -62,7 +60,6 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	for loop := 1; loop <= config.MaxLoops; loop++ {
 		select {
 		case <-ctx.Done():
-			e.logger.Printf("Scan cancelled")
 			return session, ctx.Err()
 		default:
 		}
@@ -72,41 +69,49 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			StartedAt: time.Now(),
 		}
 
+		// === CRAWL PHASE ===
 		progress.SetLoop(loop)
-		progress.SetPhase("Attacking")
-		e.reporter.PrintLoopStart(loop, config.MaxLoops)
+		progress.SetPhase("Crawling")
+		progress.SetStep("Discovering endpoints...")
 
-		// Phase 1: Red AI attacks
-		progress.SetStep("Crawling & probing endpoints...")
+		// === ATTACK PHASE ===
 		findings, err := e.redAgent.Attack(ctx, config.Target, allFindings, allPatches, loop)
 		if err != nil {
-			e.logger.Printf("Red AI error in loop %d: %v", loop, err)
+			progress.Stop()
 			e.reporter.PrintError(fmt.Sprintf("Red AI error: %v", err))
+			progress = report.NewProgress(config.MaxLoops)
+			progress.Start()
 			loopResult.FinishedAt = time.Now()
 			session.Loops = append(session.Loops, loopResult)
 			continue
 		}
 
-		// Filter to only new findings
+		// Filter new findings
 		newFindings := convergence.FilterNew(findings)
 		loopResult.Findings = newFindings
 		loopResult.NewFindings = len(newFindings)
-
 		progress.AddFindings(len(newFindings))
-		progress.SetPhase("Analyzing")
-		progress.SetStep(fmt.Sprintf("%d new findings", len(newFindings)))
 
-		// Pause progress for output
+		// === DISPLAY FINDINGS ===
 		progress.Stop()
-		e.reporter.PrintFindings(newFindings, loop)
+
+		lv.PrintPhase(loop, config.MaxLoops, "probe")
+		if len(newFindings) > 0 {
+			for _, f := range newFindings {
+				lv.PrintFindingLive(f)
+			}
+		} else {
+			fmt.Println("  → No new findings")
+		}
+
 		progress = report.NewProgress(config.MaxLoops)
 		progress.SetLoop(loop)
 		progress.Start()
 
-		// Record findings in memory
+		// Record findings
 		for _, f := range newFindings {
 			if err := e.store.SaveFinding(session.ID, f); err != nil {
-				e.logger.Printf("Warning: failed to save finding: %v", err)
+				// silently continue
 			}
 			if f.Technique != "" && f.PoC != "" {
 				_ = e.store.RecordPlaybookEntry(f.Technique, "", f.PoC)
@@ -117,73 +122,75 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 
 		// Check convergence
 		if convergence.HasConverged(loop, len(newFindings)) {
-			e.logger.Printf("Converged after %d loops with %d unique findings", loop, convergence.TotalUnique())
-			e.reporter.PrintConvergence(loop, convergence.TotalUnique())
+			progress.Stop()
+			lv.PrintConvergenceLive(loop, convergence.TotalUnique())
 			session.Converged = true
 			loopResult.FinishedAt = time.Now()
 			session.Loops = append(session.Loops, loopResult)
+			progress = report.NewProgress(config.MaxLoops)
+			progress.Start()
 			break
 		}
 
-		// Phase 2: Blue AI defends
+		// === DEFEND PHASE ===
 		if len(newFindings) > 0 {
 			progress.SetPhase("Defending")
-			progress.SetStep("Blue AI analyzing fixes...")
+			progress.SetStep("Blue AI analyzing...")
+
 			patches, err := e.blueAgent.Defend(ctx, newFindings)
 			if err != nil {
-				e.logger.Printf("Blue AI error in loop %d: %v", loop, err)
-				e.reporter.PrintError(fmt.Sprintf("Blue AI error: %v", err))
+				progress.Stop()
+				e.reporter.PrintError(fmt.Sprintf("Blue AI: %v", err))
+				progress = report.NewProgress(config.MaxLoops)
+				progress.Start()
 			} else {
 				loopResult.Patches = patches
 				allPatches = append(allPatches, patches...)
-				e.reporter.PrintPatches(patches, loop)
-
-				// Save patches
 				for _, p := range patches {
-					if err := e.store.SavePatch(session.ID, p); err != nil {
-						e.logger.Printf("Warning: failed to save patch: %v", err)
-					}
+					_ = e.store.SavePatch(session.ID, p)
 				}
 			}
 		}
 
 		loopResult.FinishedAt = time.Now()
 		session.Loops = append(session.Loops, loopResult)
-
-		e.reporter.PrintLoopEnd(loop, len(newFindings), len(loopResult.Patches))
 	}
 
-	// Final Boss validation
+	// === FINAL BOSS ===
 	if config.FinalBoss && e.bossAgent != nil {
-		progress.SetPhase("Final Boss")
-		progress.SetStep("Elite validation scan...")
 		progress.Stop()
-		e.reporter.PrintBossStart()
+		lv.PrintPhase(0, 0, "boss")
+		progress = report.NewProgress(1)
+		progress.SetPhase("Final Boss")
+		progress.Start()
+
 		bossFindings, err := e.bossAgent.Validate(ctx, config.Target, allFindings, allPatches)
 		if err != nil {
-			e.logger.Printf("Final Boss error: %v", err)
-			e.reporter.PrintError(fmt.Sprintf("Final Boss error: %v", err))
+			progress.Stop()
+			e.reporter.PrintError(fmt.Sprintf("Final Boss: %v", err))
 		} else {
-			newBossFindings := convergence.FilterNew(bossFindings)
-			allFindings = append(allFindings, newBossFindings...)
-			e.reporter.PrintBossResults(newBossFindings)
+			progress.Stop()
+			newBoss := convergence.FilterNew(bossFindings)
+			allFindings = append(allFindings, newBoss...)
+			for _, f := range newBoss {
+				lv.PrintFindingLive(f)
+			}
 		}
+		progress = report.NewProgress(1)
+		progress.Start()
 	}
 
-	// Stop progress before final output
+	// === SUMMARY ===
 	progress.Stop()
 
-	// Finalize session
 	session.FinishedAt = time.Now()
 	session.TotalFindings = len(allFindings)
 
-	// Save session
 	if err := e.store.SaveSession(session); err != nil {
-		e.logger.Printf("Warning: failed to save session: %v", err)
+		// silently continue
 	}
 
-	// Print final report
-	e.reporter.PrintSummary(session, allFindings)
+	lv.PrintSummaryBox(session, allFindings)
 
 	return session, nil
 }
