@@ -9,26 +9,30 @@ import (
 	"time"
 
 	"github.com/ouroboros-security/ouroboros/internal/ai"
+	target_pkg "github.com/ouroboros-security/ouroboros/internal/target"
 	"github.com/ouroboros-security/ouroboros/pkg/types"
 )
 
 // Agent is the Red AI attacker agent.
 type Agent struct {
-	provider  ai.Provider
-	crawler   *Crawler
-	scanner   *Scanner
-	exploiter *Exploiter
-	logger    *log.Logger
+	provider       ai.Provider
+	crawler        *Crawler
+	scanner        *Scanner
+	exploiter      *Exploiter
+	activeExploit  *ActiveExploiter
+	logger         *log.Logger
+	lastEndpoints  []types.Endpoint // cached from last crawl
 }
 
 // NewAgent creates a new Red AI agent.
 func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 	return &Agent{
-		provider:  provider,
-		crawler:   NewCrawler(logger),
-		scanner:   NewScanner(provider, logger),
-		exploiter: NewExploiter(logger),
-		logger:    logger,
+		provider:      provider,
+		crawler:       NewCrawler(logger),
+		scanner:       NewScanner(provider, logger),
+		exploiter:     NewExploiter(logger),
+		activeExploit: NewActiveExploiter(provider, logger),
+		logger:        logger,
 	}
 }
 
@@ -56,36 +60,40 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		return findings, nil
 	}
 
-	// Phase 3: Active exploitation to confirm findings
-	a.logger.Printf("[RED] Phase 3: Active exploitation (%d targets)...", len(findings))
-	exploitResults := a.exploiter.Exploit(ctx, findings, target)
+	// Phase 3: AI-guided active exploitation
+	a.logger.Printf("[RED] Phase 3: AI-guided active exploitation (%d targets)...", len(findings))
+
+	// Get endpoint context for the active exploiter
+	endpoints := target_pkg.DiscoverEndpoints(urls, target.Headers)
+	a.lastEndpoints = endpoints
+
+	activeResults := a.activeExploit.ExploitAll(ctx, findings, target, endpoints)
 
 	// Update findings with exploit results
 	confirmed := make([]types.Finding, 0)
 	for i, f := range findings {
-		if i < len(exploitResults) && exploitResults[i].Exploited {
+		if i < len(activeResults) && activeResults[i].Exploited {
 			f.Confirmed = true
-			f.ExploitEvidence = exploitResults[i].Evidence
-			f.ExfiltratedData = exploitResults[i].DataExfiled
-			if exploitResults[i].Severity != "" {
-				upgraded, _ := types.ParseSeverity(exploitResults[i].Severity)
+			f.ExploitEvidence = activeResults[i].Evidence
+			f.ExfiltratedData = activeResults[i].DataExfiled
+			if activeResults[i].SevUpgrade != "" {
+				upgraded, _ := types.ParseSeverity(activeResults[i].SevUpgrade)
 				if upgraded > f.Severity {
 					f.Severity = upgraded
 				}
 			}
-			if exploitResults[i].Payload != "" {
-				f.PoC = exploitResults[i].Payload
+			if activeResults[i].Chain != "" {
+				f.ExploitEvidence += " [" + activeResults[i].Chain + "]"
 			}
 			confirmed = append(confirmed, f)
 		} else {
-			// Keep unconfirmed findings but mark them
 			f.Confirmed = false
 			confirmed = append(confirmed, f)
 		}
 	}
 
 	exploitedCount := 0
-	for _, r := range exploitResults {
+	for _, r := range activeResults {
 		if r.Exploited {
 			exploitedCount++
 		}
