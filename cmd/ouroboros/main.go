@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -51,29 +52,81 @@ func newScanCmd() *cobra.Command {
 		minConfidence int
 		minCVSS       float64
 		sortBy        string
+		profile       string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "scan [target-url]",
 		Short: "Scan a target with the adversarial AI loop",
-		Long:  "Run the Red AI → Blue AI → Re-attack loop against a target URL until convergence.",
-		Args:  cobra.ExactArgs(1),
+		Long: `Run the Red AI → Blue AI → Re-attack loop against a target URL until convergence.
+
+Profiles:
+  quick    - 1 loop, no AI analysis (fast recon)
+  deep     - 3 loops with AI exploitation (default)
+  paranoid - 5 loops + Final Boss validation (thorough)
+
+Examples:
+  ouroboros scan http://target.com --profile quick
+  ouroboros scan http://target.com --profile deep --min-confidence 50
+  ouroboros scan http://target.com --profile paranoid -o report.sarif`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetURL := args[0]
+			// Apply profile defaults (flags override profile)
+			applyProfile(profile, cmd, &maxLoops, &finalBoss, &minConfidence, &minCVSS)
 			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy)
 		},
 	}
 
-	cmd.Flags().IntVar(&maxLoops, "max-loops", 5, "Maximum number of attack-fix loops")
+	cmd.Flags().StringVar(&profile, "profile", "", "Scan profile: quick, deep, paranoid")
+	cmd.Flags().IntVar(&maxLoops, "max-loops", 3, "Maximum number of attack-fix loops")
 	cmd.Flags().BoolVar(&finalBoss, "final-boss", false, "Enable Final Boss validation after convergence")
 	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model to use")
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file (supports .json, .md, .sarif)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file (.json, .md, .sarif, .html)")
 	cmd.Flags().IntVar(&minConfidence, "min-confidence", 0, "Minimum confidence score to include (0-100)")
 	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score to include (0.0-10.0)")
 	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort findings by: cvss, confidence, severity")
 
 	return cmd
+}
+
+// applyProfile sets defaults based on profile name. Explicit flags take precedence.
+func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *bool, minConf *int, minCVSS *float64) {
+	if profile == "" {
+		return
+	}
+	switch profile {
+	case "quick":
+		if !cmd.Flags().Changed("max-loops") {
+			*maxLoops = 1
+		}
+		if !cmd.Flags().Changed("min-confidence") {
+			*minConf = 0
+		}
+	case "deep":
+		if !cmd.Flags().Changed("max-loops") {
+			*maxLoops = 3
+		}
+		if !cmd.Flags().Changed("min-confidence") {
+			*minConf = 50
+		}
+		if !cmd.Flags().Changed("min-cvss") {
+			*minCVSS = 4.0
+		}
+	case "paranoid":
+		if !cmd.Flags().Changed("max-loops") {
+			*maxLoops = 5
+		}
+		if !cmd.Flags().Changed("final-boss") {
+			*finalBoss = true
+		}
+		if !cmd.Flags().Changed("min-confidence") {
+			*minConf = 25
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: unknown profile %q, using defaults\n", profile)
+	}
 }
 
 func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string) error {
@@ -307,13 +360,16 @@ func sortFindings(findings []types.Finding, sortBy string) {
 }
 
 func exportReport(path string, findings []types.Finding, session *types.ScanSession) error {
-	if len(path) > 6 && path[len(path)-6:] == ".sarif" {
+	if strings.HasSuffix(path, ".sarif") {
 		return report.ExportSARIF(findings, session, path)
 	}
-	if len(path) > 5 && path[len(path)-5:] == ".json" {
+	if strings.HasSuffix(path, ".html") || strings.HasSuffix(path, ".htm") {
+		return report.ExportHTML(findings, session, path)
+	}
+	if strings.HasSuffix(path, ".json") {
 		return report.ExportJSON(findings, session, path)
 	}
-	if len(path) > 3 && path[len(path)-3:] == ".md" {
+	if strings.HasSuffix(path, ".md") {
 		return report.ExportMarkdown(findings, session, path)
 	}
 	// Default to JSON

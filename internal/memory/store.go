@@ -156,11 +156,20 @@ func (s *Store) SavePatch(sessionID string, p types.Patch) error {
 
 // GetSessionFindings retrieves all findings for a session.
 func (s *Store) GetSessionFindings(sessionID string) ([]types.Finding, error) {
-	rows, err := s.db.Query(
-		`SELECT id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, confidence, cvss_score, cvss_vector, adjusted_severity, exploit_evidence, exfiltrated_data, remediation, found_at
-		 FROM findings WHERE session_id = ? ORDER BY found_at`,
-		sessionID,
-	)
+	// Support prefix matching
+	query := `SELECT id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, confidence, cvss_score, cvss_vector, adjusted_severity, exploit_evidence, exfiltrated_data, remediation, found_at
+		 FROM findings WHERE session_id = ? ORDER BY found_at`
+	args := []interface{}{sessionID}
+	if len(sessionID) < 36 {
+		// Resolve prefix to full session ID first
+		var fullID string
+		err := s.db.QueryRow(`SELECT id FROM sessions WHERE id LIKE ? ORDER BY started_at DESC LIMIT 1`, sessionID+"%").Scan(&fullID)
+		if err != nil {
+			return nil, err
+		}
+		args = []interface{}{fullID}
+	}
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -203,10 +212,14 @@ func (s *Store) GetSessionFindings(sessionID string) ([]types.Finding, error) {
 
 // GetSession retrieves a session by ID.
 func (s *Store) GetSession(sessionID string) (*types.ScanSession, error) {
-	row := s.db.QueryRow(
-		`SELECT id, config, started_at, finished_at, converged, total_findings FROM sessions WHERE id = ?`,
-		sessionID,
-	)
+	// Support prefix matching — if not a full UUID, try LIKE prefix
+	query := `SELECT id, config, started_at, finished_at, converged, total_findings FROM sessions WHERE id = ?`
+	args := []interface{}{sessionID}
+	if len(sessionID) < 36 {
+		query = `SELECT id, config, started_at, finished_at, converged, total_findings FROM sessions WHERE id LIKE ? ORDER BY started_at DESC LIMIT 1`
+		args = []interface{}{sessionID + "%"}
+	}
+	row := s.db.QueryRow(query, args...)
 
 	var session types.ScanSession
 	var configJSON string
