@@ -112,6 +112,7 @@ func AllProbers() []Prober {
 		&FileUploadProber{},
 		&SSRFProber{},
 		&CryptoProber{},
+		&AdditionalProber{},
 	}
 }
 
