@@ -47,6 +47,15 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	e.reporter.PrintBanner()
 	e.reporter.PrintSessionStart(session)
 
+	// Start progress display
+	progress := report.NewProgress(config.MaxLoops)
+	progress.Start()
+	defer progress.Stop()
+
+	// Redirect logger output through progress
+	logWriter := &report.LogWriter{Progress: progress}
+	e.logger.SetOutput(logWriter)
+
 	var allFindings []types.Finding
 	var allPatches []types.Patch
 
@@ -63,9 +72,12 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			StartedAt: time.Now(),
 		}
 
+		progress.SetLoop(loop)
+		progress.SetPhase("Attacking")
 		e.reporter.PrintLoopStart(loop, config.MaxLoops)
 
 		// Phase 1: Red AI attacks
+		progress.SetStep("Crawling & probing endpoints...")
 		findings, err := e.redAgent.Attack(ctx, config.Target, allFindings, allPatches, loop)
 		if err != nil {
 			e.logger.Printf("Red AI error in loop %d: %v", loop, err)
@@ -80,7 +92,16 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		loopResult.Findings = newFindings
 		loopResult.NewFindings = len(newFindings)
 
+		progress.AddFindings(len(newFindings))
+		progress.SetPhase("Analyzing")
+		progress.SetStep(fmt.Sprintf("%d new findings", len(newFindings)))
+
+		// Pause progress for output
+		progress.Stop()
 		e.reporter.PrintFindings(newFindings, loop)
+		progress = report.NewProgress(config.MaxLoops)
+		progress.SetLoop(loop)
+		progress.Start()
 
 		// Record findings in memory
 		for _, f := range newFindings {
@@ -106,6 +127,8 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 
 		// Phase 2: Blue AI defends
 		if len(newFindings) > 0 {
+			progress.SetPhase("Defending")
+			progress.SetStep("Blue AI analyzing fixes...")
 			patches, err := e.blueAgent.Defend(ctx, newFindings)
 			if err != nil {
 				e.logger.Printf("Blue AI error in loop %d: %v", loop, err)
@@ -132,6 +155,9 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 
 	// Final Boss validation
 	if config.FinalBoss && e.bossAgent != nil {
+		progress.SetPhase("Final Boss")
+		progress.SetStep("Elite validation scan...")
+		progress.Stop()
 		e.reporter.PrintBossStart()
 		bossFindings, err := e.bossAgent.Validate(ctx, config.Target, allFindings, allPatches)
 		if err != nil {
@@ -143,6 +169,9 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			e.reporter.PrintBossResults(newBossFindings)
 		}
 	}
+
+	// Stop progress before final output
+	progress.Stop()
 
 	// Finalize session
 	session.FinishedAt = time.Now()
