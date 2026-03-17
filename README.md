@@ -2,11 +2,11 @@
 
 **Security that attacks itself until nothing can.**
 
-Ouroboros is an AI-powered security scanner that uses adversarial AI loops to find and validate vulnerabilities. A Red AI attacks your application, a Blue AI generates fixes, then the Red AI attacks again — looping until convergence.
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/borntobeyours/ouroboros?style=social)](https://github.com/borntobeyours/ouroboros)
 
-Every finding is backed by real HTTP evidence, not theoretical speculation.
-
-## How It Works
+AI-powered security scanner with adversarial Red/Blue AI loops. Red AI attacks, Blue AI defends, repeat until nothing breaks. Every finding includes real HTTP evidence, CVSS scores, and exploit proof — not theoretical speculation.
 
 ```
 ┌─────────┐     findings      ┌──────────┐
@@ -17,116 +17,215 @@ Every finding is backed by real HTTP evidence, not theoretical speculation.
         ↻ Loop until convergence
 ```
 
-1. **Red AI** crawls the target, runs 11 technique-specific probers, and uses AI-guided exploitation
-2. **Blue AI** analyzes findings and generates patches/remediations
-3. **Loop** — Red AI attacks again, trying to bypass Blue's fixes
-4. **Convergence** — when no new vulnerabilities are found, the scan completes
-
-## Features
-
-- **11 Active Probers**: SQLi, XSS, IDOR, auth bypass, info leaks, injection, headers, file upload, SSRF, crypto, and more
-- **AI-Guided Exploitation**: Multi-step exploit plans with adaptive retry
-- **SPA Detection**: Fingerprints base URL to eliminate false positives from SPA catch-all routes
-- **Authenticated Scanning**: Auto SQLi login bypass, then scans with JWT token
-- **Self-Learning Memory**: SQLite-backed playbook of successful techniques
-- **Real Evidence**: Every finding includes actual HTTP request/response proof
-
 ## Quick Start
 
 ```bash
 # Install
 go install github.com/borntobeyours/ouroboros/cmd/ouroboros@latest
 
-# Or build from source
-git clone https://github.com/borntobeyours/ouroboros.git
-cd ouroboros
-go build ./cmd/ouroboros/
+# Scan a target
+export OPENAI_API_KEY=sk-...  # or ANTHROPIC_API_KEY
+ouroboros scan http://target.com
 
-# Scan a target (requires OpenAI API key)
-export OPENAI_API_KEY=sk-...
-./ouroboros scan http://localhost:3000
+# Scan profiles (recommended)
+ouroboros scan http://target.com --profile quick      # 1 loop, fast recon
+ouroboros scan http://target.com --profile deep       # 3 loops, filtered output
+ouroboros scan http://target.com --profile paranoid   # 5 loops + Final Boss
 
-# With options
-./ouroboros scan http://localhost:3000 \
-  --max-loops 3 \
-  --provider openai \
-  --model gpt-4o \
-  -o report.md
+# Export reports
+ouroboros scan http://target.com -o report.html       # Interactive HTML
+ouroboros scan http://target.com -o report.sarif      # GitHub Code Scanning
+ouroboros scan http://target.com -o report.md         # Markdown
+ouroboros scan http://target.com -o report.json       # JSON
 ```
 
-## Scan Results (OWASP Juice Shop)
+## What Makes Ouroboros Different
 
+| Feature | Traditional Scanners | Ouroboros |
+|---------|---------------------|-----------|
+| Detection | Pattern matching | AI-guided + 11 active probers |
+| Validation | "Might be vulnerable" | Actual exploitation with proof |
+| False positives | Tons of noise | Confidence scoring (0-100) auto-filters |
+| Severity | Static CVSS lookup | Dynamic CVSS 3.1 based on actual evidence |
+| .git exposed | "File found" | Full exploit: branch, commit hash, git-dumper PoC |
+| .env exposed | "File found" | Extracts actual secrets (masked in report) |
+| Output | Wall of text | Sorted by CVSS, filterable, interactive HTML |
+| CI/CD | Separate tool | Built-in `ouroboros ci` with exit codes |
+| Remediation tracking | Manual | `ouroboros diff` — fixed vs new vs persistent |
+
+## Features
+
+### Scanning
+- **11 Active Probers** — SQLi, XSS, IDOR, XXE, auth bypass, path traversal, file upload, SSRF, injection, headers, crypto
+- **AI-Guided Exploitation** — Multi-step exploit plans with adaptive retry
+- **Auto-Exploit Chains** — .git dump (branch→commit→objects→PoC), .env secret extraction
+- **SPA-Aware Crawler** — Fingerprints base URL, eliminates SPA catch-all false positives
+- **Authenticated Scanning** — Auto login bypass (SQLi, default creds), then scans with JWT
+- **Same-Origin Enforcement** — Only crawls target domain, skips external links
+
+### Quality
+- **Confidence Scoring** — Each finding scored 0-100: Proven (95+), High (75+), Medium (50+), Low (<50)
+- **CVSS v3.1 Auto-Scoring** — Full base score with vector string, calculated from evidence
+- **Severity Auto-Adjustment** — Low-confidence findings automatically downgraded
+- **Smart Filtering** — `--min-confidence 50 --min-cvss 4.0` removes noise instantly
+
+### Reports
+- **HTML** — Dark theme, severity chart, filter buttons, collapsible findings, CWE links
+- **SARIF** — GitHub Code Scanning compatible
+- **Markdown** — Clean, readable, shareable
+- **JSON** — Machine-readable for automation
+- **Sorted** — `--sort cvss` (default), `--sort confidence`, `--sort severity`
+
+### CI/CD
+```bash
+# Fail build on high+ severity findings
+ouroboros ci http://staging.example.com --fail-on high
+
+# Only fail on NEW findings (ignore known issues)
+ouroboros ci http://staging.example.com --fail-on high --baseline <session-id>
+
+# Output SARIF for GitHub Security tab
+ouroboros ci http://staging.example.com -o results.sarif
 ```
-Target:    http://localhost:3000
-Duration:  2m33s
-Loops:     3
-Converged: true
 
-Total Findings: 81
-Confirmed:      79/81 (97.5%)
+Exit codes: `0` = passed, `1` = findings above threshold, `2` = scan error
 
-  Critical: 4
-  High:     25
-  Medium:   30
-  Low:      17
-  Info:     5
+### Remediation Tracking
+```bash
+# Compare two scans
+ouroboros diff --before abc123 --after def456
+
+# Output:
+# ✅ Fixed:      5
+# ⚠️  Persistent: 12
+# 🆕 New:        2
+
+# Export diff report
+ouroboros diff --before abc123 --after def456 -o progress.html
 ```
 
-### Sample Findings
-- **SQLi Login Bypass** — `' OR 1=1--` gets admin JWT token
-- **UNION-based SQLi** — dumps entire SQLite schema via product search
-- **Stored XSS** — persistent payload in product reviews
-- **IDOR** — access any user's basket, profile, payment cards
-- **XXE** — XML entity injection in B2B order endpoint
-- **JWT Key Exposure** — public key readable, enables token forgery
-- **Null Byte Bypass** — download restricted files via `%2500` encoding
-- **Privilege Escalation** — register with `role=admin` accepted
+### Other
+- **Session Prefix Matching** — `ouroboros report --session abc1` (no need for full UUID)
+- **Real-Time Progress** — Animated spinner showing current phase and elapsed time
+- **Self-Learning Memory** — SQLite-backed playbook of successful techniques
+- **Scan Profiles** — `quick`, `deep`, `paranoid` — no need to remember flags
+
+## Real-World Results
+
+### OWASP Juice Shop (Node.js)
+```
+Findings: 64 | Confirmed: 62 (96.9%) | Duration: 3m25s
+Critical: 6 | High: 24 | Medium: 24 | Low: 8 | Info: 2
+```
+- SQLi Login Bypass → admin JWT token (CVSS 9.1, Proven)
+- UNION SQLi → full database dump (CVSS 9.1, Proven)
+- Unrestricted File Upload → RCE potential (CVSS 9.8)
+- IDOR → access any user's cards, orders, profile (CVSS 6.5)
+
+### DVWA (PHP)
+```
+Findings: 19 | Confirmed: 15 (78.9%) | Duration: 1m31s
+Critical: 3 | High: 4 | Medium: 7 | Low: 4 | Info: 1
+```
+
+### WordPress
+```
+Findings: 39 → 16 with --min-confidence 50 --min-cvss 4.0
+XXE xmlrpc.php, CORS reflection, file upload, user enumeration
+```
+
+### Live Target (asset.retas.id)
+```
+Git Repository Exposed — Source Code Extractable
+CVSS: 8.2 (Critical) | Confidence: Proven (95%)
+Branch: master | Commit: e7188b26
+PoC: git-dumper https://asset.retas.id/.git/ ./dumped-repo
+```
 
 ## AI Providers
 
-| Provider | Models | Notes |
-|----------|--------|-------|
-| OpenAI | gpt-4o, gpt-4-turbo | Default, best results |
-| Anthropic | claude-sonnet, claude-opus | Opus reserved for Final Boss mode |
-| Ollama | Any local model | Free, runs locally |
-
 ```bash
-# Use different providers
-./ouroboros scan http://target --provider anthropic --model claude-sonnet-4-20250514
-./ouroboros scan http://target --provider ollama --model llama3
+ouroboros scan http://target --provider openai --model gpt-4o          # Best results
+ouroboros scan http://target --provider anthropic --model claude-sonnet-4-20250514  # Alternative
+ouroboros scan http://target --provider ollama --model llama3           # Free, local
 ```
+
+## GitHub Action
+
+```yaml
+# .github/workflows/security.yml
+name: Security Scan
+on: [pull_request]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - run: go install github.com/borntobeyours/ouroboros/cmd/ouroboros@latest
+      - run: ouroboros ci ${{ env.TARGET_URL }} --fail-on high -o results.sarif
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with: { sarif_file: results.sarif }
+```
+
+See [`.github/workflows/ouroboros.yml`](.github/workflows/ouroboros.yml) for a complete example.
 
 ## Architecture
 
 ```
-cmd/ouroboros/          CLI entry point
+cmd/ouroboros/           CLI (scan, report, diff, ci)
 internal/
-  ai/                  AI provider abstraction (OpenAI, Anthropic, Ollama)
-  red/                 Red AI agent
-    probers/           11 technique-specific active probers
-    techniques/        SQLi, XSS, auth bypass implementations
-    active_exploit.go  AI-guided multi-step exploitation
-    crawler.go         SPA-aware web crawler
-  blue/                Blue AI agent (patch generation)
-  boss/                Final Boss validation (stub)
-  engine/              Ouroboros loop engine + convergence detection
-  memory/              SQLite persistent store
-  report/              Markdown report generation
-pkg/types/             Shared types (Finding, Patch, Target, etc.)
+  ai/                   Provider abstraction (OpenAI, Anthropic, Ollama)
+  red/                  Red AI agent
+    probers/            11 technique-specific probers
+    confidence.go       Confidence scoring engine
+    crawler.go          SPA-aware web crawler
+    classifier.go       Endpoint auto-classification
+    active_exploit.go   AI-guided multi-step exploitation
+  blue/                 Blue AI agent (patch generation)
+  boss/                 Final Boss validation
+  engine/               Loop orchestration + convergence detection
+  memory/               SQLite persistent store
+  report/               HTML, Markdown, JSON, SARIF exporters
+pkg/types/
+  finding.go            Finding with confidence + CVSS
+  cvss.go               CVSS v3.1 calculator
+  severity.go           Severity types + parsing
 ```
 
 ## Roadmap
 
-- [ ] Web dashboard (React)
-- [ ] Final Boss mode (Opus-level AI validation)
-- [ ] CI/CD pipeline integration
-- [ ] Compliance report generation (SOC2, ISO27001)
+- [x] 11 active probers with real HTTP evidence
+- [x] AI-guided exploitation
+- [x] Confidence scoring (0-100)
+- [x] CVSS v3.1 auto-calculation
+- [x] Auto-exploit chains (.git, .env)
+- [x] HTML/SARIF/Markdown/JSON reports
+- [x] Scan profiles (quick/deep/paranoid)
+- [x] CI/CD mode with exit codes
+- [x] Diff mode (fixed/persistent/new)
+- [x] GitHub Action
+- [x] Real-time progress display
+- [ ] SSRF exploitation (cloud metadata)
+- [ ] Path traversal auto-exploit
+- [ ] Web dashboard
+- [ ] Final Boss mode (Opus-level validation)
+- [ ] Subdomain enumeration
+- [ ] Rate limiting / stealth mode
 - [ ] Plugin system for custom probers
-- [ ] OpenRouter provider support
 
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
