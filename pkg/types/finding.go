@@ -41,6 +41,7 @@ type Finding struct {
 	Severity         Severity   `json:"severity"`
 	AdjustedSeverity Severity   `json:"adjusted_severity"` // After confidence adjustment
 	Confidence       Confidence `json:"confidence"`
+	CVSS             CVSS       `json:"cvss"`
 	Endpoint         string     `json:"endpoint"`
 	Method           string     `json:"method,omitempty"`
 	CWE              string     `json:"cwe,omitempty"`

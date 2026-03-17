@@ -39,6 +39,9 @@ func ScoreConfidence(findings []types.Finding) {
 			f.Confidence = 0
 		}
 
+		// Calculate CVSS
+		f.CVSS = types.CalculateCVSS(f)
+
 		// Recalculate adjusted severity
 		f.AdjustSeverity()
 	}

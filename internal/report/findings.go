@@ -89,6 +89,22 @@ func (r *Reporter) printFinding(f types.Finding) {
 	sevColor.Printf("  [%s] ", displaySev)
 	fmt.Printf("%s", f.Title)
 
+	// Show CVSS + confidence
+	if f.CVSS.Score > 0 {
+		var cvssColor *color.Color
+		switch {
+		case f.CVSS.Score >= 9.0:
+			cvssColor = color.New(color.FgRed, color.Bold)
+		case f.CVSS.Score >= 7.0:
+			cvssColor = color.New(color.FgRed)
+		case f.CVSS.Score >= 4.0:
+			cvssColor = color.New(color.FgYellow)
+		default:
+			cvssColor = color.New(color.FgBlue)
+		}
+		cvssColor.Printf(" [CVSS:%.1f]", f.CVSS.Score)
+	}
+
 	// Show confidence status
 	switch {
 	case f.Confidence >= 95:
@@ -290,6 +306,9 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 		sb.WriteString(fmt.Sprintf("- **CWE:** %s\n", f.CWE))
 		sb.WriteString(fmt.Sprintf("- **Technique:** %s\n", f.Technique))
 		sb.WriteString(fmt.Sprintf("- **Confidence:** %d/100 (%s)\n", f.Confidence, f.Confidence.String()))
+		if f.CVSS.Score > 0 {
+			sb.WriteString(fmt.Sprintf("- **CVSS:** %.1f (%s) `%s`\n", f.CVSS.Score, f.CVSS.Rating, f.CVSS.Vector))
+		}
 		sb.WriteString(fmt.Sprintf("- **Found in Loop:** %d\n\n", f.Loop))
 		sb.WriteString(fmt.Sprintf("**Description:** %s\n\n", f.Description))
 		if f.PoC != "" {
