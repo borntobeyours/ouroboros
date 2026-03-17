@@ -21,6 +21,8 @@ func (p *InfoLeakProber) Probe(ctx context.Context, target types.Target, endpoin
 	var findings []types.Finding
 
 	findings = append(findings, p.testSensitiveFiles(cfg)...)
+	findings = append(findings, p.exploitGitExposure(cfg)...)
+	findings = append(findings, p.exploitEnvFile(cfg)...)
 	findings = append(findings, p.testMetrics(cfg)...)
 	findings = append(findings, p.testAPIDocExposure(cfg)...)
 	findings = append(findings, p.testAPIDataExposure(cfg)...)
@@ -97,6 +99,290 @@ func (p *InfoLeakProber) testSensitiveFiles(cfg *ProberConfig) []types.Finding {
 			"info_leak",
 			0,
 		))
+	}
+
+	return findings
+}
+
+// exploitGitExposure attempts full exploitation of exposed .git directories.
+// Chain: .git/HEAD → ref → commit object → tree → blob (source code extraction)
+func (p *InfoLeakProber) exploitGitExposure(cfg *ProberConfig) []types.Finding {
+	var findings []types.Finding
+
+	// Step 1: Check .git/HEAD
+	headURL := cfg.BaseURL + "/.git/HEAD"
+	status, _, headBody, err := cfg.DoRequest("GET", headURL, nil, nil)
+	if err != nil || status != 200 || len(headBody) < 5 {
+		return findings
+	}
+
+	// Must contain "ref:" for a valid git HEAD
+	headBody = strings.TrimSpace(headBody)
+	if !strings.HasPrefix(headBody, "ref:") && len(headBody) != 40 {
+		return findings
+	}
+
+	// Step 2: Resolve the ref to get commit hash
+	var commitHash string
+	var branch string
+	if strings.HasPrefix(headBody, "ref:") {
+		ref := strings.TrimSpace(strings.TrimPrefix(headBody, "ref:"))
+		branch = strings.TrimPrefix(ref, "refs/heads/")
+		refURL := cfg.BaseURL + "/.git/" + ref
+		status, _, refBody, err := cfg.DoRequest("GET", refURL, nil, nil)
+		if err == nil && status == 200 && len(refBody) >= 40 {
+			commitHash = strings.TrimSpace(refBody)[:40]
+		}
+
+		// Also try packed-refs
+		if commitHash == "" {
+			packedURL := cfg.BaseURL + "/.git/packed-refs"
+			_, _, packedBody, err := cfg.DoRequest("GET", packedURL, nil, nil)
+			if err == nil && len(packedBody) > 0 {
+				for _, line := range strings.Split(packedBody, "\n") {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "#") {
+						continue
+					}
+					parts := strings.Fields(line)
+					if len(parts) == 2 && parts[1] == ref {
+						commitHash = parts[0]
+						break
+					}
+				}
+			}
+		}
+	} else {
+		commitHash = headBody[:40]
+		branch = "detached"
+	}
+
+	// Step 3: Try to read git config for remote URLs
+	var remoteURL string
+	configURL := cfg.BaseURL + "/.git/config"
+	_, _, configBody, err := cfg.DoRequest("GET", configURL, nil, nil)
+	if err == nil && len(configBody) > 0 {
+		for _, line := range strings.Split(configBody, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "url = ") {
+				remoteURL = strings.TrimPrefix(line, "url = ")
+				break
+			}
+		}
+	}
+
+	// Step 4: Try to read git objects (commit → tree → blobs)
+	var extractedFiles []string
+	var extractedContent string
+
+	if commitHash != "" {
+		// Try loose object
+		objPath := fmt.Sprintf("/.git/objects/%s/%s", commitHash[:2], commitHash[2:])
+		objURL := cfg.BaseURL + objPath
+		objStatus, _, _, _ := cfg.DoRequest("GET", objURL, nil, nil)
+
+		if objStatus == 200 {
+			extractedFiles = append(extractedFiles, fmt.Sprintf("commit object: %s", commitHash))
+		}
+
+		// Try info/packs to find pack files
+		packsURL := cfg.BaseURL + "/.git/objects/info/packs"
+		_, _, packsBody, _ := cfg.DoRequest("GET", packsURL, nil, nil)
+		if len(packsBody) > 0 {
+			extractedFiles = append(extractedFiles, "pack index accessible")
+			for _, line := range strings.Split(packsBody, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "P ") {
+					packName := strings.TrimPrefix(line, "P ")
+					// Try to access the pack index
+					idxURL := cfg.BaseURL + "/.git/objects/pack/" + strings.Replace(packName, ".pack", ".idx", 1)
+					idxStatus, _, _, _ := cfg.DoRequest("GET", idxURL, nil, nil)
+					if idxStatus == 200 {
+						extractedFiles = append(extractedFiles, fmt.Sprintf("pack index: %s", packName))
+					}
+				}
+			}
+		}
+	}
+
+	// Step 5: Try common source files via .git/logs
+	logsURL := cfg.BaseURL + "/.git/logs/HEAD"
+	_, _, logsBody, _ := cfg.DoRequest("GET", logsURL, nil, nil)
+	if len(logsBody) > 0 {
+		extractedFiles = append(extractedFiles, "git reflog (commit history)")
+		// Extract commit messages from logs
+		lines := strings.Split(logsBody, "\n")
+		for i, line := range lines {
+			if i >= 5 {
+				break
+			}
+			if len(line) > 20 {
+				extractedFiles = append(extractedFiles, fmt.Sprintf("  log: %s", truncate(line, 100)))
+			}
+		}
+	}
+
+	// Step 6: Try FETCH_HEAD, ORIG_HEAD for more info
+	for _, ref := range []string{"FETCH_HEAD", "ORIG_HEAD", "COMMIT_EDITMSG", "description"} {
+		refURL := cfg.BaseURL + "/.git/" + ref
+		refStatus, _, refBody, _ := cfg.DoRequest("GET", refURL, nil, nil)
+		if refStatus == 200 && len(refBody) > 0 {
+			extractedFiles = append(extractedFiles, fmt.Sprintf("%s: %s", ref, truncate(strings.TrimSpace(refBody), 80)))
+		}
+	}
+
+	// Build the finding based on exploitation depth
+	if commitHash != "" || len(extractedFiles) > 0 {
+		severity := "Critical"
+		title := "Git Repository Exposed — Source Code Extractable"
+		desc := fmt.Sprintf("The .git directory is fully accessible. Branch: %s.", branch)
+		if commitHash != "" {
+			desc += fmt.Sprintf(" Latest commit: %s.", commitHash[:8])
+		}
+		if remoteURL != "" {
+			desc += fmt.Sprintf(" Remote: %s.", remoteURL)
+		}
+		desc += " An attacker can reconstruct the full source code using tools like git-dumper."
+
+		evidence := fmt.Sprintf("HEAD: %s\n", headBody)
+		if commitHash != "" {
+			evidence += fmt.Sprintf("Commit hash: %s\n", commitHash)
+		}
+		if branch != "" {
+			evidence += fmt.Sprintf("Branch: %s\n", branch)
+		}
+		if remoteURL != "" {
+			evidence += fmt.Sprintf("Remote URL: %s\n", remoteURL)
+		}
+		if len(extractedFiles) > 0 {
+			evidence += "Extracted:\n"
+			for _, f := range extractedFiles {
+				evidence += fmt.Sprintf("  - %s\n", f)
+			}
+		}
+
+		poc := fmt.Sprintf("# Exploit chain:\ncurl %s/.git/HEAD\ncurl %s/.git/config\n", cfg.BaseURL, cfg.BaseURL)
+		if commitHash != "" {
+			poc += fmt.Sprintf("curl %s/.git/objects/%s/%s\n", cfg.BaseURL, commitHash[:2], commitHash[2:])
+		}
+		poc += fmt.Sprintf("\n# Full dump:\npip install git-dumper\ngit-dumper %s/.git/ ./dumped-repo", cfg.BaseURL)
+
+		findings = append(findings, MakeFinding(
+			title,
+			severity,
+			desc,
+			"/.git/",
+			"GET",
+			"CWE-538",
+			poc,
+			evidence,
+			"info_leak",
+			0,
+		))
+
+		if extractedContent != "" {
+			findings[len(findings)-1].ExfiltratedData = extractedContent
+		}
+	}
+
+	return findings
+}
+
+// exploitEnvFile attempts to extract secrets from exposed .env files.
+func (p *InfoLeakProber) exploitEnvFile(cfg *ProberConfig) []types.Finding {
+	var findings []types.Finding
+
+	envPaths := []string{"/.env", "/.env.local", "/.env.production", "/.env.backup", "/.env.old", "/env", "/.env.dev"}
+	for _, path := range envPaths {
+		url := cfg.BaseURL + path
+		status, _, respBody, err := cfg.DoRequest("GET", url, nil, nil)
+		if err != nil || status != 200 || len(respBody) < 5 {
+			continue
+		}
+
+		// Must look like a .env file (KEY=VALUE format)
+		if !strings.Contains(respBody, "=") {
+			continue
+		}
+
+		// Skip HTML responses
+		lower := strings.ToLower(respBody)
+		if strings.Contains(lower, "<!doctype") || strings.Contains(lower, "<html") {
+			continue
+		}
+
+		// SPA check
+		if cfg.IsSPAResponse(url) {
+			continue
+		}
+
+		// Extract actual secrets
+		var secrets []string
+		var hasRealSecrets bool
+		sensitiveKeys := []string{"password", "secret", "key", "token", "api", "database", "db_",
+			"redis", "smtp", "mail", "aws", "stripe", "paypal", "jwt", "auth", "private"}
+
+		for _, line := range strings.Split(respBody, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key := strings.ToLower(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// Remove quotes
+			value = strings.Trim(value, "\"'")
+
+			for _, sensitive := range sensitiveKeys {
+				if strings.Contains(key, sensitive) && len(value) > 0 && value != "null" && value != "false" {
+					// Mask the value but show it was there
+					masked := value
+					if len(masked) > 4 {
+						masked = masked[:2] + strings.Repeat("*", len(masked)-4) + masked[len(masked)-2:]
+					}
+					secrets = append(secrets, fmt.Sprintf("%s=%s", parts[0], masked))
+					hasRealSecrets = true
+					break
+				}
+			}
+		}
+
+		severity := "High"
+		title := fmt.Sprintf("Environment File Exposed at %s", path)
+		if hasRealSecrets {
+			severity = "Critical"
+			title = fmt.Sprintf("Environment File with Secrets Exposed at %s", path)
+		}
+
+		evidence := fmt.Sprintf("HTTP %d - %d lines, %d secrets found\n", status, len(strings.Split(respBody, "\n")), len(secrets))
+		if len(secrets) > 0 {
+			evidence += "Secrets (masked):\n"
+			for _, s := range secrets {
+				evidence += fmt.Sprintf("  %s\n", s)
+			}
+		}
+
+		findings = append(findings, MakeFinding(
+			title,
+			severity,
+			fmt.Sprintf("Environment configuration file at %s is publicly accessible, exposing %d secret values including API keys, database credentials, and tokens.", path, len(secrets)),
+			path,
+			"GET",
+			"CWE-538",
+			fmt.Sprintf("curl %s", url),
+			evidence,
+			"info_leak",
+			0,
+		))
+
+		if hasRealSecrets {
+			findings[len(findings)-1].ExfiltratedData = strings.Join(secrets, "\n")
+		}
+
+		break // One .env finding is enough
 	}
 
 	return findings

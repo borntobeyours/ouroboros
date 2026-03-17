@@ -113,6 +113,20 @@ func adjustByTechnique(f *types.Finding) types.Confidence {
 			strings.Contains(lower, "file content") {
 			conf = types.ConfProven
 		}
+
+	case tech == "info_leak":
+		// Git repo with commit hash = proven
+		if strings.Contains(lower, "source code extractable") || strings.Contains(lower, "commit hash:") {
+			conf = types.ConfProven
+		}
+		// Env file with secrets = proven
+		if strings.Contains(lower, "secrets exposed") || strings.Contains(lower, "secrets (masked)") {
+			conf = types.ConfProven
+		}
+		// Git reflog = proven
+		if strings.Contains(lower, "reflog") || strings.Contains(lower, "pack index") {
+			conf = types.ConfProven
+		}
 	}
 
 	return conf

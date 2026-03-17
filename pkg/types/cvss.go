@@ -182,7 +182,16 @@ func inferMetrics(f *Finding) CVSSMetrics {
 			strings.Contains(evidence, "key") {
 			m.ConfidentialityImpact = "H"
 		}
-		m.IntegrityImpact = "N"
+		// Git repo exposure = full source code = high confidentiality
+		if strings.Contains(title, "git repository") || strings.Contains(title, "source code extractable") {
+			m.ConfidentialityImpact = "H"
+			m.IntegrityImpact = "L" // Attacker learns codebase, can find more vulns
+		}
+		// Env file with secrets = critical
+		if strings.Contains(title, "environment file") && strings.Contains(title, "secret") {
+			m.ConfidentialityImpact = "H"
+			m.IntegrityImpact = "H" // Can use creds to modify data
+		}
 		m.AvailabilityImpact = "N"
 	}
 
