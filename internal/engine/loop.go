@@ -159,25 +159,36 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	// === FINAL BOSS ===
 	if config.FinalBoss && e.bossAgent != nil {
 		progress.Stop()
+		fmt.Println()
 		lv.PrintPhase(0, 0, "boss")
-		progress = report.NewProgress(1)
-		progress.SetPhase("Final Boss")
-		progress.Start()
 
+		// Hook boss events into liveview
+		e.bossAgent.SetEventCallback(func(event string) {
+			fmt.Printf("  %s\n", event)
+		})
+
+		// Boss validates + finds new vulns + removes false positives
 		bossFindings, err := e.bossAgent.Validate(ctx, config.Target, allFindings, allPatches)
 		if err != nil {
-			progress.Stop()
 			e.reporter.PrintError(fmt.Sprintf("Final Boss: %v", err))
 		} else {
-			progress.Stop()
+			// Get re-validated findings (false positives removed)
+			validatedOld := e.bossAgent.GetValidatedFindings(ctx, config.Target, allFindings)
+			removed := len(allFindings) - len(validatedOld)
+			allFindings = validatedOld
+
+			// Add new boss findings
 			newBoss := convergence.FilterNew(bossFindings)
-			allFindings = append(allFindings, newBoss...)
 			for _, f := range newBoss {
 				lv.PrintFindingLive(f)
 			}
+			allFindings = append(allFindings, newBoss...)
+
+			if removed > 0 {
+				fmt.Printf("  🗑️  Removed %d false positives\n", removed)
+			}
+			fmt.Printf("  ✅ %d validated findings + %d new from Final Boss\n", len(validatedOld), len(newBoss))
 		}
-		progress = report.NewProgress(1)
-		progress.Start()
 	}
 
 	// === SUMMARY ===
