@@ -197,8 +197,8 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 
 	// Resolve API key
 	apiKey := resolveAPIKey(providerName)
-	if apiKey == "" && providerName != "ollama" {
-		return fmt.Errorf("API key not found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable")
+	if apiKey == "" && providerName != "ollama" && providerName != "claude-code" && providerName != "claudecode" && providerName != "claude" {
+		return fmt.Errorf("API key not found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable, or use --provider claude-code")
 	}
 
 	// Initialize AI provider
@@ -1022,7 +1022,7 @@ func runCI(targetURL string, maxLoops int, providerName, model, output, failOn s
 	}()
 
 	apiKey := resolveAPIKey(providerName)
-	if apiKey == "" && providerName != "ollama" {
+	if apiKey == "" && providerName != "ollama" && providerName != "claude-code" && providerName != "claudecode" && providerName != "claude" {
 		return fmt.Errorf("API key not found")
 	}
 

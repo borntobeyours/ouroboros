@@ -47,6 +47,8 @@ func NewProvider(name, model, apiKey string) (Provider, error) {
 		return NewOpenAI(apiKey, model), nil
 	case "ollama":
 		return NewOllama(model, "http://localhost:11434"), nil
+	case "claude-code", "claudecode", "claude":
+		return NewClaudeCode(model), nil
 	default:
 		return NewAnthropic(apiKey, model), nil
 	}
