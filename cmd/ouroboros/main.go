@@ -581,9 +581,14 @@ func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
 
 func newReconCmd() *cobra.Command {
 	var (
-		output  string
-		scanAll bool
-		workers int
+		output        string
+		scanAll       bool
+		workers       int
+		scanProfile   string
+		scanProvider  string
+		scanModel     string
+		scanOutput    string
+		rateLimit     int
 	)
 
 	cmd := &cobra.Command{
@@ -596,7 +601,14 @@ Each discovered subdomain is probed for:
   • HTTP/HTTPS availability + title
   • Subdomain takeover detection (30+ service signatures)
 
-Use --scan to automatically scan all alive subdomains after enumeration.`,
+Pipeline mode (--scan):
+  Recon first → automatically scan ALL alive subdomains → combined report.
+
+Examples:
+  ouroboros recon example.com                         # Enum only
+  ouroboros recon example.com --scan                  # Enum → scan all alive
+  ouroboros recon example.com --scan --profile deep   # Enum → deep scan
+  ouroboros recon example.com --scan -o report.html   # Enum → scan → HTML report`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			domain := args[0]
@@ -604,11 +616,19 @@ Use --scan to automatically scan all alive subdomains after enumeration.`,
 			domain = strings.TrimPrefix(domain, "http://")
 			domain = strings.Split(domain, "/")[0]
 
+			if rateLimit > 0 {
+				probers.SetRate(rateLimit)
+			}
+
 			fmt.Printf("\n  \033[31m╔══════════════════════════════════════════════════════╗\033[0m\n")
 			fmt.Printf("  \033[31m║\033[0m\033[1m  🔍 OUROBOROS — SUBDOMAIN RECONNAISSANCE            \033[31m║\033[0m\n")
 			fmt.Printf("  \033[31m╚══════════════════════════════════════════════════════╝\033[0m\n\n")
 			fmt.Printf("  \033[36mDOMAIN\033[0m  %s\n", domain)
-			fmt.Printf("  \033[33mMODE\033[0m    crt.sh + DNS wordlist (%d workers)\n\n", workers)
+			mode := "crt.sh + DNS wordlist"
+			if scanAll {
+				mode += " → AUTO-SCAN"
+			}
+			fmt.Printf("  \033[33mMODE\033[0m    %s (%d workers)\n\n", mode, workers)
 			fmt.Printf("  \033[90m──────────────────────────────────────────────────────\033[0m\n")
 
 			fmt.Printf("  🌐 \033[33mPhase 1:\033[0m Querying crt.sh (Certificate Transparency)...\n")
@@ -635,15 +655,6 @@ Use --scan to automatically scan all alive subdomains after enumeration.`,
 
 			result := enum.Run()
 
-			// Summary
-			fmt.Printf("\n  \033[90m══════════════════════════════════════════════════════\033[0m\n")
-			fmt.Printf("  \033[36m📋 RECON COMPLETE\033[0m\n")
-			fmt.Printf("  \033[90m──────────────────────────────────────────────────────\033[0m\n")
-			fmt.Printf("  Domain:     %s\n", result.Domain)
-			fmt.Printf("  Duration:   %s\n", result.Duration)
-			fmt.Printf("  Subdomains: \033[1m%d\033[0m found, \033[32m%d alive\033[0m, \033[90m%d dead\033[0m\n",
-				result.Total, result.Alive, result.Total-result.Alive)
-
 			// Count takeover candidates
 			takeovers := 0
 			for _, s := range result.Subdomains {
@@ -651,89 +662,264 @@ Use --scan to automatically scan all alive subdomains after enumeration.`,
 					takeovers++
 				}
 			}
+
+			// Recon Summary
+			fmt.Printf("\n  \033[90m══════════════════════════════════════════════════════\033[0m\n")
+			fmt.Printf("  \033[36m📋 RECON COMPLETE\033[0m\n")
+			fmt.Printf("  \033[90m──────────────────────────────────────────────────────\033[0m\n")
+			fmt.Printf("  Domain:     %s\n", result.Domain)
+			fmt.Printf("  Duration:   %s\n", result.Duration)
+			fmt.Printf("  Subdomains: \033[1m%d\033[0m found, \033[32m%d alive\033[0m, \033[90m%d dead\033[0m\n",
+				result.Total, result.Alive, result.Total-result.Alive)
 			if takeovers > 0 {
 				fmt.Printf("  Takeover:   \033[31m%d potential\033[0m\n", takeovers)
 			}
-
 			fmt.Printf("  \033[90m══════════════════════════════════════════════════════\033[0m\n\n")
 
-			// Output to file
-			if output != "" {
-				if strings.HasSuffix(output, ".json") {
-					data, _ := json.MarshalIndent(result, "", "  ")
-					if err := os.WriteFile(output, data, 0644); err != nil {
-						return fmt.Errorf("write output: %w", err)
-					}
-				} else {
-					var sb strings.Builder
-					sb.WriteString(fmt.Sprintf("# Subdomain Enumeration — %s\n\n", result.Domain))
-					sb.WriteString(fmt.Sprintf("**Total:** %d | **Alive:** %d | **Duration:** %s\n\n", result.Total, result.Alive, result.Duration))
-
-					sb.WriteString("## Alive Subdomains\n\n")
-					sb.WriteString("| Subdomain | IPs | HTTP | Title | Source |\n")
-					sb.WriteString("|-----------|-----|------|-------|--------|\n")
-					for _, s := range result.Subdomains {
-						if !s.Alive {
-							continue
-						}
-						scheme := "http"
-						if s.HTTPS {
-							scheme = "https"
-						}
-						sb.WriteString(fmt.Sprintf("| %s | %s | %s %d | %s | %s |\n",
-							s.Name, strings.Join(s.IPs, ", "), scheme, s.HTTPCode, s.HTTPTitle, s.Source))
-					}
-
-					if takeovers > 0 {
-						sb.WriteString("\n## ⚠️ Potential Subdomain Takeovers\n\n")
-						for _, s := range result.Subdomains {
-							if s.Takeover != "" {
-								sb.WriteString(fmt.Sprintf("- **%s** — %s (CNAME: %s)\n",
-									s.Name, s.Takeover, strings.Join(s.CNAMEs, ", ")))
-							}
-						}
-					}
-
-					sb.WriteString("\n## Dead Subdomains\n\n")
-					for _, s := range result.Subdomains {
-						if s.Alive || s.Takeover != "" {
-							continue
-						}
-						sb.WriteString(fmt.Sprintf("- %s (%s)\n", s.Name, s.Source))
-					}
-
-					if err := os.WriteFile(output, []byte(sb.String()), 0644); err != nil {
-						return fmt.Errorf("write output: %w", err)
-					}
-				}
+			// Save recon report
+			if output != "" && !scanAll {
+				writeReconReport(output, result, takeovers)
 				fmt.Printf("  Report saved: %s\n\n", output)
 			}
 
-			// If --scan, print alive subdomains ready for scanning
-			if scanAll {
-				fmt.Printf("  \033[33m🐍 Scan targets:\033[0m\n")
-				for _, s := range result.Subdomains {
-					if !s.Alive {
+			// AUTO-SCAN MODE: scan all alive subdomains
+			if scanAll && result.Alive > 0 {
+				fmt.Printf("  \033[31m╔══════════════════════════════════════════════════════╗\033[0m\n")
+				fmt.Printf("  \033[31m║\033[0m\033[1m  🐍 OUROBOROS — SCANNING %d ALIVE SUBDOMAINS        \033[31m║\033[0m\n", result.Alive)
+				fmt.Printf("  \033[31m╚══════════════════════════════════════════════════════╝\033[0m\n\n")
+
+				// Determine scan params from profile
+				maxLoops := 3
+				finalBoss := false
+				minConfidence := 0
+				minCVSS := 0.0
+				switch scanProfile {
+				case "quick":
+					maxLoops = 1
+				case "deep":
+					maxLoops = 3
+					minConfidence = 25
+					minCVSS = 3.0
+				case "paranoid":
+					maxLoops = 5
+					finalBoss = true
+					minConfidence = 25
+					minCVSS = 3.0
+				}
+
+				var allFindings []types.Finding
+				scannedCount := 0
+
+				for _, sub := range result.Subdomains {
+					if !sub.Alive {
 						continue
 					}
+
 					scheme := "http"
-					if s.HTTPS {
+					if sub.HTTPS {
 						scheme = "https"
 					}
-					fmt.Printf("  ouroboros scan %s://%s\n", scheme, s.Name)
+					targetURL := fmt.Sprintf("%s://%s", scheme, sub.Name)
+
+					scannedCount++
+					fmt.Printf("  \033[33m━━━ [%d/%d] Scanning %s ━━━\033[0m\n\n",
+						scannedCount, result.Alive, sub.Name)
+
+					// Build per-subdomain output path if needed
+					subOutput := ""
+					if scanOutput != "" {
+						ext := ".md"
+						if strings.Contains(scanOutput, ".") {
+							parts := strings.Split(scanOutput, ".")
+							ext = "." + parts[len(parts)-1]
+						}
+						subOutput = fmt.Sprintf("%s-%s%s",
+							strings.TrimSuffix(scanOutput, ext), sub.Name, ext)
+					}
+
+					err := runScan(targetURL, maxLoops, finalBoss, scanProvider, scanModel,
+						subOutput, minConfidence, minCVSS, "cvss")
+					if err != nil {
+						fmt.Printf("  \033[31m✗ Error scanning %s: %v\033[0m\n\n", sub.Name, err)
+						continue
+					}
+
+					// Collect findings from the session (read from DB)
+					store, err := memory.NewStore("")
+					if err == nil {
+						sessions, _ := store.ListSessions(1)
+						if len(sessions) > 0 {
+							// Get most recent session findings
+							latest := sessions[len(sessions)-1]
+							findings, _ := store.GetSessionFindings(latest.ID)
+							for i := range findings {
+								findings[i].Endpoint = sub.Name + findings[i].Endpoint
+							}
+							allFindings = append(allFindings, findings...)
+						}
+						store.Close()
+					}
 				}
-				fmt.Println()
+
+				// Combined summary
+				fmt.Printf("\n  \033[31m╔══════════════════════════════════════════════════════╗\033[0m\n")
+				fmt.Printf("  \033[31m║\033[0m\033[1m  📊 COMBINED RESULTS — %s\033[0m", domain)
+				padding := 53 - 22 - len(domain)
+				if padding > 0 {
+					fmt.Printf("%s", strings.Repeat(" ", padding))
+				}
+				fmt.Printf("\033[31m║\033[0m\n")
+				fmt.Printf("  \033[31m╚══════════════════════════════════════════════════════╝\033[0m\n\n")
+
+				// Count by severity
+				sevCount := map[string]int{}
+				for _, f := range allFindings {
+					sevCount[f.Severity.String()]++
+				}
+				fmt.Printf("  Subdomains scanned: %d\n", scannedCount)
+				fmt.Printf("  Total findings:     %d\n", len(allFindings))
+				fmt.Printf("  Severity: \033[31;1m%d crit\033[0m \033[31m%d high\033[0m \033[33m%d med\033[0m \033[34m%d low\033[0m \033[90m%d info\033[0m\n",
+					sevCount["Critical"], sevCount["High"], sevCount["Medium"], sevCount["Low"], sevCount["Info"])
+
+				if takeovers > 0 {
+					fmt.Printf("\n  ⚠️  \033[31mSubdomain Takeover Candidates:\033[0m\n")
+					for _, s := range result.Subdomains {
+						if s.Takeover != "" {
+							fmt.Printf("     \033[33m%s\033[0m → %s\n", s.Name, s.Takeover)
+						}
+					}
+				}
+
+				// Write combined report
+				if output != "" {
+					writeCombinedReport(output, domain, result, allFindings, takeovers)
+					fmt.Printf("\n  Combined report saved: %s\n", output)
+				}
+
+				fmt.Printf("\n  \033[90m══════════════════════════════════════════════════════\033[0m\n\n")
+			} else if scanAll && result.Alive == 0 {
+				fmt.Printf("  \033[33mNo alive subdomains to scan.\033[0m\n\n")
 			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file (.json or .md)")
-	cmd.Flags().BoolVar(&scanAll, "scan", false, "Print scan commands for alive subdomains")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file (.json or .md/.html)")
+	cmd.Flags().BoolVar(&scanAll, "scan", false, "Auto-scan all alive subdomains after recon")
 	cmd.Flags().IntVar(&workers, "workers", 20, "Concurrent workers for DNS/HTTP probing")
+	cmd.Flags().StringVar(&scanProfile, "profile", "quick", "Scan profile for --scan: quick, deep, paranoid")
+	cmd.Flags().StringVar(&scanProvider, "provider", "openai", "AI provider for scanning")
+	cmd.Flags().StringVar(&scanModel, "model", "gpt-4o", "AI model for scanning")
+	cmd.Flags().StringVar(&scanOutput, "scan-output", "", "Per-subdomain scan report prefix")
+	cmd.Flags().IntVar(&rateLimit, "rate", 10, "Max requests per second (0 = unlimited)")
 
 	return cmd
+}
+
+// writeReconReport writes a recon-only report.
+func writeReconReport(output string, result *recon.EnumResult, takeovers int) {
+	if strings.HasSuffix(output, ".json") {
+		data, _ := json.MarshalIndent(result, "", "  ")
+		os.WriteFile(output, data, 0644)
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# Subdomain Enumeration — %s\n\n", result.Domain))
+	sb.WriteString(fmt.Sprintf("**Total:** %d | **Alive:** %d | **Duration:** %s\n\n", result.Total, result.Alive, result.Duration))
+
+	sb.WriteString("## Alive Subdomains\n\n")
+	sb.WriteString("| Subdomain | IPs | HTTP | Title | Source |\n")
+	sb.WriteString("|-----------|-----|------|-------|--------|\n")
+	for _, s := range result.Subdomains {
+		if !s.Alive {
+			continue
+		}
+		scheme := "http"
+		if s.HTTPS {
+			scheme = "https"
+		}
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s %d | %s | %s |\n",
+			s.Name, strings.Join(s.IPs, ", "), scheme, s.HTTPCode, s.HTTPTitle, s.Source))
+	}
+
+	if takeovers > 0 {
+		sb.WriteString("\n## ⚠️ Potential Subdomain Takeovers\n\n")
+		for _, s := range result.Subdomains {
+			if s.Takeover != "" {
+				sb.WriteString(fmt.Sprintf("- **%s** — %s (CNAME: %s)\n",
+					s.Name, s.Takeover, strings.Join(s.CNAMEs, ", ")))
+			}
+		}
+	}
+
+	sb.WriteString("\n## Dead Subdomains\n\n")
+	for _, s := range result.Subdomains {
+		if s.Alive || s.Takeover != "" {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("- %s (%s)\n", s.Name, s.Source))
+	}
+
+	os.WriteFile(output, []byte(sb.String()), 0644)
+}
+
+// writeCombinedReport writes a combined recon + scan report.
+func writeCombinedReport(output, domain string, reconResult *recon.EnumResult, findings []types.Finding, takeovers int) {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 🐍 Ouroboros — Full Recon + Scan Report\n\n"))
+	sb.WriteString(fmt.Sprintf("**Domain:** %s\n", domain))
+	sb.WriteString(fmt.Sprintf("**Subdomains:** %d found, %d alive\n", reconResult.Total, reconResult.Alive))
+	sb.WriteString(fmt.Sprintf("**Total Findings:** %d\n\n", len(findings)))
+
+	// Recon section
+	sb.WriteString("## 🔍 Subdomain Enumeration\n\n")
+	sb.WriteString("| Subdomain | Status | Title | Source |\n")
+	sb.WriteString("|-----------|--------|-------|--------|\n")
+	for _, s := range reconResult.Subdomains {
+		status := "⚫ Dead"
+		title := "-"
+		if s.Alive {
+			status = fmt.Sprintf("🟢 %d", s.HTTPCode)
+			title = s.HTTPTitle
+		} else if s.Takeover != "" {
+			status = "⚠️ Takeover?"
+		}
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", s.Name, status, title, s.Source))
+	}
+
+	if takeovers > 0 {
+		sb.WriteString("\n### ⚠️ Subdomain Takeover Candidates\n\n")
+		for _, s := range reconResult.Subdomains {
+			if s.Takeover != "" {
+				sb.WriteString(fmt.Sprintf("- **%s** — %s\n", s.Name, s.Takeover))
+			}
+		}
+	}
+
+	// Findings section grouped by severity
+	sb.WriteString("\n## 🎯 Vulnerability Findings\n\n")
+	sevOrder := []string{"Critical", "High", "Medium", "Low", "Info"}
+	for _, sev := range sevOrder {
+		var sevFindings []types.Finding
+		for _, f := range findings {
+			if f.Severity.String() == sev {
+				sevFindings = append(sevFindings, f)
+			}
+		}
+		if len(sevFindings) == 0 {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("### %s (%d)\n\n", sev, len(sevFindings)))
+		for _, f := range sevFindings {
+			sb.WriteString(fmt.Sprintf("- **%s** — `%s %s` (CVSS %.1f, Confidence %d%%)\n",
+				f.Title, f.Method, f.Endpoint, f.CVSS.Score, f.Confidence))
+		}
+		sb.WriteString("\n")
+	}
+
+	os.WriteFile(output, []byte(sb.String()), 0644)
 }
 
 func newCICmd() *cobra.Command {
