@@ -36,6 +36,8 @@ func main() {
 
 	rootCmd.AddCommand(newScanCmd())
 	rootCmd.AddCommand(newReportCmd())
+	rootCmd.AddCommand(newDiffCmd())
+	rootCmd.AddCommand(newCICmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -387,4 +389,347 @@ func resolveAPIKey(provider string) string {
 	default:
 		return os.Getenv("ANTHROPIC_API_KEY")
 	}
+}
+
+// ============================================================
+// DIFF COMMAND — Compare two scan sessions
+// ============================================================
+
+func newDiffCmd() *cobra.Command {
+	var (
+		before string
+		after  string
+		output string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "diff",
+		Short: "Compare two scan sessions to show fixed, persistent, and new findings",
+		Long: `Compare a baseline scan with a newer scan to track remediation progress.
+
+Examples:
+  ouroboros diff --before da60 --after 7f3a
+  ouroboros diff --before da60 --after 7f3a -o diff-report.html`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDiff(before, after, output)
+		},
+	}
+
+	cmd.Flags().StringVar(&before, "before", "", "Baseline session ID (or prefix)")
+	cmd.Flags().StringVar(&after, "after", "", "New session ID (or prefix)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Export diff report (.md, .html)")
+	_ = cmd.MarkFlagRequired("before")
+	_ = cmd.MarkFlagRequired("after")
+
+	return cmd
+}
+
+func runDiff(beforeID, afterID, output string) error {
+	store, err := memory.NewStore("")
+	if err != nil {
+		return fmt.Errorf("initialize store: %w", err)
+	}
+	defer store.Close()
+
+	beforeSession, err := store.GetSession(beforeID)
+	if err != nil {
+		return fmt.Errorf("load baseline session: %w", err)
+	}
+	afterSession, err := store.GetSession(afterID)
+	if err != nil {
+		return fmt.Errorf("load new session: %w", err)
+	}
+
+	beforeFindings, err := store.GetSessionFindings(beforeSession.ID)
+	if err != nil {
+		return fmt.Errorf("load baseline findings: %w", err)
+	}
+	afterFindings, err := store.GetSessionFindings(afterSession.ID)
+	if err != nil {
+		return fmt.Errorf("load new findings: %w", err)
+	}
+
+	diff := computeDiff(beforeFindings, afterFindings)
+
+	if output != "" {
+		if strings.HasSuffix(output, ".html") || strings.HasSuffix(output, ".htm") {
+			return report.ExportDiffHTML(diff, beforeSession, afterSession, output)
+		}
+		return report.ExportDiffMarkdown(diff, beforeSession, afterSession, output)
+	}
+
+	// Terminal output
+	printDiff(diff, beforeSession, afterSession)
+	return nil
+}
+
+func computeDiff(before, after []types.Finding) report.DiffResult {
+	beforeSigs := make(map[string]types.Finding)
+	for _, f := range before {
+		beforeSigs[f.Signature()] = f
+	}
+	afterSigs := make(map[string]types.Finding)
+	for _, f := range after {
+		afterSigs[f.Signature()] = f
+	}
+
+	var diff report.DiffResult
+
+	for sig, f := range beforeSigs {
+		if _, exists := afterSigs[sig]; !exists {
+			diff.Fixed = append(diff.Fixed, f)
+		}
+	}
+	for sig, f := range afterSigs {
+		if _, exists := beforeSigs[sig]; exists {
+			diff.Persistent = append(diff.Persistent, f)
+		}
+	}
+	for sig, f := range afterSigs {
+		if _, exists := beforeSigs[sig]; !exists {
+			diff.New = append(diff.New, f)
+		}
+	}
+
+	sortByCVSS := func(findings []types.Finding) {
+		sort.Slice(findings, func(i, j int) bool {
+			return findings[i].CVSS.Score > findings[j].CVSS.Score
+		})
+	}
+	sortByCVSS(diff.Fixed)
+	sortByCVSS(diff.Persistent)
+	sortByCVSS(diff.New)
+
+	return diff
+}
+
+func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("SCAN DIFF")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("Baseline: %s (%s)\n", before.ID[:8], before.Config.Target.URL)
+	fmt.Printf("Current:  %s (%s)\n", after.ID[:8], after.Config.Target.URL)
+	fmt.Println()
+
+	// Summary
+	fmt.Printf("✅ Fixed:      %d\n", len(diff.Fixed))
+	fmt.Printf("⚠️  Persistent: %d\n", len(diff.Persistent))
+	fmt.Printf("🆕 New:        %d\n", len(diff.New))
+	fmt.Println()
+
+	if len(diff.Fixed) > 0 {
+		fmt.Println("── FIXED (Remediated) ──────────────────")
+		for _, f := range diff.Fixed {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			fmt.Printf("  ✅ [%s] %s", sev, f.Title)
+			if f.CVSS.Score > 0 {
+				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
+			}
+			fmt.Println()
+		}
+		fmt.Println()
+	}
+
+	if len(diff.New) > 0 {
+		fmt.Println("── NEW (Regressions) ──────────────────")
+		for _, f := range diff.New {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			fmt.Printf("  🆕 [%s] %s", sev, f.Title)
+			if f.CVSS.Score > 0 {
+				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
+			}
+			fmt.Println()
+		}
+		fmt.Println()
+	}
+
+	if len(diff.Persistent) > 0 {
+		fmt.Println("── PERSISTENT (Still Present) ─────────")
+		for _, f := range diff.Persistent {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			fmt.Printf("  ⚠️  [%s] %s", sev, f.Title)
+			if f.CVSS.Score > 0 {
+				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
+			}
+			fmt.Println()
+		}
+	}
+}
+
+// ============================================================
+// CI COMMAND — Exit code based on findings
+// ============================================================
+
+func newCICmd() *cobra.Command {
+	var (
+		maxLoops      int
+		provider      string
+		model         string
+		output        string
+		failOn        string
+		minConfidence int
+		baseline      string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "ci [target-url]",
+		Short: "CI/CD mode — scan and exit with code 1 if findings exceed threshold",
+		Long: `Run a scan optimized for CI/CD pipelines.
+
+Exit codes:
+  0 - No findings above threshold (or all findings are below --fail-on level)
+  1 - Findings found above threshold
+  2 - Scan error
+
+Examples:
+  ouroboros ci http://staging.example.com --fail-on high
+  ouroboros ci http://staging.example.com --fail-on critical -o results.sarif
+  ouroboros ci http://staging.example.com --baseline abc123 --fail-on high`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			targetURL := args[0]
+			return runCI(targetURL, maxLoops, provider, model, output, failOn, minConfidence, baseline)
+		},
+	}
+
+	cmd.Flags().IntVar(&maxLoops, "max-loops", 2, "Maximum loops (default 2 for speed)")
+	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider")
+	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report file")
+	cmd.Flags().StringVar(&failOn, "fail-on", "high", "Fail threshold: critical, high, medium, low, info")
+	cmd.Flags().IntVar(&minConfidence, "min-confidence", 50, "Only count findings with this confidence+")
+	cmd.Flags().StringVar(&baseline, "baseline", "", "Baseline session — only fail on NEW findings")
+
+	return cmd
+}
+
+func runCI(targetURL string, maxLoops int, providerName, model, output, failOn string, minConf int, baselineID string) error {
+	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	apiKey := resolveAPIKey(providerName)
+	if apiKey == "" && providerName != "ollama" {
+		return fmt.Errorf("API key not found")
+	}
+
+	aiProvider, err := ai.NewProvider(providerName, model, apiKey)
+	if err != nil {
+		return fmt.Errorf("initialize AI: %w", err)
+	}
+
+	store, err := memory.NewStore("")
+	if err != nil {
+		return fmt.Errorf("initialize store: %w", err)
+	}
+	defer store.Close()
+
+	redAgent := red.NewAgent(aiProvider, logger)
+	blueAgent := blue.NewAgent(aiProvider, logger)
+	reporter := report.NewReporter(false) // No color in CI
+
+	eng := engine.NewEngine(redAgent, blueAgent, nil, store, reporter, logger)
+
+	config := types.ScanConfig{
+		Target:    types.Target{URL: targetURL},
+		MaxLoops:  maxLoops,
+		Provider:  providerName,
+		Model:     model,
+	}
+
+	session, err := eng.Run(ctx, config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Scan failed: %v\n", err)
+		os.Exit(2)
+	}
+
+	findings, err := store.GetSessionFindings(session.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Load findings failed: %v\n", err)
+		os.Exit(2)
+	}
+
+	// Filter by confidence
+	findings = filterFindings(findings, minConf, 0)
+	sortFindings(findings, "cvss")
+
+	// If baseline provided, only consider NEW findings
+	if baselineID != "" {
+		baselineFindings, err := store.GetSessionFindings(baselineID)
+		if err != nil {
+			logger.Printf("Warning: could not load baseline %s: %v", baselineID, err)
+		} else {
+			diff := computeDiff(baselineFindings, findings)
+			findings = diff.New // Only new findings matter
+			fmt.Printf("Baseline comparison: %d fixed, %d persistent, %d new\n",
+				len(diff.Fixed), len(diff.Persistent), len(diff.New))
+		}
+	}
+
+	// Export if requested
+	if output != "" {
+		if err := exportReport(output, findings, session); err != nil {
+			logger.Printf("Warning: export failed: %v", err)
+		}
+	}
+
+	// Determine threshold
+	threshold, _ := types.ParseSeverity(failOn)
+
+	// Count findings at or above threshold
+	failCount := 0
+	for _, f := range findings {
+		sev := f.AdjustedSeverity
+		if sev == 0 {
+			sev = f.Severity
+		}
+		if sev >= threshold {
+			failCount++
+		}
+	}
+
+	// CI Summary
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("CI RESULT")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("Target:    %s\n", targetURL)
+	fmt.Printf("Findings:  %d (confidence >= %d%%)\n", len(findings), minConf)
+	fmt.Printf("Threshold: %s\n", failOn)
+	fmt.Printf("Failing:   %d findings at %s or above\n", failCount, failOn)
+
+	if failCount > 0 {
+		fmt.Printf("\n❌ FAILED — %d finding(s) at %s severity or above\n", failCount, failOn)
+		for _, f := range findings {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			if sev >= threshold {
+				fmt.Printf("  [%s] %s (CVSS:%.1f, %d%%)\n", sev, f.Title, f.CVSS.Score, f.Confidence)
+			}
+		}
+		os.Exit(1)
+	}
+
+	fmt.Println("\n✅ PASSED — no findings at or above threshold")
+	return nil
 }

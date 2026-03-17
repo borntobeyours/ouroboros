@@ -1,0 +1,68 @@
+# Ouroboros Security Scan — GitHub Action
+# Add this to your repo's .github/workflows/ directory
+#
+# Required secrets:
+#   OPENAI_API_KEY or ANTHROPIC_API_KEY
+#
+# Usage:
+#   1. Copy this file to your repo
+#   2. Set TARGET_URL to your staging/preview environment
+#   3. Add API key as a GitHub secret
+#   4. Findings will appear in the Security tab (SARIF upload)
+
+name: Ouroboros Security Scan
+
+on:
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  security-events: write  # Required for SARIF upload
+  contents: read
+
+env:
+  TARGET_URL: http://localhost:8080  # Change to your staging URL
+  OUROBOROS_VERSION: latest
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Ouroboros
+        run: go install github.com/borntobeyours/ouroboros/cmd/ouroboros@${{ env.OUROBOROS_VERSION }}
+
+      - name: Run Security Scan
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          ouroboros ci ${{ env.TARGET_URL }} \
+            --provider ${ANTHROPIC_API_KEY:+anthropic}${ANTHROPIC_API_KEY:-${OPENAI_API_KEY:+openai}} \
+            --fail-on high \
+            --min-confidence 50 \
+            -o results.sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: ouroboros
+
+      - name: Upload Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ouroboros-report
+          path: results.sarif
