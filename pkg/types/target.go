@@ -67,11 +67,12 @@ type ClassifiedEndpoints struct {
 
 // ScanConfig holds configuration for a scan session.
 type ScanConfig struct {
-	Target    Target `json:"target"`
-	MaxLoops  int    `json:"max_loops"`
-	FinalBoss bool   `json:"final_boss"`
-	Provider  string `json:"provider"`
-	Model     string `json:"model"`
+	Target       Target      `json:"target"`
+	MaxLoops     int         `json:"max_loops"`
+	FinalBoss    bool        `json:"final_boss"`
+	Provider     string      `json:"provider"`
+	Model        string      `json:"model"`
+	ReconConfig  ReconConfig `json:"recon_config,omitempty"`
 }
 
 // ScanSession represents an entire scan lifecycle.

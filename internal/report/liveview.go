@@ -79,6 +79,9 @@ func (lv *LiveView) PrintPhase(loop, maxLoops int, phase string) {
 	case "score":
 		icon = "📊"
 		phaseColor = color.New(color.FgGreen)
+	case "recon":
+		icon = "🔭"
+		phaseColor = color.New(color.FgCyan, color.Bold)
 	case "boss":
 		icon = "👹"
 		phaseColor = color.New(color.FgRed, color.Bold)

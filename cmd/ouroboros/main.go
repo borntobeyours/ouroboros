@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"sort"
@@ -61,6 +62,9 @@ func newScanCmd() *cobra.Command {
 		sortBy        string
 		profile       string
 		rateLimit     int
+		reconEnabled  bool
+		noRecon       bool
+		reconModules  string
 	)
 
 	cmd := &cobra.Command{
@@ -84,7 +88,22 @@ Examples:
 			if rateLimit > 0 {
 				probers.SetRate(rateLimit)
 			}
-			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy)
+
+			// Determine recon config
+			rc := types.DefaultReconConfig()
+			if noRecon {
+				rc.Enabled = false
+			} else if cmd.Flags().Changed("recon") {
+				rc.Enabled = reconEnabled
+			} else {
+				// Default: enabled for domain targets, disabled for localhost/IP
+				rc.Enabled = shouldEnableRecon(targetURL)
+			}
+			if reconModules != "" {
+				rc.Modules = strings.Split(reconModules, ",")
+			}
+
+			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy, rc)
 		},
 	}
 
@@ -98,8 +117,29 @@ Examples:
 	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score to include (0.0-10.0)")
 	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort findings by: cvss, confidence, severity")
 	cmd.Flags().IntVar(&rateLimit, "rate", 10, "Max requests per second (0 = unlimited)")
+	cmd.Flags().BoolVar(&reconEnabled, "recon", false, "Enable recon phase before attack loop")
+	cmd.Flags().BoolVar(&noRecon, "no-recon", false, "Disable recon phase")
+	cmd.Flags().StringVar(&reconModules, "recon-modules", "", "Comma-separated recon modules: portscan,techfp,jsextract,wayback,params")
 
 	return cmd
+}
+
+// shouldEnableRecon returns true for domain targets, false for localhost/IP.
+func shouldEnableRecon(targetURL string) bool {
+	lower := strings.ToLower(targetURL)
+	if strings.Contains(lower, "localhost") || strings.Contains(lower, "127.0.0.1") ||
+		strings.Contains(lower, "0.0.0.0") || strings.Contains(lower, "[::1]") {
+		return false
+	}
+	// Check if host is an IP address
+	host := strings.TrimPrefix(lower, "https://")
+	host = strings.TrimPrefix(host, "http://")
+	host = strings.Split(host, "/")[0]
+	host = strings.Split(host, ":")[0]
+	if net.ParseIP(host) != nil {
+		return false
+	}
+	return true
 }
 
 // applyProfile sets defaults based on profile name. Explicit flags take precedence.
@@ -140,7 +180,7 @@ func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *
 	}
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, reconCfg ...types.ReconConfig) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -197,6 +237,9 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 		FinalBoss: finalBoss,
 		Provider:  providerName,
 		Model:     model,
+	}
+	if len(reconCfg) > 0 {
+		config.ReconConfig = reconCfg[0]
 	}
 
 	// Run the loop

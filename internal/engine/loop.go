@@ -9,6 +9,7 @@ import (
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
 	"github.com/borntobeyours/ouroboros/internal/report"
 	"github.com/borntobeyours/ouroboros/pkg/types"
@@ -57,6 +58,27 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	var allFindings []types.Finding
 	var allPatches []types.Patch
 
+	// === RECON PHASE (Phase 0) ===
+	var reconResult *types.ReconResult
+	if config.ReconConfig.Enabled {
+		progress.SetPhase("Recon")
+		progress.SetStep("Running reconnaissance modules...")
+		lv.PrintPhase(0, config.MaxLoops, "recon")
+
+		orch := recon.NewOrchestrator(config.Target.URL, config.ReconConfig, config.Target.Headers, e.logger)
+		orch.SetEventCallback(func(event string) {
+			progress.SetStep(event)
+		})
+
+		reconResult = orch.Run()
+
+		// Display recon summary
+		progress.Stop()
+		printReconSummary(reconResult)
+		progress = report.NewProgress(config.MaxLoops)
+		progress.Start()
+	}
+
 	for loop := 1; loop <= config.MaxLoops; loop++ {
 		select {
 		case <-ctx.Done():
@@ -74,8 +96,19 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		progress.SetPhase("Crawling")
 		progress.SetStep("Discovering endpoints...")
 
+		// Feed recon-discovered URLs into target for this loop
+		attackTarget := config.Target
+		if reconResult != nil && len(reconResult.DiscoveredURLs) > 0 {
+			// Enrich target with recon data (Red AI will use these as additional crawl seeds)
+			if attackTarget.Headers == nil {
+				attackTarget.Headers = make(map[string]string)
+			}
+			// Pass discovered URLs as a header hint (Red agent reads X-Recon-URLs)
+			attackTarget.Headers["X-Recon-URLs"] = joinURLs(reconResult.DiscoveredURLs, 100)
+		}
+
 		// === ATTACK PHASE ===
-		findings, err := e.redAgent.Attack(ctx, config.Target, allFindings, allPatches, loop)
+		findings, err := e.redAgent.Attack(ctx, attackTarget, allFindings, allPatches, loop)
 		if err != nil {
 			progress.Stop()
 			e.reporter.PrintError(fmt.Sprintf("Red AI error: %v", err))
@@ -204,4 +237,82 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	lv.PrintSummaryBox(session, allFindings)
 
 	return session, nil
+}
+
+// printReconSummary displays recon results in the terminal.
+func printReconSummary(r *types.ReconResult) {
+	if r == nil {
+		return
+	}
+	fmt.Println()
+	if len(r.Ports) > 0 {
+		fmt.Printf("  📡 Open ports: %d", len(r.Ports))
+		if len(r.Ports) <= 10 {
+			parts := make([]string, len(r.Ports))
+			for i, p := range r.Ports {
+				parts[i] = fmt.Sprintf("%d/%s", p.Port, p.Service)
+			}
+			fmt.Printf(" (%s)", joinStrs(parts, ", "))
+		}
+		fmt.Println()
+	}
+	if len(r.Technologies) > 0 {
+		parts := make([]string, 0, len(r.Technologies))
+		for _, t := range r.Technologies {
+			s := t.Name
+			if t.Version != "" {
+				s += "/" + t.Version
+			}
+			parts = append(parts, s)
+		}
+		fmt.Printf("  🔧 Technologies: %s\n", joinStrs(parts, ", "))
+	}
+	if len(r.JSEndpoints) > 0 {
+		fmt.Printf("  📜 JS endpoints: %d\n", len(r.JSEndpoints))
+	}
+	if len(r.Secrets) > 0 {
+		fmt.Printf("  🔑 Secrets found: %d\n", len(r.Secrets))
+	}
+	if len(r.WaybackURLs) > 0 {
+		alive := 0
+		for _, u := range r.WaybackURLs {
+			if u.Alive {
+				alive++
+			}
+		}
+		fmt.Printf("  📚 Wayback URLs: %d (%d alive)\n", len(r.WaybackURLs), alive)
+	}
+	if len(r.Parameters) > 0 {
+		reflected := 0
+		for _, p := range r.Parameters {
+			if p.Reflected {
+				reflected++
+			}
+		}
+		fmt.Printf("  🎯 Parameters: %d (%d reflected)\n", len(r.Parameters), reflected)
+	}
+	if len(r.DiscoveredURLs) > 0 {
+		fmt.Printf("  🌐 New URLs for attack surface: %d\n", len(r.DiscoveredURLs))
+	}
+	fmt.Println()
+}
+
+// joinURLs joins up to max URLs with commas.
+func joinURLs(urls []string, max int) string {
+	if len(urls) > max {
+		urls = urls[:max]
+	}
+	return joinStrs(urls, ",")
+}
+
+// joinStrs joins strings with a separator.
+func joinStrs(items []string, sep string) string {
+	result := ""
+	for i, item := range items {
+		if i > 0 {
+			result += sep
+		}
+		result += item
+	}
+	return result
 }
