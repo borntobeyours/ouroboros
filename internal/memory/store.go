@@ -71,6 +71,8 @@ func (s *Store) migrate() error {
 		evidence TEXT,
 		technique TEXT,
 		confirmed BOOLEAN DEFAULT FALSE,
+		confidence INTEGER DEFAULT 0,
+		adjusted_severity TEXT,
 		exploit_evidence TEXT,
 		exfiltrated_data TEXT,
 		remediation TEXT,
@@ -133,9 +135,9 @@ func (s *Store) SaveSession(session *types.ScanSession) error {
 // SaveFinding stores a finding.
 func (s *Store) SaveFinding(sessionID string, f types.Finding) error {
 	_, err := s.db.Exec(
-		`INSERT INTO findings (id, session_id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, exploit_evidence, exfiltrated_data, remediation, found_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, sessionID, f.Loop, f.Title, f.Severity.String(), f.Description, f.Endpoint, f.Method, f.CWE, f.PoC, f.Evidence, f.Technique, f.Confirmed, f.ExploitEvidence, f.ExfiltratedData, f.Remediation, f.FoundAt,
+		`INSERT INTO findings (id, session_id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, confidence, adjusted_severity, exploit_evidence, exfiltrated_data, remediation, found_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		f.ID, sessionID, f.Loop, f.Title, f.Severity.String(), f.Description, f.Endpoint, f.Method, f.CWE, f.PoC, f.Evidence, f.Technique, f.Confirmed, int(f.Confidence), f.AdjustedSeverity.String(), f.ExploitEvidence, f.ExfiltratedData, f.Remediation, f.FoundAt,
 	)
 	return err
 }
@@ -153,7 +155,7 @@ func (s *Store) SavePatch(sessionID string, p types.Patch) error {
 // GetSessionFindings retrieves all findings for a session.
 func (s *Store) GetSessionFindings(sessionID string) ([]types.Finding, error) {
 	rows, err := s.db.Query(
-		`SELECT id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, exploit_evidence, exfiltrated_data, remediation, found_at
+		`SELECT id, loop, title, severity, description, endpoint, method, cwe, poc, evidence, technique, confirmed, confidence, adjusted_severity, exploit_evidence, exfiltrated_data, remediation, found_at
 		 FROM findings WHERE session_id = ? ORDER BY found_at`,
 		sessionID,
 	)
@@ -166,11 +168,17 @@ func (s *Store) GetSessionFindings(sessionID string) ([]types.Finding, error) {
 	for rows.Next() {
 		var f types.Finding
 		var sevStr string
+		var adjSevStr sql.NullString
+		var confidence int
 		var exploitEvidence, exfilData, remediation sql.NullString
-		if err := rows.Scan(&f.ID, &f.Loop, &f.Title, &sevStr, &f.Description, &f.Endpoint, &f.Method, &f.CWE, &f.PoC, &f.Evidence, &f.Technique, &f.Confirmed, &exploitEvidence, &exfilData, &remediation, &f.FoundAt); err != nil {
+		if err := rows.Scan(&f.ID, &f.Loop, &f.Title, &sevStr, &f.Description, &f.Endpoint, &f.Method, &f.CWE, &f.PoC, &f.Evidence, &f.Technique, &f.Confirmed, &confidence, &adjSevStr, &exploitEvidence, &exfilData, &remediation, &f.FoundAt); err != nil {
 			return nil, err
 		}
 		f.Severity, _ = types.ParseSeverity(sevStr)
+		f.Confidence = types.Confidence(confidence)
+		if adjSevStr.Valid {
+			f.AdjustedSeverity, _ = types.ParseSeverity(adjSevStr.String)
+		}
 		if exploitEvidence.Valid {
 			f.ExploitEvidence = exploitEvidence.String
 		}

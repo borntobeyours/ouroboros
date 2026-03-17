@@ -156,6 +156,23 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		}
 	}
 
+	// Phase 6: Confidence scoring and severity adjustment
+	ScoreConfidence(allFindings)
+	proven, high, medium, low := 0, 0, 0, 0
+	for _, f := range allFindings {
+		switch {
+		case f.Confidence >= 95:
+			proven++
+		case f.Confidence >= 75:
+			high++
+		case f.Confidence >= 50:
+			medium++
+		default:
+			low++
+		}
+	}
+	a.logger.Printf("[RED] Confidence: %d proven, %d high, %d medium, %d low", proven, high, medium, low)
+
 	a.logger.Printf("[RED] Total findings this loop: %d", len(allFindings))
 	return allFindings, nil
 }

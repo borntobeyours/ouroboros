@@ -7,24 +7,85 @@ import (
 	"time"
 )
 
+// Confidence represents how certain we are about a finding.
+type Confidence int
+
+const (
+	ConfNone     Confidence = 0  // No evidence
+	ConfLow      Confidence = 25 // Heuristic/pattern match only
+	ConfMedium   Confidence = 50 // Behavioral indicator (error, status code change)
+	ConfHigh     Confidence = 75 // Active probe confirmed (reflected input, status bypass)
+	ConfProven   Confidence = 95 // Exploited with data extraction or state change
+)
+
+func (c Confidence) String() string {
+	switch {
+	case c >= 95:
+		return "Proven"
+	case c >= 75:
+		return "High"
+	case c >= 50:
+		return "Medium"
+	case c >= 25:
+		return "Low"
+	default:
+		return "None"
+	}
+}
+
 // Finding represents a discovered vulnerability.
 type Finding struct {
-	ID               string    `json:"id"`
-	Title            string    `json:"title"`
-	Description      string    `json:"description"`
-	Severity         Severity  `json:"severity"`
-	Endpoint         string    `json:"endpoint"`
-	Method           string    `json:"method,omitempty"`
-	CWE              string    `json:"cwe,omitempty"`
-	PoC              string    `json:"poc,omitempty"`
-	Evidence         string    `json:"evidence,omitempty"`
-	Technique        string    `json:"technique,omitempty"`
-	Remediation      string    `json:"remediation,omitempty"`
-	Confirmed        bool      `json:"confirmed"`
-	ExploitEvidence  string    `json:"exploit_evidence,omitempty"`
-	ExfiltratedData  string    `json:"exfiltrated_data,omitempty"`
-	FoundAt          time.Time `json:"found_at"`
-	Loop             int       `json:"loop"`
+	ID               string     `json:"id"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	Severity         Severity   `json:"severity"`
+	AdjustedSeverity Severity   `json:"adjusted_severity"` // After confidence adjustment
+	Confidence       Confidence `json:"confidence"`
+	Endpoint         string     `json:"endpoint"`
+	Method           string     `json:"method,omitempty"`
+	CWE              string     `json:"cwe,omitempty"`
+	PoC              string     `json:"poc,omitempty"`
+	Evidence         string     `json:"evidence,omitempty"`
+	Technique        string     `json:"technique,omitempty"`
+	Remediation      string     `json:"remediation,omitempty"`
+	Confirmed        bool       `json:"confirmed"`
+	ExploitEvidence  string     `json:"exploit_evidence,omitempty"`
+	ExfiltratedData  string     `json:"exfiltrated_data,omitempty"`
+	FoundAt          time.Time  `json:"found_at"`
+	Loop             int        `json:"loop"`
+}
+
+// AdjustSeverity recalculates severity based on confidence.
+// Low-confidence findings get downgraded. Proven findings stay or get upgraded.
+func (f *Finding) AdjustSeverity() {
+	f.AdjustedSeverity = f.Severity
+
+	switch {
+	case f.Confidence >= 95:
+		// Proven — keep original severity
+		f.AdjustedSeverity = f.Severity
+	case f.Confidence >= 75:
+		// High confidence — keep severity
+		f.AdjustedSeverity = f.Severity
+	case f.Confidence >= 50:
+		// Medium confidence — downgrade by 1 level
+		if f.Severity > SeverityLow {
+			f.AdjustedSeverity = f.Severity - 1
+		}
+	case f.Confidence >= 25:
+		// Low confidence — downgrade by 2 levels, minimum Info
+		downgraded := f.Severity
+		if downgraded > SeverityInfo {
+			downgraded--
+		}
+		if downgraded > SeverityInfo {
+			downgraded--
+		}
+		f.AdjustedSeverity = downgraded
+	default:
+		// No confidence — force to Info
+		f.AdjustedSeverity = SeverityInfo
+	}
 }
 
 // Signature returns a unique hash for deduplication.

@@ -81,14 +81,24 @@ func (r *Reporter) printFinding(f types.Finding) {
 		sevColor = color.New(color.FgWhite)
 	}
 
-	sevColor.Printf("  [%s] ", f.Severity)
+	// Use adjusted severity if available
+	displaySev := f.AdjustedSeverity
+	if displaySev == 0 {
+		displaySev = f.Severity
+	}
+	sevColor.Printf("  [%s] ", displaySev)
 	fmt.Printf("%s", f.Title)
 
-	// Show confirmation status
-	if f.Confirmed {
-		color.New(color.FgGreen, color.Bold).Print(" ✅ EXPLOITED")
-	} else {
-		color.New(color.FgYellow).Print(" ⚠️  unconfirmed")
+	// Show confidence status
+	switch {
+	case f.Confidence >= 95:
+		color.New(color.FgGreen, color.Bold).Printf(" ✅ PROVEN (%d%%)", f.Confidence)
+	case f.Confidence >= 75:
+		color.New(color.FgGreen).Printf(" ✅ HIGH (%d%%)", f.Confidence)
+	case f.Confidence >= 50:
+		color.New(color.FgYellow).Printf(" ⚡ MED (%d%%)", f.Confidence)
+	default:
+		color.New(color.FgRed).Printf(" ⚠️ LOW (%d%%)", f.Confidence)
 	}
 	fmt.Println()
 
@@ -177,19 +187,35 @@ func (r *Reporter) PrintSummary(session *types.ScanSession, findings []types.Fin
 	fmt.Printf("Converged: %v\n", session.Converged)
 	fmt.Printf("Total Findings: %d\n", session.TotalFindings)
 
-	// Count confirmed
-	confirmedCount := 0
+	// Count by confidence
+	proven, highConf, medConf, lowConf := 0, 0, 0, 0
 	for _, f := range findings {
-		if f.Confirmed {
-			confirmedCount++
+		switch {
+		case f.Confidence >= 95:
+			proven++
+		case f.Confidence >= 75:
+			highConf++
+		case f.Confidence >= 50:
+			medConf++
+		default:
+			lowConf++
 		}
 	}
-	color.New(color.FgGreen, color.Bold).Printf("Confirmed (Exploited): %d/%d\n", confirmedCount, session.TotalFindings)
+	fmt.Println()
+	color.New(color.FgGreen, color.Bold).Printf("Confidence Breakdown:\n")
+	color.New(color.FgGreen).Printf("  Proven (95+):  %d\n", proven)
+	color.New(color.FgGreen).Printf("  High (75-94):  %d\n", highConf)
+	color.New(color.FgYellow).Printf("  Medium (50-74): %d\n", medConf)
+	color.New(color.FgRed).Printf("  Low (<50):     %d\n", lowConf)
 
-	// Count by severity
+	// Count by adjusted severity
 	counts := map[types.Severity]int{}
 	for _, f := range findings {
-		counts[f.Severity]++
+		sev := f.AdjustedSeverity
+		if sev == 0 {
+			sev = f.Severity
+		}
+		counts[sev]++
 	}
 	fmt.Println()
 	if c := counts[types.SeverityCritical]; c > 0 {
@@ -239,15 +265,32 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 
 	for i, f := range findings {
 		status := "⚠️ Unconfirmed"
-		if f.Confirmed {
-			status = "✅ EXPLOITED"
+		if f.Confidence >= 95 {
+			status = "✅ PROVEN"
+		} else if f.Confidence >= 75 {
+			status = "✅ HIGH CONFIDENCE"
+		} else if f.Confidence >= 50 {
+			status = "⚡ MEDIUM CONFIDENCE"
+		} else {
+			status = "⚠️ LOW CONFIDENCE"
 		}
-		sb.WriteString(fmt.Sprintf("### %d. [%s] %s — %s\n\n", i+1, f.Severity, f.Title, status))
+
+		// Use adjusted severity in the header
+		displaySev := f.AdjustedSeverity
+		if displaySev == 0 {
+			displaySev = f.Severity
+		}
+		sevChange := ""
+		if f.AdjustedSeverity != 0 && f.AdjustedSeverity != f.Severity {
+			sevChange = fmt.Sprintf(" (was %s)", f.Severity)
+		}
+
+		sb.WriteString(fmt.Sprintf("### %d. [%s%s] %s — %s\n\n", i+1, displaySev, sevChange, f.Title, status))
 		sb.WriteString(fmt.Sprintf("- **Endpoint:** `%s %s`\n", f.Method, f.Endpoint))
 		sb.WriteString(fmt.Sprintf("- **CWE:** %s\n", f.CWE))
 		sb.WriteString(fmt.Sprintf("- **Technique:** %s\n", f.Technique))
-		sb.WriteString(fmt.Sprintf("- **Found in Loop:** %d\n", f.Loop))
-		sb.WriteString(fmt.Sprintf("- **Confirmed:** %v\n\n", f.Confirmed))
+		sb.WriteString(fmt.Sprintf("- **Confidence:** %d/100 (%s)\n", f.Confidence, f.Confidence.String()))
+		sb.WriteString(fmt.Sprintf("- **Found in Loop:** %d\n\n", f.Loop))
 		sb.WriteString(fmt.Sprintf("**Description:** %s\n\n", f.Description))
 		if f.PoC != "" {
 			sb.WriteString(fmt.Sprintf("**PoC:**\n```\n%s\n```\n\n", f.PoC))
