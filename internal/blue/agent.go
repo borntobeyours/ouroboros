@@ -122,6 +122,13 @@ func BuildAnalysisPrompt(findings []types.Finding) string {
 // ParsePatches parses the AI response into patches.
 func ParsePatches(response string) ([]types.Patch, error) {
 	response = strings.TrimSpace(response)
+
+	// Strip markdown code blocks
+	response = strings.TrimPrefix(response, "```json")
+	response = strings.TrimPrefix(response, "```")
+	response = strings.TrimSuffix(response, "```")
+	response = strings.TrimSpace(response)
+
 	if idx := strings.Index(response, "["); idx >= 0 {
 		end := strings.LastIndex(response, "]")
 		if end > idx {
@@ -129,10 +136,62 @@ func ParsePatches(response string) ([]types.Patch, error) {
 		}
 	}
 
+	// Fix common JSON issues from AI responses
+	response = fixJSONEscaping(response)
+
 	var patches []types.Patch
 	if err := json.Unmarshal([]byte(response), &patches); err != nil {
-		return nil, fmt.Errorf("parse AI response: %w", err)
+		// Try to salvage by fixing common issues
+		cleaned := strings.ReplaceAll(response, "\t", "\\t")
+		cleaned = strings.ReplaceAll(cleaned, "\r", "")
+		if err2 := json.Unmarshal([]byte(cleaned), &patches); err2 != nil {
+			return nil, fmt.Errorf("parse AI response: %w (original: %w)", err2, err)
+		}
 	}
 
 	return patches, nil
+}
+
+// fixJSONEscaping handles common escape character issues in AI-generated JSON.
+func fixJSONEscaping(s string) string {
+	// Fix unescaped control characters inside JSON strings
+	var result strings.Builder
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if escaped {
+			result.WriteByte(ch)
+			escaped = false
+			continue
+		}
+		if ch == '\\' && inString {
+			// Check for invalid escape sequences
+			if i+1 < len(s) {
+				next := s[i+1]
+				validEscapes := `"\/bfnrtu`
+				if strings.ContainsRune(validEscapes, rune(next)) {
+					result.WriteByte(ch)
+					escaped = true
+					continue
+				}
+				// Invalid escape - double the backslash
+				result.WriteString("\\\\")
+				continue
+			}
+			result.WriteByte(ch)
+			continue
+		}
+		if ch == '"' && !escaped {
+			inString = !inString
+		}
+		// Replace raw control characters inside strings
+		if inString && ch < 0x20 && ch != '\n' {
+			result.WriteString(fmt.Sprintf("\\u%04x", ch))
+			continue
+		}
+		result.WriteByte(ch)
+	}
+	return result.String()
 }

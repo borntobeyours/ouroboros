@@ -39,7 +39,7 @@ func NewEngine(redAgent *red.Agent, blueAgent *blue.Agent, bossAgent *boss.Agent
 // Run executes the full attack-fix-reattack loop.
 func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanSession, error) {
 	session := types.NewScanSession(config)
-	convergence := NewConvergenceChecker(2)
+	convergence := NewConvergenceChecker(3)
 
 	e.logger.Printf("Starting Ouroboros scan session %s", session.ID)
 	e.logger.Printf("Target: %s | Max loops: %d | Final Boss: %v", config.Target.URL, config.MaxLoops, config.FinalBoss)

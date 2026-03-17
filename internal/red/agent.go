@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ouroboros-security/ouroboros/internal/ai"
+	"github.com/ouroboros-security/ouroboros/internal/red/probers"
 	target_pkg "github.com/ouroboros-security/ouroboros/internal/target"
 	"github.com/ouroboros-security/ouroboros/pkg/types"
 )
@@ -48,59 +49,79 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	}
 	a.logger.Printf("[RED] Discovered %d URLs", len(urls))
 
-	// Phase 2: AI-powered vulnerability analysis
-	a.logger.Printf("[RED] Phase 2: AI-powered vulnerability scanning...")
-	findings, err := a.scanner.Scan(ctx, target, urls, previousFindings, patches, loop)
-	if err != nil {
-		return nil, fmt.Errorf("scan target: %w", err)
-	}
-	a.logger.Printf("[RED] Found %d potential vulnerabilities", len(findings))
-
-	if len(findings) == 0 {
-		return findings, nil
-	}
-
-	// Phase 3: AI-guided active exploitation
-	a.logger.Printf("[RED] Phase 3: AI-guided active exploitation (%d targets)...", len(findings))
-
-	// Get endpoint context for the active exploiter
+	// Get endpoint context
 	endpoints := target_pkg.DiscoverEndpoints(urls, target.Headers)
 	a.lastEndpoints = endpoints
 
-	activeResults := a.activeExploit.ExploitAll(ctx, findings, target, endpoints)
+	// Phase 2: Technique-specific active probers
+	a.logger.Printf("[RED] Phase 2: Running technique-specific probers...")
 
-	// Update findings with exploit results
-	confirmed := make([]types.Finding, 0)
-	for i, f := range findings {
-		if i < len(activeResults) && activeResults[i].Exploited {
-			f.Confirmed = true
-			f.ExploitEvidence = activeResults[i].Evidence
-			f.ExfiltratedData = activeResults[i].DataExfiled
-			if activeResults[i].SevUpgrade != "" {
-				upgraded, _ := types.ParseSeverity(activeResults[i].SevUpgrade)
-				if upgraded > f.Severity {
-					f.Severity = upgraded
+	// On first loop, try to authenticate for deeper scanning
+	proberTarget := target
+	if loop == 1 {
+		a.logger.Printf("[RED] Attempting authentication via SQLi bypass...")
+		token, err := probers.LoginJuiceShop(target.URL)
+		if err != nil {
+			a.logger.Printf("[RED] Auth attempt failed (will scan unauthenticated): %v", err)
+		} else {
+			a.logger.Printf("[RED] Authentication successful, enabling authenticated scanning")
+			if proberTarget.Headers == nil {
+				proberTarget.Headers = make(map[string]string)
+			}
+			proberTarget.Headers["Authorization"] = token
+		}
+	}
+
+	proberFindings := probers.RunAllProbers(ctx, proberTarget, endpoints, loop)
+	a.logger.Printf("[RED] Probers found %d findings", len(proberFindings))
+
+	// Phase 3: AI-powered vulnerability analysis (supplements probers)
+	a.logger.Printf("[RED] Phase 3: AI-powered vulnerability scanning...")
+	aiFindings, err := a.scanner.Scan(ctx, target, urls, previousFindings, patches, loop)
+	if err != nil {
+		a.logger.Printf("[RED] AI scan error (continuing with prober results): %v", err)
+		aiFindings = nil
+	}
+	a.logger.Printf("[RED] AI found %d potential vulnerabilities", len(aiFindings))
+
+	// Combine prober findings (already confirmed) with AI findings
+	var allFindings []types.Finding
+	allFindings = append(allFindings, proberFindings...)
+
+	if len(aiFindings) > 0 {
+		// Phase 4: AI-guided active exploitation of AI-discovered findings
+		a.logger.Printf("[RED] Phase 4: AI-guided active exploitation (%d AI targets)...", len(aiFindings))
+		activeResults := a.activeExploit.ExploitAll(ctx, aiFindings, target, endpoints)
+
+		for i, f := range aiFindings {
+			if i < len(activeResults) && activeResults[i].Exploited {
+				f.Confirmed = true
+				f.ExploitEvidence = activeResults[i].Evidence
+				f.ExfiltratedData = activeResults[i].DataExfiled
+				if activeResults[i].SevUpgrade != "" {
+					upgraded, _ := types.ParseSeverity(activeResults[i].SevUpgrade)
+					if upgraded > f.Severity {
+						f.Severity = upgraded
+					}
+				}
+				if activeResults[i].Chain != "" {
+					f.ExploitEvidence += " [" + activeResults[i].Chain + "]"
 				}
 			}
-			if activeResults[i].Chain != "" {
-				f.ExploitEvidence += " [" + activeResults[i].Chain + "]"
+			allFindings = append(allFindings, f)
+		}
+
+		exploitedCount := 0
+		for _, r := range activeResults {
+			if r.Exploited {
+				exploitedCount++
 			}
-			confirmed = append(confirmed, f)
-		} else {
-			f.Confirmed = false
-			confirmed = append(confirmed, f)
 		}
+		a.logger.Printf("[RED] Exploitation complete: %d/%d AI findings confirmed", exploitedCount, len(aiFindings))
 	}
 
-	exploitedCount := 0
-	for _, r := range activeResults {
-		if r.Exploited {
-			exploitedCount++
-		}
-	}
-	a.logger.Printf("[RED] Exploitation complete: %d/%d confirmed", exploitedCount, len(findings))
-
-	return confirmed, nil
+	a.logger.Printf("[RED] Total findings this loop: %d", len(allFindings))
+	return allFindings, nil
 }
 
 // buildAttackPrompt creates the Red AI system prompt.

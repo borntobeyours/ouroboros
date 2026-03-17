@@ -60,7 +60,7 @@ func newScanCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().IntVar(&maxLoops, "max-loops", 10, "Maximum number of attack-fix loops")
+	cmd.Flags().IntVar(&maxLoops, "max-loops", 5, "Maximum number of attack-fix loops")
 	cmd.Flags().BoolVar(&finalBoss, "final-boss", false, "Enable Final Boss validation after convergence")
 	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model to use")
