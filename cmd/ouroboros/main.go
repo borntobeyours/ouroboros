@@ -18,6 +18,7 @@ import (
 	"github.com/borntobeyours/ouroboros/internal/engine"
 	"github.com/borntobeyours/ouroboros/internal/memory"
 	"github.com/borntobeyours/ouroboros/internal/red"
+	"github.com/borntobeyours/ouroboros/internal/red/probers"
 	"github.com/borntobeyours/ouroboros/internal/report"
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
@@ -55,6 +56,7 @@ func newScanCmd() *cobra.Command {
 		minCVSS       float64
 		sortBy        string
 		profile       string
+		rateLimit     int
 	)
 
 	cmd := &cobra.Command{
@@ -74,8 +76,10 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetURL := args[0]
-			// Apply profile defaults (flags override profile)
 			applyProfile(profile, cmd, &maxLoops, &finalBoss, &minConfidence, &minCVSS)
+			if rateLimit > 0 {
+				probers.SetRate(rateLimit)
+			}
 			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy)
 		},
 	}
@@ -89,6 +93,7 @@ Examples:
 	cmd.Flags().IntVar(&minConfidence, "min-confidence", 0, "Minimum confidence score to include (0-100)")
 	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score to include (0.0-10.0)")
 	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort findings by: cvss, confidence, severity")
+	cmd.Flags().IntVar(&rateLimit, "rate", 10, "Max requests per second (0 = unlimited)")
 
 	return cmd
 }

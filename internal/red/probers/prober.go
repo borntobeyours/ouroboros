@@ -7,13 +7,75 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
+
+// RateLimiter controls request rate to avoid overwhelming targets.
+type RateLimiter struct {
+	mu       sync.Mutex
+	interval time.Duration
+	lastReq  time.Time
+	count    int64
+}
+
+var globalRateLimiter = &RateLimiter{
+	interval: 100 * time.Millisecond, // default: 10 req/sec
+}
+
+// SetRate configures the global rate limit (requests per second).
+// 0 = unlimited.
+func SetRate(reqPerSec int) {
+	if reqPerSec <= 0 {
+		globalRateLimiter.interval = 0
+		return
+	}
+	globalRateLimiter.interval = time.Second / time.Duration(reqPerSec)
+}
+
+// GetRequestCount returns total requests made.
+func GetRequestCount() int64 {
+	globalRateLimiter.mu.Lock()
+	defer globalRateLimiter.mu.Unlock()
+	return globalRateLimiter.count
+}
+
+func (rl *RateLimiter) wait() {
+	if rl.interval == 0 {
+		rl.mu.Lock()
+		rl.count++
+		rl.mu.Unlock()
+		return
+	}
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	elapsed := time.Since(rl.lastReq)
+	if elapsed < rl.interval {
+		time.Sleep(rl.interval - elapsed)
+	}
+	rl.lastReq = time.Now()
+	rl.count++
+}
+
+// User-Agent rotation to avoid detection
+var userAgents = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:124.0) Gecko/20100101 Firefox/124.0",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+}
+
+func randomUA() string {
+	return userAgents[rand.Intn(len(userAgents))]
+}
 
 // Prober is the interface that all technique-specific probers implement.
 type Prober interface {
@@ -83,23 +145,55 @@ func (c *ProberConfig) IsSPAResponse(url string) bool {
 	return fp == c.BaseFingerprint
 }
 
-// DoRequest sends an HTTP request and returns status, headers, and body.
+// DoRequest sends an HTTP request with rate limiting and UA rotation.
 func (c *ProberConfig) DoRequest(method, url string, body io.Reader, headers map[string]string) (int, http.Header, string, error) {
+	globalRateLimiter.wait()
+
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return 0, nil, "", err
 	}
+	req.Header.Set("User-Agent", randomUA())
 	if c.AuthToken != "" {
 		req.Header.Set("Authorization", c.AuthToken)
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return 0, nil, "", err
 	}
 	defer resp.Body.Close()
+
+	// Handle rate limit responses (429) with retry
+	if resp.StatusCode == 429 {
+		retryAfter := resp.Header.Get("Retry-After")
+		waitTime := 2 * time.Second
+		if retryAfter != "" {
+			if d, err := time.ParseDuration(retryAfter + "s"); err == nil {
+				waitTime = d
+			}
+		}
+		time.Sleep(waitTime)
+		// Retry once
+		resp.Body.Close()
+		req2, _ := http.NewRequest(method, url, body)
+		req2.Header.Set("User-Agent", randomUA())
+		if c.AuthToken != "" {
+			req2.Header.Set("Authorization", c.AuthToken)
+		}
+		for k, v := range headers {
+			req2.Header.Set(k, v)
+		}
+		resp, err = c.Client.Do(req2)
+		if err != nil {
+			return 0, nil, "", err
+		}
+		defer resp.Body.Close()
+	}
+
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	return resp.StatusCode, resp.Header, string(respBody), nil
 }
@@ -152,6 +246,7 @@ func AllProbers() []Prober {
 		&HeadersProber{},
 		&FileUploadProber{},
 		&SSRFProber{},
+		&PathTraversalProber{},
 		&CryptoProber{},
 		&AdditionalProber{},
 	}
