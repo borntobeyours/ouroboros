@@ -132,6 +132,20 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) ([]string, error)
 	return result, nil
 }
 
+// isSameOrigin checks if a URL belongs to the same host as the target.
+func isSameOrigin(targetURL, candidateURL string) bool {
+	targetParts := strings.SplitN(strings.TrimPrefix(strings.TrimPrefix(targetURL, "https://"), "http://"), "/", 2)
+	candidateParts := strings.SplitN(strings.TrimPrefix(strings.TrimPrefix(candidateURL, "https://"), "http://"), "/", 2)
+	if len(targetParts) == 0 || len(candidateParts) == 0 {
+		return false
+	}
+	// Compare host:port
+	return strings.EqualFold(
+		strings.Split(targetParts[0], "?")[0],
+		strings.Split(candidateParts[0], "?")[0],
+	)
+}
+
 func (c *Crawler) htmlCrawl(targetURL string, mu *sync.Mutex, urls map[string]bool) {
 	collector := colly.NewCollector(
 		colly.MaxDepth(c.maxDepth),
@@ -150,7 +164,7 @@ func (c *Crawler) htmlCrawl(targetURL string, mu *sync.Mutex, urls map[string]bo
 
 	collector.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Request.AbsoluteURL(e.Attr("href"))
-		if link == "" {
+		if link == "" || !isSameOrigin(targetURL, link) {
 			return
 		}
 		mu.Lock()
@@ -165,7 +179,7 @@ func (c *Crawler) htmlCrawl(targetURL string, mu *sync.Mutex, urls map[string]bo
 
 	collector.OnHTML("form[action]", func(e *colly.HTMLElement) {
 		action := e.Request.AbsoluteURL(e.Attr("action"))
-		if action != "" {
+		if action != "" && isSameOrigin(targetURL, action) {
 			mu.Lock()
 			urls[action] = true
 			mu.Unlock()
@@ -174,17 +188,18 @@ func (c *Crawler) htmlCrawl(targetURL string, mu *sync.Mutex, urls map[string]bo
 
 	collector.OnHTML("script[src]", func(e *colly.HTMLElement) {
 		src := e.Request.AbsoluteURL(e.Attr("src"))
-		if src != "" {
+		// Only collect same-origin JS for endpoint discovery
+		if src != "" && isSameOrigin(targetURL, src) {
 			mu.Lock()
 			urls[src] = true
 			mu.Unlock()
 		}
 	})
 
-	// Also capture link tags (CSS, icons, etc.)
+	// Also capture link tags (CSS, icons, etc.) — same origin only
 	collector.OnHTML("link[href]", func(e *colly.HTMLElement) {
 		href := e.Request.AbsoluteURL(e.Attr("href"))
-		if href != "" {
+		if href != "" && isSameOrigin(targetURL, href) {
 			mu.Lock()
 			urls[href] = true
 			mu.Unlock()
@@ -247,6 +262,10 @@ func (c *Crawler) parseJSFiles(targetURL string, mu *sync.Mutex, urls map[string
 					path := match[1]
 					var fullURL string
 					if strings.HasPrefix(path, "http") {
+						// Only include same-origin absolute URLs
+						if !isSameOrigin(targetURL, path) {
+							continue
+						}
 						fullURL = path
 					} else {
 						fullURL = strings.TrimRight(targetURL, "/") + path
