@@ -49,6 +49,8 @@ func NewProvider(name, model, apiKey string) (Provider, error) {
 		return NewOllama(model, "http://localhost:11434"), nil
 	case "claude-code", "claudecode", "claude":
 		return NewClaudeCode(model), nil
+	case "openrouter":
+		return NewOpenRouter(apiKey, model), nil
 	default:
 		return NewAnthropic(apiKey, model), nil
 	}

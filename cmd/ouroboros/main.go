@@ -486,6 +486,8 @@ func resolveAPIKey(provider string) string {
 		return os.Getenv("ANTHROPIC_API_KEY")
 	case "openai":
 		return os.Getenv("OPENAI_API_KEY")
+	case "openrouter":
+		return os.Getenv("OPENROUTER_API_KEY")
 	case "ollama":
 		return "" // Ollama doesn't need an API key
 	default:
@@ -499,9 +501,12 @@ func resolveAPIKey(provider string) string {
 
 func newDiffCmd() *cobra.Command {
 	var (
-		before string
-		after  string
-		output string
+		before         string
+		after          string
+		output         string
+		latest         string
+		severityChange bool
+		regression     bool
 	)
 
 	cmd := &cobra.Command{
@@ -511,35 +516,57 @@ func newDiffCmd() *cobra.Command {
 
 Examples:
   ouroboros diff --before da60 --after 7f3a
-  ouroboros diff --before da60 --after 7f3a -o diff-report.html`,
+  ouroboros diff --before da60 --after 7f3a -o diff-report.html
+  ouroboros diff --latest                              # two most recent sessions
+  ouroboros diff --latest http://target.com            # two most recent for target
+  ouroboros diff --before da60 --after 7f3a --regression   # CI/CD gate`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDiff(before, after, output)
+			// --latest takes an optional positional URL argument
+			latestTarget := latest
+			if latestTarget == "" && len(args) > 0 {
+				latestTarget = args[0]
+			}
+			return runDiff(before, after, output, latestTarget, severityChange, regression)
 		},
 	}
 
 	cmd.Flags().StringVar(&before, "before", "", "Baseline session ID (or prefix)")
 	cmd.Flags().StringVar(&after, "after", "", "New session ID (or prefix)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Export diff report (.md, .html)")
-	_ = cmd.MarkFlagRequired("before")
-	_ = cmd.MarkFlagRequired("after")
+	cmd.Flags().StringVar(&latest, "latest", "", "Auto-pick two most recent sessions (optional: target URL to filter)")
+	cmd.Flags().BoolVar(&severityChange, "severity-change", false, "Highlight findings that changed severity")
+	cmd.Flags().BoolVar(&regression, "regression", false, "Exit code 1 if any new critical/high findings (CI/CD gate)")
 
 	return cmd
 }
 
-func runDiff(beforeID, afterID, output string) error {
+func runDiff(beforeID, afterID, output, latestTarget string, severityChange, regression bool) error {
 	store, err := memory.NewStore("")
 	if err != nil {
 		return fmt.Errorf("initialize store: %w", err)
 	}
 	defer store.Close()
 
-	beforeSession, err := store.GetSession(beforeID)
-	if err != nil {
-		return fmt.Errorf("load baseline session: %w", err)
-	}
-	afterSession, err := store.GetSession(afterID)
-	if err != nil {
-		return fmt.Errorf("load new session: %w", err)
+	var beforeSession, afterSession *types.ScanSession
+
+	if latestTarget != "" || (beforeID == "" && afterID == "") {
+		// --latest mode: auto-pick the two most recent sessions
+		beforeSession, afterSession, err = findLatestSessions(store, latestTarget)
+		if err != nil {
+			return fmt.Errorf("find latest sessions: %w", err)
+		}
+	} else {
+		if beforeID == "" || afterID == "" {
+			return fmt.Errorf("provide --before and --after session IDs, or use --latest")
+		}
+		beforeSession, err = store.GetSession(beforeID)
+		if err != nil {
+			return fmt.Errorf("load baseline session: %w", err)
+		}
+		afterSession, err = store.GetSession(afterID)
+		if err != nil {
+			return fmt.Errorf("load new session: %w", err)
+		}
 	}
 
 	beforeFindings, err := store.GetSessionFindings(beforeSession.ID)
@@ -561,8 +588,63 @@ func runDiff(beforeID, afterID, output string) error {
 	}
 
 	// Terminal output
-	printDiff(diff, beforeSession, afterSession)
+	printDiff(diff, beforeSession, afterSession, severityChange)
+
+	// --regression gate: exit 1 if any new critical/high findings
+	if regression {
+		for _, f := range diff.New {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			if sev >= types.SeverityHigh {
+				return fmt.Errorf("REGRESSION: %d new critical/high finding(s) detected", countNewHighCrit(diff.New))
+			}
+		}
+	}
+
 	return nil
+}
+
+// findLatestSessions returns the two most recent sessions, optionally filtered by target URL.
+func findLatestSessions(store *memory.Store, targetURL string) (before, after *types.ScanSession, err error) {
+	sessions, err := store.ListSessions(100)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var filtered []types.ScanSession
+	for _, s := range sessions {
+		if targetURL == "" || s.Config.Target.URL == targetURL {
+			filtered = append(filtered, s)
+		}
+	}
+
+	if len(filtered) < 2 {
+		if targetURL != "" {
+			return nil, nil, fmt.Errorf("fewer than 2 sessions found for target %q", targetURL)
+		}
+		return nil, nil, fmt.Errorf("fewer than 2 sessions found")
+	}
+
+	// ListSessions returns DESC order: filtered[0] = newest, filtered[1] = second newest
+	after = &filtered[0]
+	before = &filtered[1]
+	return before, after, nil
+}
+
+func countNewHighCrit(findings []types.Finding) int {
+	n := 0
+	for _, f := range findings {
+		sev := f.AdjustedSeverity
+		if sev == 0 {
+			sev = f.Severity
+		}
+		if sev >= types.SeverityHigh {
+			n++
+		}
+	}
+	return n
 }
 
 func computeDiff(before, after []types.Finding) report.DiffResult {
@@ -582,9 +664,33 @@ func computeDiff(before, after []types.Finding) report.DiffResult {
 			diff.Fixed = append(diff.Fixed, f)
 		}
 	}
-	for sig, f := range afterSigs {
-		if _, exists := beforeSigs[sig]; exists {
-			diff.Persistent = append(diff.Persistent, f)
+	for sig, afterF := range afterSigs {
+		if beforeF, exists := beforeSigs[sig]; exists {
+			diff.Persistent = append(diff.Persistent, afterF)
+
+			afterSev := afterF.AdjustedSeverity
+			if afterSev == 0 {
+				afterSev = afterF.Severity
+			}
+			beforeSev := beforeF.AdjustedSeverity
+			if beforeSev == 0 {
+				beforeSev = beforeF.Severity
+			}
+			if afterSev != beforeSev {
+				diff.SeverityChanged = append(diff.SeverityChanged, report.SeverityChange{
+					Finding:     afterF,
+					OldSeverity: beforeSev,
+					NewSeverity: afterSev,
+				})
+			}
+
+			if afterF.Confidence != beforeF.Confidence {
+				diff.ConfidenceChanged = append(diff.ConfidenceChanged, report.ConfidenceChange{
+					Finding:       afterF,
+					OldConfidence: beforeF.Confidence,
+					NewConfidence: afterF.Confidence,
+				})
+			}
 		}
 	}
 	for sig, f := range afterSigs {
@@ -605,29 +711,75 @@ func computeDiff(before, after []types.Finding) report.DiffResult {
 	return diff
 }
 
-func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBold   = "\033[1m"
+)
+
+func effectiveSev(f types.Finding) types.Severity {
+	if f.AdjustedSeverity != 0 {
+		return f.AdjustedSeverity
+	}
+	return f.Severity
+}
+
+func countBySev(findings []types.Finding) map[types.Severity]int {
+	m := make(map[types.Severity]int)
+	for _, f := range findings {
+		m[effectiveSev(f)]++
+	}
+	return m
+}
+
+func formatSevBreakdown(counts map[types.Severity]int) string {
+	var parts []string
+	for _, sev := range []types.Severity{types.SeverityCritical, types.SeverityHigh, types.SeverityMedium, types.SeverityLow, types.SeverityInfo} {
+		if n := counts[sev]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, strings.ToLower(sev.String())))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
+}
+
+func printDiff(diff report.DiffResult, before, after *types.ScanSession, showSeverityChange bool) {
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("SCAN DIFF")
+	fmt.Printf("%sSCAN DIFF%s\n", colorBold, colorReset)
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Baseline: %s (%s)\n", before.ID[:8], before.Config.Target.URL)
 	fmt.Printf("Current:  %s (%s)\n", after.ID[:8], after.Config.Target.URL)
 	fmt.Println()
 
-	// Summary
-	fmt.Printf("✅ Fixed:      %d\n", len(diff.Fixed))
-	fmt.Printf("⚠️  Persistent: %d\n", len(diff.Persistent))
-	fmt.Printf("🆕 New:        %d\n", len(diff.New))
+	// Summary with severity breakdown
+	fixedBySev := countBySev(diff.Fixed)
+	newBySev := countBySev(diff.New)
+	persistBySev := countBySev(diff.Persistent)
+
+	fixedBreak := formatSevBreakdown(fixedBySev)
+	newBreak := formatSevBreakdown(newBySev)
+	persistBreak := formatSevBreakdown(persistBySev)
+
+	regressionNote := ""
+	if countNewHighCrit(diff.New) > 0 {
+		regressionNote = colorRed + " (REGRESSION!)" + colorReset
+	}
+
+	fmt.Printf("%s✅ Fixed:      %d%s  %s\n", colorGreen, len(diff.Fixed), colorReset, fixedBreak)
+	fmt.Printf("%s⚠️  Persistent: %d%s  %s\n", colorYellow, len(diff.Persistent), colorReset, persistBreak)
+	fmt.Printf("%s🆕 New:        %d%s  %s%s\n", colorRed, len(diff.New), colorReset, newBreak, regressionNote)
 	fmt.Println()
 
 	if len(diff.Fixed) > 0 {
-		fmt.Println("── FIXED (Remediated) ──────────────────")
+		fmt.Printf("%s── FIXED (Remediated) ──────────────────%s\n", colorGreen, colorReset)
 		for _, f := range diff.Fixed {
-			sev := f.AdjustedSeverity
-			if sev == 0 {
-				sev = f.Severity
-			}
-			fmt.Printf("  ✅ [%s] %s", sev, f.Title)
+			sev := effectiveSev(f)
+			fmt.Printf("%s  ✅ [%s] %s%s", colorGreen, sev, f.Title, colorReset)
 			if f.CVSS.Score > 0 {
 				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
 			}
@@ -637,13 +789,10 @@ func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
 	}
 
 	if len(diff.New) > 0 {
-		fmt.Println("── NEW (Regressions) ──────────────────")
+		fmt.Printf("%s── NEW (Regressions) ──────────────────%s\n", colorRed, colorReset)
 		for _, f := range diff.New {
-			sev := f.AdjustedSeverity
-			if sev == 0 {
-				sev = f.Severity
-			}
-			fmt.Printf("  🆕 [%s] %s", sev, f.Title)
+			sev := effectiveSev(f)
+			fmt.Printf("%s  🆕 [%s] %s%s", colorRed, sev, f.Title, colorReset)
 			if f.CVSS.Score > 0 {
 				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
 			}
@@ -653,18 +802,44 @@ func printDiff(diff report.DiffResult, before, after *types.ScanSession) {
 	}
 
 	if len(diff.Persistent) > 0 {
-		fmt.Println("── PERSISTENT (Still Present) ─────────")
+		fmt.Printf("%s── PERSISTENT (Still Present) ─────────%s\n", colorYellow, colorReset)
 		for _, f := range diff.Persistent {
-			sev := f.AdjustedSeverity
-			if sev == 0 {
-				sev = f.Severity
-			}
-			fmt.Printf("  ⚠️  [%s] %s", sev, f.Title)
+			sev := effectiveSev(f)
+			fmt.Printf("%s  ⚠️  [%s] %s%s", colorYellow, sev, f.Title, colorReset)
 			if f.CVSS.Score > 0 {
 				fmt.Printf(" (CVSS:%.1f)", f.CVSS.Score)
 			}
 			fmt.Println()
 		}
+		fmt.Println()
+	}
+
+	if showSeverityChange && len(diff.SeverityChanged) > 0 {
+		fmt.Println("── SEVERITY CHANGES ────────────────────")
+		for _, sc := range diff.SeverityChanged {
+			arrow := colorYellow
+			if sc.NewSeverity > sc.OldSeverity {
+				arrow = colorRed
+			} else {
+				arrow = colorGreen
+			}
+			fmt.Printf("  %s↕  [%s→%s] %s%s\n", arrow, sc.OldSeverity, sc.NewSeverity, sc.Finding.Title, colorReset)
+		}
+		fmt.Println()
+	}
+
+	if showSeverityChange && len(diff.ConfidenceChanged) > 0 {
+		fmt.Println("── CONFIDENCE CHANGES ──────────────────")
+		for _, cc := range diff.ConfidenceChanged {
+			arrow := colorYellow
+			if cc.NewConfidence > cc.OldConfidence {
+				arrow = colorRed
+			} else {
+				arrow = colorGreen
+			}
+			fmt.Printf("  %s~  [%s→%s] %s%s\n", arrow, cc.OldConfidence, cc.NewConfidence, cc.Finding.Title, colorReset)
+		}
+		fmt.Println()
 	}
 }
 

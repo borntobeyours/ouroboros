@@ -9,11 +9,27 @@ import (
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
+// SeverityChange tracks a persistent finding whose severity changed between scans.
+type SeverityChange struct {
+	Finding     types.Finding
+	OldSeverity types.Severity
+	NewSeverity types.Severity
+}
+
+// ConfidenceChange tracks a persistent finding whose confidence changed between scans.
+type ConfidenceChange struct {
+	Finding       types.Finding
+	OldConfidence types.Confidence
+	NewConfidence types.Confidence
+}
+
 // DiffResult holds categorized findings between two scans.
 type DiffResult struct {
-	Fixed      []types.Finding
-	Persistent []types.Finding
-	New        []types.Finding
+	Fixed             []types.Finding
+	Persistent        []types.Finding
+	New               []types.Finding
+	SeverityChanged   []SeverityChange
+	ConfidenceChanged []ConfidenceChange
 }
 
 // ExportDiffMarkdown writes a diff report as Markdown.
