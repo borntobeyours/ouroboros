@@ -156,7 +156,14 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		}
 	}
 
-	// Phase 6: Confidence scoring and severity adjustment
+	// Phase 6: Deduplicate findings (probers + AI may find the same vuln)
+	beforeDedup := len(allFindings)
+	allFindings = types.DeduplicateFindings(allFindings)
+	if beforeDedup > len(allFindings) {
+		a.logger.Printf("[RED] Dedup: removed %d duplicate findings (%d → %d)", beforeDedup-len(allFindings), beforeDedup, len(allFindings))
+	}
+
+	// Phase 7: Confidence scoring and severity adjustment
 	ScoreConfidence(allFindings)
 	proven, high, medium, low := 0, 0, 0, 0
 	for _, f := range allFindings {

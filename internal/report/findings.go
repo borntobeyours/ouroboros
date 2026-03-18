@@ -256,6 +256,8 @@ func (r *Reporter) PrintSummary(session *types.ScanSession, findings []types.Fin
 
 // ExportJSON writes findings as JSON to a file.
 func ExportJSON(findings []types.Finding, session *types.ScanSession, path string) error {
+	// Final dedup pass before export
+	findings = types.DeduplicateFindings(findings)
 	data := map[string]interface{}{
 		"session":  session,
 		"findings": findings,
@@ -269,6 +271,8 @@ func ExportJSON(findings []types.Finding, session *types.ScanSession, path strin
 
 // ExportMarkdown writes findings as Markdown to a file.
 func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path string) error {
+	// Final dedup pass before export
+	findings = types.DeduplicateFindings(findings)
 	var sb strings.Builder
 
 	sb.WriteString("# Ouroboros Security Report\n\n")

@@ -90,6 +90,8 @@ func (f *Finding) AdjustSeverity() {
 }
 
 // Signature returns a unique hash for deduplication.
+// It uses endpoint + method + technique + CWE (NOT title, since AI and probers
+// may use different titles for the same vulnerability).
 func (f *Finding) Signature() string {
 	// Normalize endpoint: strip query params and trailing slashes for consistent dedup
 	ep := f.Endpoint
@@ -97,10 +99,43 @@ func (f *Finding) Signature() string {
 		ep = ep[:idx]
 	}
 	ep = strings.TrimRight(ep, "/")
-	// Also include title for findings with same endpoint but different vulns
-	data := fmt.Sprintf("%s|%s|%s|%s|%s", ep, f.Method, f.Technique, f.CWE, f.Title)
+	ep = strings.ToLower(ep)
+
+	// Normalize technique
+	technique := strings.ToLower(strings.TrimSpace(f.Technique))
+
+	// Normalize CWE
+	cwe := strings.ToUpper(strings.TrimSpace(f.CWE))
+
+	// Use endpoint + method + technique + CWE for dedup.
+	// Title is intentionally excluded because probers and AI report
+	// the same vuln with different titles.
+	data := fmt.Sprintf("%s|%s|%s|%s", ep, f.Method, technique, cwe)
 	hash := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("%x", hash[:8])
+}
+
+// DeduplicateFindings removes duplicate findings based on their signature.
+// When duplicates exist, the finding with the higher confidence is kept.
+func DeduplicateFindings(findings []Finding) []Finding {
+	seen := make(map[string]int) // signature -> index in result
+	result := make([]Finding, 0, len(findings))
+
+	for _, f := range findings {
+		sig := f.Signature()
+		if idx, exists := seen[sig]; exists {
+			// Keep the one with higher confidence, or higher severity as tiebreaker
+			existing := result[idx]
+			if f.Confidence > existing.Confidence ||
+				(f.Confidence == existing.Confidence && f.Severity > existing.Severity) {
+				result[idx] = f
+			}
+		} else {
+			seen[sig] = len(result)
+			result = append(result, f)
+		}
+	}
+	return result
 }
 
 // Patch represents a fix suggestion from Blue AI.
