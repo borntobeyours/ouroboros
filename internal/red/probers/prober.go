@@ -317,6 +317,8 @@ func AllProbers() []Prober {
 		&PathTraversalProber{},
 		&CryptoProber{},
 		&AdditionalProber{},
+		&GraphQLProber{},
+		&WebSocketProber{},
 	}
 	if len(extraProbers) == 0 {
 		return builtin
