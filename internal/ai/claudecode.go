@@ -33,7 +33,7 @@ func NewClaudeCode(model string) *ClaudeCode {
 	return &ClaudeCode{
 		model:      model,
 		binaryPath: binaryPath,
-		timeout:    120 * time.Second,
+		timeout:    300 * time.Second,
 	}
 }
 
