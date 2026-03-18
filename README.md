@@ -28,8 +28,8 @@ export OPENAI_API_KEY=sk-...  # or ANTHROPIC_API_KEY
 ouroboros scan http://target.com
 
 # Scan profiles (recommended)
-ouroboros scan http://target.com --profile quick      # 1 loop, fast recon
-ouroboros scan http://target.com --profile deep       # 3 loops, filtered output
+ouroboros scan http://target.com --profile quick      # 1 loop, fast check
+ouroboros scan http://target.com --profile deep       # 3 loops, standard pentest
 ouroboros scan http://target.com --profile paranoid   # 5 loops + Final Boss
 
 # Export reports
@@ -37,7 +37,53 @@ ouroboros scan http://target.com -o report.html       # Interactive HTML
 ouroboros scan http://target.com -o report.sarif      # GitHub Code Scanning
 ouroboros scan http://target.com -o report.md         # Markdown
 ouroboros scan http://target.com -o report.json       # JSON
+
+# Zero-cost scanning with Claude Max subscription
+ouroboros scan http://target.com --provider claude-code --model sonnet
+
+# Authenticated scanning
+ouroboros scan http://target.com --auth-user admin --auth-pass password
+ouroboros scan http://target.com --auth-token eyJhbG...
+
+# Real-time AI reasoning output
+ouroboros scan http://target.com --verbose
 ```
+
+## Scan Modes
+
+Each loop is a full **Crawl → Attack → Defend** cycle. Later loops attack the patches from earlier loops, finding bypasses and new vectors that earlier loops missed.
+
+| Profile | Loops | Final Boss | Best For |
+|---------|-------|-----------|---------|
+| `--profile quick` | 1 | No | CI/CD gate, fast check |
+| `--profile deep` (default) | 3 | No | Standard pentest |
+| `--profile paranoid` | 5 | Yes | Maximum coverage |
+| `--max-loops N` | N | opt-in | Custom depth |
+
+```bash
+# Custom: 4 loops with Final Boss
+ouroboros scan http://target.com --max-loops 4 --final-boss
+
+# CI/CD: quick check, fail on high severity
+ouroboros ci http://target.com --fail-on high --max-loops 2
+```
+
+## 6 Scan Phases
+
+Every scan runs through up to six phases per loop:
+
+```
+Phase 0: RECON       Port scan, tech fingerprint, JS extraction, Wayback mining, param discovery
+Phase 1: CRAWL       SPA-aware endpoint discovery and classification
+Phase 2: AUTH        Auto-login, CSRF token extraction, session persistence
+Phase 3: ATTACK      Red AI + 11 active probers (parallel)
+Phase 4: DEFEND      Blue AI concurrent batch analysis + patch generation
+Phase 5: BOSS        Final Boss exploit chaining — paranoid mode only
+```
+
+**Phase 0 (Recon)** runs once before the loop. Auto-enabled for domain targets, disabled for localhost/IP.
+
+**Phase 5 (Boss)** runs once after all loops. Validates findings (removes false positives) and chains exploits to find new critical issues.
 
 ## What Makes Ouroboros Different
 
@@ -60,8 +106,59 @@ ouroboros scan http://target.com -o report.json       # JSON
 - **AI-Guided Exploitation** — Multi-step exploit plans with adaptive retry
 - **Auto-Exploit Chains** — .git dump (branch→commit→objects→PoC), .env secret extraction
 - **SPA-Aware Crawler** — Fingerprints base URL, eliminates SPA catch-all false positives
-- **Authenticated Scanning** — Auto login bypass (SQLi, default creds), then scans with JWT
 - **Same-Origin Enforcement** — Only crawls target domain, skips external links
+- **Self-Learning Memory** — SQLite-backed playbook of successful techniques
+
+### Authenticated Scanning
+
+Ouroboros can authenticate before scanning, discovering +33% more findings on average.
+
+```bash
+# Form/JSON login (auto-detected)
+ouroboros scan http://target.com --auth-user admin --auth-pass secret
+
+# Custom login URL
+ouroboros scan http://target.com --auth-user admin --auth-pass secret \
+  --auth-url http://target.com/api/auth/login --auth-method json
+
+# Bearer token
+ouroboros scan http://target.com --auth-token eyJhbGciOiJIUzI1NiJ9...
+
+# Custom headers and cookies (repeatable)
+ouroboros scan http://target.com \
+  --auth-header "X-API-Key: abc123" \
+  --auth-cookie "session=xyz789"
+```
+
+- Auto-detects login forms and CSRF tokens
+- Supports form, JSON, bearer, cookie, and header auth
+- Session persists across all loops — mid-scan re-auth on token expiry
+- Tested auth: +86% findings vs unauthenticated on complex apps
+
+### Recon Module
+
+Automatically maps the full attack surface before the first loop.
+
+```bash
+# Recon auto-enabled for domain targets
+ouroboros scan http://target.com
+
+# Force-enable or disable
+ouroboros scan http://target.com --recon          # force on
+ouroboros scan http://target.com --no-recon       # force off
+
+# Select specific modules
+ouroboros scan http://target.com --recon-modules portscan,jsextract,wayback
+```
+
+Available modules:
+- **portscan** — Pure Go TCP connect scan with banner grabbing
+- **techfp** — Technology fingerprinting via headers, cookies, body patterns
+- **jsextract** — JavaScript endpoint and secret extraction (LinkFinder-style)
+- **wayback** — Wayback Machine URL mining via CDX API
+- **params** — Parameter discovery with reflection detection
+
+Recon results feed directly into the attack loop — discovered URLs and parameters become crawl seeds for Red AI.
 
 ### Quality
 - **Confidence Scoring** — Each finding scored 0-100: Proven (95+), High (75+), Medium (50+), Low (<50)
@@ -75,6 +172,33 @@ ouroboros scan http://target.com -o report.json       # JSON
 - **Markdown** — Clean, readable, shareable
 - **JSON** — Machine-readable for automation
 - **Sorted** — `--sort cvss` (default), `--sort confidence`, `--sort severity`
+
+### Verbose Mode
+
+See real-time AI reasoning during the scan:
+
+```bash
+ouroboros scan http://target.com --verbose
+```
+
+Output:
+```
+  [RECON] Port 3000/tcp open (Express/4.17.1)
+  [RECON] Found 64 JS endpoints
+  [AUTH] Authentication successful (method: form, CSRF token extracted)
+  [RED] Crawling target... discovered 47 URLs
+  [RED] Phase 2: Running technique-specific probers...
+  [RED] Probers found 12 findings
+  [RED] Phase 4: AI-guided active exploitation (8 AI targets)...
+  [RED] Exploitation complete: 6/8 AI findings confirmed
+  [RED] Confidence: 5 proven, 4 high, 3 medium, 2 low
+  [BLUE] Analyzing 12 findings in 2 concurrent batches (max 3 parallel)...
+  [BLUE] Batch 1/2 done: 9 patches
+  [BLUE] Batch 2/2 done: 6 patches
+  [BLUE] Generated 15 patches (2/2 batches succeeded)
+```
+
+Without `--verbose`, Ouroboros still surfaces critical events (auth status, confidence summaries) while keeping output clean.
 
 ### CI/CD
 ```bash
@@ -107,12 +231,11 @@ ouroboros diff --before abc123 --after def456 -o progress.html
 ### Other
 - **Session Prefix Matching** — `ouroboros report --session abc1` (no need for full UUID)
 - **Real-Time Progress** — Animated spinner showing current phase and elapsed time
-- **Self-Learning Memory** — SQLite-backed playbook of successful techniques
-- **Scan Profiles** — `quick`, `deep`, `paranoid` — no need to remember flags
+- **Rate Limiting** — `--rate 10` caps requests per second (default: 10)
 
 ## Real-World Results
 
-### OWASP Juice Shop (Node.js)
+### OWASP Juice Shop — Default (3 loops)
 ```
 Findings: 64 | Confirmed: 62 (96.9%) | Duration: 3m25s
 Critical: 6 | High: 24 | Medium: 24 | Low: 8 | Info: 2
@@ -121,6 +244,18 @@ Critical: 6 | High: 24 | Medium: 24 | Low: 8 | Info: 2
 - UNION SQLi → full database dump (CVSS 9.1, Proven)
 - Unrestricted File Upload → RCE potential (CVSS 9.8)
 - IDOR → access any user's cards, orders, profile (CVSS 6.5)
+
+### OWASP Juice Shop — Paranoid (5 loops + Final Boss)
+```
+Findings: 47 | Proven: 42 (89%) | Duration: 1h37m | Critical: 17
+```
+
+### OWASP Juice Shop — Authenticated vs Unauthenticated
+```
+Authenticated:    56 findings
+Unauthenticated:  30 findings
+Delta:           +86% more findings with auth
+```
 
 ### DVWA (PHP)
 ```
@@ -148,7 +283,12 @@ PoC: git-dumper https://asset.retas.id/.git/ ./dumped-repo
 ouroboros scan http://target --provider openai --model gpt-4o          # Best results
 ouroboros scan http://target --provider anthropic --model claude-sonnet-4-20250514  # Alternative
 ouroboros scan http://target --provider ollama --model llama3           # Free, local
+
+# Zero cost — uses Claude Max subscription via CLI (no API key needed)
+ouroboros scan http://target --provider claude-code --model sonnet
 ```
+
+The `claude-code` provider uses the `claude` CLI binary. Blue AI runs in concurrent batches (3 parallel) and `--skip-blue` is auto-enabled to avoid context conflicts. Requires a Claude Max subscription.
 
 ## GitHub Action
 
@@ -178,24 +318,28 @@ See [`.github/workflows/ouroboros.yml`](.github/workflows/ouroboros.yml) for a c
 ## Architecture
 
 ```
-cmd/ouroboros/           CLI (scan, report, diff, ci)
+cmd/ouroboros/           CLI (scan, report, diff, ci, recon)
 internal/
-  ai/                   Provider abstraction (OpenAI, Anthropic, Ollama)
+  ai/                   Provider abstraction (OpenAI, Anthropic, Ollama, Claude Code)
+    claudecode.go       Claude Code CLI provider (no API key, Claude Max)
   red/                  Red AI agent
     probers/            11 technique-specific probers
     confidence.go       Confidence scoring engine
     crawler.go          SPA-aware web crawler
     classifier.go       Endpoint auto-classification
     active_exploit.go   AI-guided multi-step exploitation
-  blue/                 Blue AI agent (patch generation)
-  boss/                 Final Boss validation
+  blue/                 Blue AI agent (concurrent batch patch generation)
+  boss/                 Final Boss validation + exploit chaining
+  auth/                 Authentication (form, JSON, bearer, cookie, header, CSRF)
+  recon/                Reconnaissance (portscan, techfp, jsextract, wayback, params)
   engine/               Loop orchestration + convergence detection
   memory/               SQLite persistent store
-  report/               HTML, Markdown, JSON, SARIF exporters
+  report/               HTML, Markdown, JSON, SARIF exporters + progress display
 pkg/types/
   finding.go            Finding with confidence + CVSS
   cvss.go               CVSS v3.1 calculator
   severity.go           Severity types + parsing
+  target.go             Target, ScanConfig, AuthConfig, ReconConfig
 ```
 
 ## Roadmap
@@ -210,12 +354,15 @@ pkg/types/
 - [x] CI/CD mode with exit codes
 - [x] Diff mode (fixed/persistent/new)
 - [x] GitHub Action
-- [x] Real-time progress display
+- [x] Real-time progress display + verbose mode
+- [x] Final Boss exploit chaining
+- [x] Subdomain enumeration (`ouroboros recon`)
+- [x] Recon module (portscan, techfp, jsextract, wayback, params)
+- [x] Authenticated scanning (form, JSON, bearer, cookie, CSRF)
+- [x] Claude Code provider (zero cost, Claude Max)
 - [ ] SSRF exploitation (cloud metadata)
 - [ ] Path traversal auto-exploit
 - [ ] Web dashboard
-- [ ] Final Boss mode (Opus-level validation)
-- [ ] Subdomain enumeration
 - [ ] Rate limiting / stealth mode
 - [ ] Plugin system for custom probers
 

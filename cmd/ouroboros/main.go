@@ -65,6 +65,7 @@ func newScanCmd() *cobra.Command {
 		reconEnabled  bool
 		noRecon       bool
 		reconModules  string
+		verbose       bool
 		// Auth flags
 		authUser    string
 		authPass    string
@@ -139,7 +140,7 @@ Examples:
 				}
 			}
 
-			return runScan(targetURL, maxLoops, finalBoss, skipBlue, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
+			return runScan(targetURL, maxLoops, finalBoss, skipBlue, verbose, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
 		},
 	}
 
@@ -157,6 +158,7 @@ Examples:
 	cmd.Flags().BoolVar(&reconEnabled, "recon", false, "Enable recon phase before attack loop")
 	cmd.Flags().BoolVar(&noRecon, "no-recon", false, "Disable recon phase")
 	cmd.Flags().StringVar(&reconModules, "recon-modules", "", "Comma-separated recon modules: portscan,techfp,jsextract,wayback,params")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show real-time AI reasoning and scan events")
 	// Auth flags
 	cmd.Flags().StringVar(&authUser, "auth-user", "", "Login username/email")
 	cmd.Flags().StringVar(&authPass, "auth-pass", "", "Login password")
@@ -225,7 +227,7 @@ func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *
 	}
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verbose bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -281,6 +283,7 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, prov
 		MaxLoops:   maxLoops,
 		FinalBoss:  finalBoss,
 		SkipBlue:   skipBlue,
+		Verbose:    verbose,
 		Provider:   providerName,
 		Model:      model,
 		AuthConfig: authCfg,
@@ -827,7 +830,7 @@ Examples:
 							strings.TrimSuffix(scanOutput, ext), sub.Name, ext)
 					}
 
-					err := runScan(targetURL, maxLoops, finalBoss, false, scanProvider, scanModel,
+					err := runScan(targetURL, maxLoops, finalBoss, false, false, scanProvider, scanModel,
 						subOutput, minConfidence, minCVSS, "cvss", types.AuthConfig{})
 					if err != nil {
 						fmt.Printf("  \033[31m✗ Error scanning %s: %v\033[0m\n\n", sub.Name, err)

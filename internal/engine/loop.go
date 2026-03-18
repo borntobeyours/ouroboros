@@ -49,7 +49,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	lv.PrintAttackHeader(session.ID, config.MaxLoops, config.Provider)
 
 	// Start progress spinner
-	progress := report.NewProgress(config.MaxLoops)
+	progress := report.NewProgress(config.MaxLoops, config.Verbose)
 	progress.Start()
 	defer progress.Stop()
 
@@ -70,6 +70,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		orch := recon.NewOrchestrator(config.Target.URL, config.ReconConfig, config.Target.Headers, e.logger)
 		orch.SetEventCallback(func(event string) {
 			progress.SetStep(event)
+			progress.Emit("RECON", event, false)
 		})
 
 		reconResult = orch.Run()
@@ -77,7 +78,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		// Display recon summary
 		progress.Stop()
 		printReconSummary(reconResult)
-		progress = report.NewProgress(config.MaxLoops)
+		progress = report.NewProgress(config.MaxLoops, config.Verbose)
 		progress.Start()
 	}
 
@@ -92,7 +93,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		if authErr != nil {
 			progress.Stop()
 			e.reporter.PrintError(fmt.Sprintf("Auth failed (continuing unauthenticated): %v", authErr))
-			progress = report.NewProgress(config.MaxLoops)
+			progress = report.NewProgress(config.MaxLoops, config.Verbose)
 			progress.Start()
 		} else if authSession.IsValid() {
 			e.logger.Printf("[AUTH] Authentication successful (method: %s)", authSession.Method)
@@ -139,7 +140,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		if err != nil {
 			progress.Stop()
 			e.reporter.PrintError(fmt.Sprintf("Red AI error: %v", err))
-			progress = report.NewProgress(config.MaxLoops)
+			progress = report.NewProgress(config.MaxLoops, config.Verbose)
 			progress.Start()
 			loopResult.FinishedAt = time.Now()
 			session.Loops = append(session.Loops, loopResult)
@@ -164,7 +165,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			fmt.Println("  → No new findings")
 		}
 
-		progress = report.NewProgress(config.MaxLoops)
+		progress = report.NewProgress(config.MaxLoops, config.Verbose)
 		progress.SetLoop(loop)
 		progress.Start()
 
@@ -187,7 +188,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			session.Converged = true
 			loopResult.FinishedAt = time.Now()
 			session.Loops = append(session.Loops, loopResult)
-			progress = report.NewProgress(config.MaxLoops)
+			progress = report.NewProgress(config.MaxLoops, config.Verbose)
 			progress.Start()
 			break
 		}
@@ -204,7 +205,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			if err != nil {
 				progress.Stop()
 				e.reporter.PrintError(fmt.Sprintf("Blue AI: %v", err))
-				progress = report.NewProgress(config.MaxLoops)
+				progress = report.NewProgress(config.MaxLoops, config.Verbose)
 				progress.Start()
 			} else {
 				loopResult.Patches = patches
