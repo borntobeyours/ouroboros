@@ -198,6 +198,58 @@ func ExportDiffHTML(diff DiffResult, before, after *types.ScanSession, path stri
 	return os.WriteFile(path, []byte(sb.String()), 0o644)
 }
 
+// ComputeDiff categorises findings between two scans into fixed, persistent, and new.
+// It is exported so that the API server can reuse the logic without duplicating it.
+func ComputeDiff(before, after []types.Finding) DiffResult {
+	beforeSigs := make(map[string]types.Finding, len(before))
+	for _, f := range before {
+		beforeSigs[f.Signature()] = f
+	}
+	afterSigs := make(map[string]types.Finding, len(after))
+	for _, f := range after {
+		afterSigs[f.Signature()] = f
+	}
+
+	var diff DiffResult
+
+	for sig, f := range beforeSigs {
+		if _, exists := afterSigs[sig]; !exists {
+			diff.Fixed = append(diff.Fixed, f)
+		}
+	}
+	for sig, afterF := range afterSigs {
+		if beforeF, exists := beforeSigs[sig]; exists {
+			diff.Persistent = append(diff.Persistent, afterF)
+
+			afterSev := afterF.AdjustedSeverity
+			if afterSev == 0 {
+				afterSev = afterF.Severity
+			}
+			beforeSev := beforeF.AdjustedSeverity
+			if beforeSev == 0 {
+				beforeSev = beforeF.Severity
+			}
+			if afterSev != beforeSev {
+				diff.SeverityChanged = append(diff.SeverityChanged, SeverityChange{
+					Finding:     afterF,
+					OldSeverity: beforeSev,
+					NewSeverity: afterSev,
+				})
+			}
+			if afterF.Confidence != beforeF.Confidence {
+				diff.ConfidenceChanged = append(diff.ConfidenceChanged, ConfidenceChange{
+					Finding:       afterF,
+					OldConfidence: beforeF.Confidence,
+					NewConfidence: afterF.Confidence,
+				})
+			}
+		} else {
+			diff.New = append(diff.New, afterF)
+		}
+	}
+	return diff
+}
+
 func writeDiffItem(sb *strings.Builder, f types.Finding, icon string) {
 	sev := f.AdjustedSeverity
 	if sev == 0 {

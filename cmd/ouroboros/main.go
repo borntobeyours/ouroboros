@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/borntobeyours/ouroboros/internal/ai"
+	ourobapi "github.com/borntobeyours/ouroboros/internal/api"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/compliance"
@@ -55,6 +56,7 @@ func main() {
 	rootCmd.AddCommand(newReconCmd())
 	rootCmd.AddCommand(newPluginsCmd())
 	rootCmd.AddCommand(newScheduleCmd())
+	rootCmd.AddCommand(newServeCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -2058,5 +2060,65 @@ Each scheduled scan creates a new session accessible via 'ouroboros report'.`,
 	}
 
 	cmd.Flags().BoolVar(&daemon, "daemon", false, "Run scheduler in background")
+	return cmd
+}
+
+// ============================================================
+// SERVE COMMAND — REST API server mode
+// ============================================================
+
+func newServeCmd() *cobra.Command {
+	var (
+		port        int
+		apiKey      string
+		corsOrigins string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "serve",
+		Short: "Start the Ouroboros REST API server",
+		Long: `Start Ouroboros as a REST API server for integration with external platforms
+(e.g. Bima Red ASM).
+
+The server exposes a JSON REST API for managing scans, retrieving findings,
+computing diffs, and streaming real-time progress via Server-Sent Events.
+
+Examples:
+  ouroboros serve --port 8080 --api-key secret
+  ouroboros serve --port 8080 --cors-origins 'https://app.bimarted.com'
+  OUROBOROS_API_KEY=secret ouroboros serve
+
+Endpoints:
+  POST   /api/v1/scans           Start a new scan
+  GET    /api/v1/scans           List all scans
+  GET    /api/v1/scans/:id       Scan details + progress
+  GET    /api/v1/scans/:id/findings  Findings (filterable, paginated)
+  DELETE /api/v1/scans/:id       Cancel a scan
+  GET    /api/v1/scans/:id/report    Full JSON report
+  GET    /api/v1/scans/:id/stream    SSE live progress stream
+  POST   /api/v1/diff            Compare two scans
+  GET    /api/v1/health          Health check
+  GET    /api/v1/status          System status`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Allow API key from env if not passed as flag
+			if apiKey == "" {
+				apiKey = os.Getenv("OUROBOROS_API_KEY")
+			}
+
+			store, err := memory.NewStore("")
+			if err != nil {
+				return fmt.Errorf("initialize store: %w", err)
+			}
+			defer store.Close()
+
+			srv := ourobapi.NewServer(store, port, apiKey, corsOrigins, version)
+			return srv.ListenAndServe()
+		},
+	}
+
+	cmd.Flags().IntVar(&port, "port", 8080, "Port to listen on")
+	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key for authentication (or set OUROBOROS_API_KEY env)")
+	cmd.Flags().StringVar(&corsOrigins, "cors-origins", "*", "Allowed CORS origins (comma-separated, or '*' for all)")
+
 	return cmd
 }

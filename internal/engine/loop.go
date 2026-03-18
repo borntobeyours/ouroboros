@@ -18,15 +18,21 @@ import (
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
+// EventCallbackFn is called by the engine at key progress points.
+// eventType is "progress" or "finding"; phase is the current scan phase;
+// loop is the current iteration; findingsCount is the cumulative total.
+type EventCallbackFn func(eventType, phase string, loop, findingsCount int)
+
 // Engine orchestrates the Red → Blue → Re-attack loop.
 type Engine struct {
-	redAgent  *red.Agent
-	blueAgent *blue.Agent
-	bossAgent *boss.Agent
-	store     *memory.Store
-	reporter  *report.Reporter
-	logger    *log.Logger
-	notifier  *notify.Notifier // optional; nil means no webhook
+	redAgent      *red.Agent
+	blueAgent     *blue.Agent
+	bossAgent     *boss.Agent
+	store         *memory.Store
+	reporter      *report.Reporter
+	logger        *log.Logger
+	notifier      *notify.Notifier // optional; nil means no webhook
+	eventCallback EventCallbackFn  // optional; nil means no callback
 }
 
 // NewEngine creates a new loop engine.
@@ -44,6 +50,19 @@ func NewEngine(redAgent *red.Agent, blueAgent *blue.Agent, bossAgent *boss.Agent
 // SetNotifier attaches a webhook notifier to the engine.
 func (e *Engine) SetNotifier(n *notify.Notifier) {
 	e.notifier = n
+}
+
+// SetEventCallback attaches an optional progress callback used by the API server
+// to push real-time SSE events. Set to nil to disable (the default).
+func (e *Engine) SetEventCallback(cb EventCallbackFn) {
+	e.eventCallback = cb
+}
+
+// emitEvent calls the event callback if one is set.
+func (e *Engine) emitEvent(eventType, phase string, loop, findingsCount int) {
+	if e.eventCallback != nil {
+		e.eventCallback(eventType, phase, loop, findingsCount)
+	}
 }
 
 // Run executes the full attack-fix-reattack loop.
@@ -130,6 +149,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		progress.SetLoop(loop)
 		progress.SetPhase("Crawling")
 		progress.SetStep("Discovering endpoints...")
+		e.emitEvent("progress", "Crawling", loop, len(allFindings))
 
 		// Feed recon-discovered URLs into target for this loop
 		attackTarget := config.Target
@@ -159,6 +179,9 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		loopResult.Findings = newFindings
 		loopResult.NewFindings = len(newFindings)
 		progress.AddFindings(len(newFindings))
+		if len(newFindings) > 0 {
+			e.emitEvent("finding", "Attack", loop, len(allFindings)+len(newFindings))
+		}
 
 		// === DISPLAY FINDINGS ===
 		progress.Stop()
@@ -201,6 +224,7 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		}
 
 		// === DEFEND PHASE ===
+		e.emitEvent("progress", "Defending", loop, len(allFindings))
 		if config.SkipBlue && len(newFindings) > 0 {
 			e.logger.Printf("[ENGINE] Blue AI skipped (--skip-blue / claude-code provider)")
 		}
