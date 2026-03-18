@@ -1,6 +1,8 @@
 name: Canon Printer Default Credentials
 description: Attempts to authenticate to Canon printer Remote UI using the default PIN 7654321. This default PIN is documented in Canon manuals and often left unchanged in corporate environments.
 severity: medium
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

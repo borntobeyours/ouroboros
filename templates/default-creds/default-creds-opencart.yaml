@@ -1,6 +1,8 @@
 name: OpenCart Default Admin Credentials
 description: Attempts to authenticate to OpenCart e-commerce administration panel using default admin/admin credentials. Successful access exposes customer database, order data, and allows file upload for code execution.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

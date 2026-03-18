@@ -1,6 +1,8 @@
 name: Redis No Authentication Required
 description: Detects Redis instances accessible without authentication. An unauthenticated Redis server allows arbitrary data read/write and may enable server-side request forgery or config rewrite attacks leading to RCE.
 severity: critical
+tags:
+  - redis
 cwe: CWE-1392
 
 requests:

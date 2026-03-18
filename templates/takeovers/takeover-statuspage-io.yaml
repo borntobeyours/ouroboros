@@ -1,6 +1,8 @@
 name: Statuspage.io Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Statuspage.io status page that has been deleted. An attacker can register a new Statuspage.io page and associate the victim's custom domain to publish false status information.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

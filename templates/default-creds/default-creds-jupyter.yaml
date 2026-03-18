@@ -1,6 +1,8 @@
 name: Jupyter Notebook No Token Authentication
 description: Detects Jupyter Notebook instances accessible without a token or password. Unauthenticated Jupyter allows arbitrary Python/system command execution in the context of the server process.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

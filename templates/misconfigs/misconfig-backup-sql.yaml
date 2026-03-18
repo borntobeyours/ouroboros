@@ -1,6 +1,8 @@
 name: SQL Database Dump Exposed
 description: A SQL database dump file is publicly accessible. These files contain complete database schemas and data including user credentials, personal information, financial data, and application secrets.
 severity: critical
+tags:
+  - generic
 cwe: CWE-530
 
 requests:

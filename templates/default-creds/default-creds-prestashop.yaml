@@ -1,6 +1,8 @@
 name: PrestaShop Default Admin Credentials
 description: Attempts to authenticate to PrestaShop e-commerce back-office using default admin credentials. Successful access exposes customer data, orders, and payment information.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

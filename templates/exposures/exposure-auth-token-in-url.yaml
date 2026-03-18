@@ -1,6 +1,8 @@
 name: Auth Token in URL
 description: Detects authentication tokens passed as URL parameters. Tokens in URLs are logged in server access logs and proxy logs, enabling unauthorized session access.
 severity: medium
+tags:
+  - generic
 cwe: CWE-598
 
 requests:

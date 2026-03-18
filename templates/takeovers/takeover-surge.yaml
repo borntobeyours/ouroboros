@@ -1,6 +1,8 @@
 name: Surge.sh Subdomain Takeover
 description: Detects a dangling CNAME pointing to Surge.sh where the project has been deleted. An attacker can publish a new Surge project under the same domain name and serve malicious content.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

@@ -1,6 +1,9 @@
 name: GCP Instance Metadata Service Accessible
 description: The Google Cloud Platform metadata server is reachable, suggesting an SSRF vulnerability. Attackers can extract service account tokens, project ID, and instance configuration from the metadata endpoint.
 severity: critical
+tags:
+  - cloud
+  - gcp
 cwe: CWE-918
 
 requests:

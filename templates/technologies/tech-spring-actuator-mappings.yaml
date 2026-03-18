@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /mappings Endpoint Exposed
 description: Detects an unauthenticated Spring Boot Actuator /mappings endpoint. This endpoint enumerates all HTTP request mappings including controller methods, path patterns, and filter chains, exposing the application's full URL surface.
 severity: medium
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

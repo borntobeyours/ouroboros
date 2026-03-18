@@ -1,6 +1,8 @@
 name: ASUS Router Default Credentials
 description: Attempts to authenticate to ASUS router web management interface using default admin/admin credentials. Successful access enables complete router configuration modification including AiCloud and AiDisk features.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,9 @@
 name: Laravel Telescope Debug Tool Exposed
 description: Detects an unauthenticated or publicly accessible Laravel Telescope debugging interface. Telescope logs all requests, database queries, exceptions, and jobs, exposing sensitive application data to unauthorized users.
 severity: high
+tags:
+  - laravel
+  - php
 cwe: CWE-200
 
 requests:

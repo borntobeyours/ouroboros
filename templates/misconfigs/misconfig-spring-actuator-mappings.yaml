@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /mappings Endpoint Exposed
 description: The Spring Boot Actuator /mappings endpoint is publicly accessible, revealing all request handler mappings including all API routes, controller methods, and request patterns defined in the application.
 severity: medium
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

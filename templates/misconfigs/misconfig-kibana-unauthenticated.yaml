@@ -1,6 +1,9 @@
 name: Kibana Unauthenticated Access
 description: Kibana web interface is accessible without authentication, allowing exploration of all Elasticsearch indices, creation/deletion of indices, and execution of arbitrary queries against the data store.
 severity: high
+tags:
+  - elasticsearch
+  - kibana
 cwe: CWE-306
 
 requests:

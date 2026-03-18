@@ -1,6 +1,8 @@
 name: GitLab Personal Access Token Exposure
 description: Detects exposed GitLab personal access tokens in HTTP responses. Leaked tokens provide unauthorized access to GitLab repositories, CI/CD pipelines, and project settings.
 severity: critical
+tags:
+  - gitlab
 cwe: CWE-200
 
 requests:

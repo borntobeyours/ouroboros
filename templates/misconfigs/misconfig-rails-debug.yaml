@@ -1,6 +1,10 @@
 name: Rails Development Mode Exposed
 description: Ruby on Rails application is running in development mode, which exposes detailed exception pages with stack traces and local variable values.
 severity: high
+tags:
+  - generic
+  - rails
+  - ruby
 cwe: CWE-489
 
 requests:

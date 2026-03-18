@@ -124,6 +124,13 @@ func RegisterProbers(ps []Prober) {
 	extraProbers = append(extraProbers, ps...)
 }
 
+// SetPluginProbers replaces the current set of plugin probers with the supplied
+// slice.  The engine calls this after recon-based filtering to ensure only
+// relevant templates run during the attack phase.
+func SetPluginProbers(ps []Prober) {
+	extraProbers = ps
+}
+
 // SetAuthSession stores the global auth session so all probers pick it up.
 func SetAuthSession(s *auth.AuthSession) {
 	currentAuthSession = s

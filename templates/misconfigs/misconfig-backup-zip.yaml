@@ -1,6 +1,8 @@
 name: Backup ZIP Archives Exposed
 description: ZIP archive files are accessible via the web server, potentially containing complete application source code, database dumps, configuration files with credentials, or other sensitive data.
 severity: high
+tags:
+  - generic
 cwe: CWE-530
 
 requests:

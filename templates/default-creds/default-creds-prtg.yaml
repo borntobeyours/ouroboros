@@ -1,6 +1,8 @@
 name: PRTG Network Monitor Default Credentials
 description: Attempts to authenticate to PRTG Network Monitor using default prtgadmin/prtgadmin credentials. Successful access reveals full network topology and may allow sensor script execution leading to RCE.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

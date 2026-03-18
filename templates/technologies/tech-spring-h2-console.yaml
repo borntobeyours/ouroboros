@@ -1,6 +1,9 @@
 name: Spring Boot H2 Database Console Exposed
 description: Detects an exposed Spring Boot H2 in-memory database console. The H2 web console allows executing arbitrary SQL queries and, when INIT commands are enabled, can achieve remote code execution via Java stored procedures.
 severity: critical
+tags:
+  - java
+  - spring
 cwe: CWE-94
 
 requests:

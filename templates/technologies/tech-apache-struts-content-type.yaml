@@ -1,6 +1,10 @@
 name: Apache Struts Content-Type RCE (CVE-2017-5638)
 description: Detects the Apache Struts2 Jakarta Multipart Parser remote code execution vulnerability (CVE-2017-5638). A malicious Content-Type header value is evaluated as an OGNL expression, enabling unauthenticated RCE.
 severity: critical
+tags:
+  - apache
+  - java
+  - struts
 cwe: CWE-94
 
 requests:

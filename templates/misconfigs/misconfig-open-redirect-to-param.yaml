@@ -1,6 +1,8 @@
 name: Open Redirect via to Parameter
 description: The application uses a to parameter to control post-action redirect destinations without validation. This can be leveraged for OAuth redirect_uri bypass, phishing campaigns, and session token theft.
 severity: medium
+tags:
+  - generic
 cwe: CWE-601
 
 requests:

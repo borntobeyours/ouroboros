@@ -1,6 +1,8 @@
 name: MongoDB Error Message Disclosure
 description: Detects MongoDB error messages in HTTP responses. MongoDB errors reveal collection names, field names, and query structure that facilitate NoSQL injection attacks.
 severity: medium
+tags:
+  - mongodb
 cwe: CWE-209
 
 requests:

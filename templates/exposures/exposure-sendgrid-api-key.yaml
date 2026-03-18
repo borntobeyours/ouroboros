@@ -1,6 +1,8 @@
 name: SendGrid API Key Exposure
 description: Detects exposed SendGrid API keys in HTTP responses. Leaked SendGrid API keys allow attackers to send phishing emails, access contact lists, and abuse the email quota.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

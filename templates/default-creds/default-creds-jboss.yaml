@@ -1,6 +1,8 @@
 name: JBoss Application Server Default Credentials
 description: Attempts to authenticate to JBoss/WildFly Administration Console using default admin/admin credentials. Access allows deployment of malicious WAR files leading to remote code execution.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

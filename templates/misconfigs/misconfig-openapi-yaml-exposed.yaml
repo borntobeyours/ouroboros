@@ -1,6 +1,8 @@
 name: OpenAPI YAML Specification Exposed
 description: The OpenAPI/Swagger YAML specification file is publicly accessible, revealing complete API documentation including all endpoints, authentication methods, request schemas, and response formats.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,10 @@
 name: Laravel APP_DEBUG Enabled
 description: Detects Laravel applications running with APP_DEBUG=true. When enabled, unhandled exceptions display a full stack trace, environment variables, and request data including potentially sensitive configuration values.
 severity: high
+tags:
+  - generic
+  - laravel
+  - php
 cwe: CWE-489
 
 requests:

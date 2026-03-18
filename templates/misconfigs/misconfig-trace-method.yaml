@@ -1,6 +1,8 @@
 name: HTTP TRACE Method Enabled
 description: The HTTP TRACE method is enabled on the web server. Cross-Site Tracing (XST) attacks can use TRACE to steal session cookies even when HttpOnly is set, by having the browser reflect credentials back via TRACE.
 severity: low
+tags:
+  - generic
 cwe: CWE-16
 
 requests:

@@ -1,6 +1,8 @@
 name: Oracle TNS Listener Detection
 description: Detects Oracle TNS Listener service responses on port 1521. An exposed Oracle listener may be vulnerable to attacks including unauthorized service registration, remote poisoning (CVE-2012-1675), and data interception.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

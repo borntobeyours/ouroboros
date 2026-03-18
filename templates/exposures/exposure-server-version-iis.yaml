@@ -1,6 +1,10 @@
 name: IIS Version Disclosure
 description: Detects Microsoft IIS web server version numbers in HTTP response headers. Disclosed IIS versions allow targeted exploitation of known CVEs for that specific IIS version.
 severity: info
+tags:
+  - generic
+  - iis
+  - microsoft
 cwe: CWE-200
 
 requests:

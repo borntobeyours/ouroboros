@@ -1,6 +1,8 @@
 name: VMware vCenter Default Credentials
 description: Attempts to authenticate to VMware vCenter Server using default administrator@vsphere.local/vmware credentials. Successful access grants full control over all virtual machines and ESXi hosts.
 severity: critical
+tags:
+  - vmware
 cwe: CWE-1392
 
 requests:

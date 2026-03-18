@@ -1,6 +1,8 @@
 name: Hikvision DVR/NVR Default Credentials
 description: Attempts to authenticate to Hikvision DVR/NVR/IP cameras using default admin/12345 credentials. Successful access enables live video surveillance, recorded footage access, and camera configuration.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

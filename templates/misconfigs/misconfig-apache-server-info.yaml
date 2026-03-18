@@ -1,6 +1,8 @@
 name: Apache /server-info Page Exposed
 description: Apache mod_info is enabled and the /server-info page is publicly accessible. This reveals all loaded Apache modules, configuration directives, and detailed server build information useful for fingerprinting.
 severity: medium
+tags:
+  - apache
 cwe: CWE-200
 
 requests:

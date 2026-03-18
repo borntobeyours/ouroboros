@@ -1,6 +1,10 @@
 name: Apache Struts OGNL Injection Detection
 description: Probes for OGNL (Object-Graph Navigation Language) injection vulnerabilities in Apache Struts. OGNL injection in Struts 2 action parameters allows attackers to execute arbitrary Java code on the server.
 severity: critical
+tags:
+  - apache
+  - java
+  - struts
 cwe: CWE-917
 
 requests:

@@ -1,6 +1,9 @@
 name: Nginx Directory Listing Enabled (autoindex)
 description: Nginx has autoindex directive enabled, allowing directory browsing. Attackers can enumerate files and discover backup files, configuration data, or source code.
 severity: medium
+tags:
+  - generic
+  - nginx
 cwe: CWE-548
 
 requests:

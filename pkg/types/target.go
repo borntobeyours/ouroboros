@@ -88,6 +88,10 @@ type ScanConfig struct {
 	Model       string      `json:"model"`
 	ReconConfig ReconConfig `json:"recon_config,omitempty"`
 	AuthConfig  AuthConfig  `json:"auth_config,omitempty"`
+
+	// Template filtering
+	AllTemplates bool     `json:"all_templates,omitempty"` // run all templates, no filtering
+	TemplateTags []string `json:"template_tags,omitempty"` // manually specify tech tags
 }
 
 // ScanSession represents an entire scan lifecycle.

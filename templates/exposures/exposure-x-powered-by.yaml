@@ -1,6 +1,8 @@
 name: X-Powered-By Header Disclosure
 description: Detects technology information in the X-Powered-By response header. This header reveals the application framework and version, enabling targeted vulnerability exploitation.
 severity: info
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

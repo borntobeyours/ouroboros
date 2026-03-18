@@ -1,6 +1,8 @@
 name: SSH Private Key Exposure
 description: Detects exposed SSH private keys in HTTP responses. Leaked SSH keys allow unauthorized access to servers that trust the corresponding public key.
 severity: critical
+tags:
+  - ssh
 cwe: CWE-321
 
 requests:

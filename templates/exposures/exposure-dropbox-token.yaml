@@ -1,6 +1,8 @@
 name: Dropbox Access Token Exposure
 description: Detects exposed Dropbox access tokens in HTTP responses. Leaked tokens allow full read/write access to the user's Dropbox files and folders.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,9 @@
 name: WordPress readme.html Version Disclosure
 description: The WordPress readme.html file is publicly accessible, disclosing the exact WordPress version number. This allows attackers to identify installations running vulnerable versions and target known CVEs.
 severity: info
+tags:
+  - php
+  - wordpress
 cwe: CWE-200
 
 requests:

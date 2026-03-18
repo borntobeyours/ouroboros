@@ -1,6 +1,8 @@
 name: TRENDnet IP Camera Default Credentials
 description: Attempts to authenticate to TRENDnet IP cameras using default admin/admin credentials. Successful access enables live video surveillance and camera configuration modifications.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

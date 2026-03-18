@@ -1,6 +1,8 @@
 name: HashiCorp Consul No Authentication
 description: Detects HashiCorp Consul service mesh and key-value store instances accessible without authentication. Unauthenticated access enables service discovery enumeration, KV data access, and potential RCE via exec endpoints.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

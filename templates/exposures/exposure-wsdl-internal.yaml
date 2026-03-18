@@ -1,6 +1,8 @@
 name: WSDL with Internal Endpoints
 description: Detects WSDL files containing internal service endpoint URLs. Internal SOAP service addresses reveal network topology and may be accessible without proper authentication.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

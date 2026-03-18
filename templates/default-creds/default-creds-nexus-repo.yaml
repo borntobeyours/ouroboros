@@ -1,6 +1,9 @@
 name: Nexus Repository Manager Default Credentials
 description: Attempts to authenticate to Sonatype Nexus Repository Manager using default admin/admin123 credentials. Successful login allows artifact upload including malicious libraries affecting downstream builds.
 severity: critical
+tags:
+  - java
+  - nexus
 cwe: CWE-1392
 
 requests:

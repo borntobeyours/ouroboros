@@ -1,6 +1,8 @@
 name: SQL Error Message Disclosure
 description: Detects SQL error messages in HTTP responses. SQL errors expose database type, table names, column names, and query structure enabling targeted SQL injection attacks.
 severity: high
+tags:
+  - generic
 cwe: CWE-209
 
 requests:

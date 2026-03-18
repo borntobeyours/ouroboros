@@ -1,6 +1,8 @@
 name: Python Source Code Exposure
 description: Detects Python source code in HTTP responses. Exposed Python source reveals application logic, secret keys, and database connection details.
 severity: high
+tags:
+  - python
 cwe: CWE-540
 
 requests:

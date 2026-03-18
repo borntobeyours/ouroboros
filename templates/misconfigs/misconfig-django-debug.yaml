@@ -1,6 +1,10 @@
 name: Django Debug Mode Enabled
 description: Django application has DEBUG=True enabled, which exposes detailed error pages, stack traces, and environment variables including secret keys.
 severity: high
+tags:
+  - django
+  - generic
+  - python
 cwe: CWE-489
 
 requests:

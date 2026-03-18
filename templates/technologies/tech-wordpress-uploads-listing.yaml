@@ -1,6 +1,9 @@
 name: WordPress Uploads Directory Listing
 description: The WordPress uploads directory has directory listing enabled, exposing all uploaded media files. This may reveal sensitive documents, internal images, or allow enumeration of the file structure.
 severity: medium
+tags:
+  - php
+  - wordpress
 cwe: CWE-548
 
 requests:

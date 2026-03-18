@@ -1,6 +1,8 @@
 name: CouchDB Admin Party Mode Enabled
 description: CouchDB is running in Admin Party mode with no administrator accounts configured, granting everyone admin-level access. Attackers can read, modify, and delete all databases and execute arbitrary code via the built-in Erlang evaluator.
 severity: critical
+tags:
+  - couchdb
 cwe: CWE-1188
 
 requests:

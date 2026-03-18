@@ -1,6 +1,8 @@
 name: Elasticsearch Default Credentials
 description: Detects Elasticsearch instances accessible without authentication or with default elastic/changeme credentials. Unauthenticated access exposes all indexed data including sensitive documents.
 severity: critical
+tags:
+  - elasticsearch
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: Apache Airflow Default Credentials
 description: Attempts to authenticate to Apache Airflow workflow orchestration platform using default airflow/airflow credentials. Successful access enables arbitrary Python code execution via DAG manipulation on worker nodes.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

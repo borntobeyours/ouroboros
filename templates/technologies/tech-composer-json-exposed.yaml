@@ -1,6 +1,8 @@
 name: PHP composer.json Exposed
 description: Detects a publicly accessible PHP Composer composer.json file. This file reveals PHP package dependencies with version constraints, enabling targeted attacks against known-vulnerable library versions in use by the application.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

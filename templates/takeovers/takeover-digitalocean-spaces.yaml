@@ -1,6 +1,8 @@
 name: DigitalOcean Spaces Subdomain Takeover
 description: Detects a dangling CNAME pointing to a DigitalOcean Spaces bucket that no longer exists. An attacker can create a new Spaces bucket with the same name and serve arbitrary content from the victim's subdomain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

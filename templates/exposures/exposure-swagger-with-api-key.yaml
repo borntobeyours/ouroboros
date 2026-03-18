@@ -1,6 +1,8 @@
 name: Swagger Docs with API Keys Exposed
 description: Detects Swagger/OpenAPI documentation that includes example or hardcoded API keys. Exposed Swagger docs with real API keys allow immediate API abuse.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

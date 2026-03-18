@@ -1,6 +1,8 @@
 name: CouchDB Default Credentials
 description: Attempts to authenticate to Apache CouchDB using default admin/admin credentials. Access exposes the Fauxton web interface and REST API allowing full database manipulation.
 severity: high
+tags:
+  - couchdb
 cwe: CWE-1392
 
 requests:

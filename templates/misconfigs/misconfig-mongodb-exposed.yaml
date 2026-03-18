@@ -1,6 +1,8 @@
 name: MongoDB Exposed Without Authentication
 description: MongoDB instance is accessible over HTTP or native protocol without authentication. Attackers can enumerate databases, read all collections, and perform destructive write or delete operations.
 severity: critical
+tags:
+  - mongodb
 cwe: CWE-306
 
 requests:

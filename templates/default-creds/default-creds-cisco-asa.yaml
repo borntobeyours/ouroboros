@@ -1,6 +1,8 @@
 name: Cisco ASA Default Credentials
 description: Attempts to authenticate to Cisco Adaptive Security Appliance (ASA) ASDM or web interface using default admin/admin credentials. Access enables modification of firewall rules and VPN configurations.
 severity: critical
+tags:
+  - cisco
 cwe: CWE-1392
 
 requests:

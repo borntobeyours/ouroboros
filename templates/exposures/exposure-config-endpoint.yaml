@@ -1,6 +1,8 @@
 name: Config/Settings Endpoint Exposure
 description: Detects configuration or settings API endpoints that return sensitive application configuration including credentials, service URLs, and feature flags.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Redis URL with Password Exposure
 description: Detects exposed Redis URLs containing passwords in HTTP responses. Leaked Redis credentials allow full read/write access to the cache, potentially exposing session tokens and cached data.
 severity: high
+tags:
+  - redis
 cwe: CWE-200
 
 requests:

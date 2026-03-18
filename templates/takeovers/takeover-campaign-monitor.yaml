@@ -1,6 +1,8 @@
 name: Campaign Monitor Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Campaign Monitor domain where the account or campaign has been deleted. An attacker can set up a Campaign Monitor account pointing to the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

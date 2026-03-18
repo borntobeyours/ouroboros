@@ -1,6 +1,8 @@
 name: Nginx Status Page Exposed
 description: Nginx stub_status module is enabled and accessible. This exposes connection statistics including active connections, accepted requests, and request rates that aid in reconnaissance.
 severity: low
+tags:
+  - nginx
 cwe: CWE-200
 
 requests:

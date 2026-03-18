@@ -1,6 +1,8 @@
 name: GitHub Pages Subdomain Takeover
 description: Detects a dangling CNAME pointing to GitHub Pages where the repository or user account no longer has a Pages site configured. An attacker can create a GitHub repository matching the subdomain and serve arbitrary content.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

@@ -1,6 +1,9 @@
 name: Apache Version Disclosure
 description: Detects Apache web server version numbers in HTTP response headers. Disclosed versions allow targeted exploitation of known CVEs for that specific Apache version.
 severity: info
+tags:
+  - apache
+  - generic
 cwe: CWE-200
 
 requests:

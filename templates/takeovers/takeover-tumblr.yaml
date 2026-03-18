@@ -1,6 +1,8 @@
 name: Tumblr Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Tumblr blog that has been deleted or the custom domain mapping removed. An attacker can create a new Tumblr blog and associate the victim's domain.
 severity: medium
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

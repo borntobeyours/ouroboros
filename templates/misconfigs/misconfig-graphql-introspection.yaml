@@ -1,6 +1,8 @@
 name: GraphQL Introspection Enabled
 description: GraphQL introspection is enabled in production, allowing attackers to enumerate the complete schema including all types, queries, mutations, and field definitions. This maps the entire API surface for targeted attacks.
 severity: medium
+tags:
+  - graphql
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Open Redirect via redirect Parameter
 description: The application uses a redirect parameter to determine where to send users after an action, but does not validate the destination. Attackers can redirect victims to malicious sites after legitimate-looking interactions.
 severity: medium
+tags:
+  - generic
 cwe: CWE-601
 
 requests:

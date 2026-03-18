@@ -1,6 +1,8 @@
 name: SonarQube Default Credentials
 description: Attempts to authenticate to SonarQube code quality platform using default admin/admin credentials. Successful access exposes source code analysis results, security vulnerabilities, and project configurations.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

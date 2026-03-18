@@ -1,6 +1,9 @@
 name: Python Traceback Disclosure
 description: Detects Python tracebacks in HTTP responses. Exposed Python tracebacks reveal application structure, file paths, and variable names that facilitate targeted attacks.
 severity: medium
+tags:
+  - generic
+  - python
 cwe: CWE-209
 
 requests:

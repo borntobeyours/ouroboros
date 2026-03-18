@@ -1,6 +1,8 @@
 name: Ghost Blog Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Ghost(Pro) hosted blog that has been deleted or the custom domain removed. An attacker can register a Ghost publication and claim the victim's subdomain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

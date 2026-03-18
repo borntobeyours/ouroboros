@@ -1,6 +1,9 @@
 name: WordPress REST API User Enumeration
 description: The WordPress REST API exposes a /wp-json/wp/v2/users endpoint that returns a list of registered users including usernames and display names. This information aids brute-force and targeted attacks.
 severity: medium
+tags:
+  - php
+  - wordpress
 cwe: CWE-200
 
 requests:

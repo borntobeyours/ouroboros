@@ -1,6 +1,8 @@
 name: Rails database.yml Exposed
 description: Detects exposed Rails database.yml files containing database credentials for development, test, and production environments.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

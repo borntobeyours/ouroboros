@@ -1,6 +1,8 @@
 name: Ruby Gemfile Exposed
 description: Detects a publicly accessible Ruby Gemfile or Gemfile.lock. These files disclose all Ruby gem dependencies and exact version numbers, allowing attackers to identify and target known-vulnerable gems in use.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

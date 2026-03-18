@@ -1,6 +1,8 @@
 name: Google Cloud Storage Bucket URL Exposure
 description: Detects exposed Google Cloud Storage bucket URLs in HTTP responses. Disclosed GCS bucket names can enable unauthorized enumeration and access if ACLs are misconfigured.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

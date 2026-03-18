@@ -1,6 +1,9 @@
 name: Nginx Lua Debug Mode Enabled
 description: Detects Nginx/OpenResty running Lua modules in debug mode. Debug mode can expose verbose error messages, internal request variables, shared memory values, and Lua stack traces that reveal application internals.
 severity: medium
+tags:
+  - generic
+  - nginx
 cwe: CWE-489
 
 requests:

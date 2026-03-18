@@ -1,6 +1,8 @@
 name: .htaccess File Exposed
 description: The Apache .htaccess configuration file is publicly accessible, revealing URL rewrite rules, authentication configurations, access control lists, and directory protection settings.
 severity: medium
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

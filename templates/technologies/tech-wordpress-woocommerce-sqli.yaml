@@ -1,6 +1,9 @@
 name: WooCommerce SQL Injection Detection
 description: Probes for SQL injection vulnerabilities in WooCommerce product and order query parameters. Certain WooCommerce versions contain unsanitized parameters that allow unauthenticated database manipulation.
 severity: critical
+tags:
+  - php
+  - wordpress
 cwe: CWE-89
 
 requests:

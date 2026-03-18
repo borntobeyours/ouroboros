@@ -1,6 +1,9 @@
 name: Drupal Default Admin Credentials
 description: Attempts to authenticate to Drupal CMS administrative interface using default admin/admin credentials. Successful login allows PHP code execution via custom modules or theme file uploads.
 severity: critical
+tags:
+  - drupal
+  - php
 cwe: CWE-1392
 
 requests:

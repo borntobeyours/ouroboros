@@ -1,6 +1,8 @@
 name: Git Repository Exposed
 description: The .git directory is publicly accessible, allowing attackers to reconstruct the full source code, access commit history, and discover secrets like API keys and credentials stored in git history.
 severity: high
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

@@ -1,6 +1,8 @@
 name: Render Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Render.com service that has been deleted or the custom domain removed. An attacker can create a new Render service and attach the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

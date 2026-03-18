@@ -1,6 +1,9 @@
 name: Laravel Ignition Debug RCE (CVE-2021-3129)
 description: Detects the Laravel Ignition debug page vulnerable to remote code execution (CVE-2021-3129). When APP_DEBUG is true and Ignition is installed, attackers can trigger RCE via the /_ignition/execute-solution endpoint.
 severity: critical
+tags:
+  - laravel
+  - php
 cwe: CWE-94
 
 requests:

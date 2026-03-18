@@ -1,6 +1,9 @@
 name: .NET Trace.axd Diagnostic Trace Exposed
 description: Detects an exposed ASP.NET trace.axd diagnostic endpoint. When enabled, this handler displays detailed request and response information including session state, ViewState values, authentication cookies, and performance counters.
 severity: high
+tags:
+  - dotnet
+  - microsoft
 cwe: CWE-200
 
 requests:

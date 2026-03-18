@@ -1,6 +1,8 @@
 name: Shopify Access Token Exposure
 description: Detects exposed Shopify access tokens in HTTP responses. Leaked tokens allow full API access to the Shopify store, including orders, customers, and product management.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

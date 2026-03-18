@@ -1,6 +1,8 @@
 name: docker-compose.yml Exposed
 description: A docker-compose configuration file is publicly accessible, revealing service architecture, environment variables with secrets, port mappings, volume mounts, and network configuration.
 severity: high
+tags:
+  - docker
 cwe: CWE-538
 
 requests:

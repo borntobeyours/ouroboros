@@ -1,6 +1,8 @@
 name: PHP Stream Wrapper Abuse Detection
 description: Probes for PHP stream wrapper abuse (php://, data://, expect://) through file inclusion parameters. PHP wrappers can be used to execute arbitrary code, read source files with base64 encoding, or access remote resources.
 severity: critical
+tags:
+  - php
 cwe: CWE-98
 
 requests:

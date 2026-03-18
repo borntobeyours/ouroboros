@@ -1,6 +1,9 @@
 name: WordPress Author Enumeration
 description: Detects WordPress author enumeration via the ?author=N parameter. When redirects to /author/username/ are observed, valid WordPress usernames can be harvested and used in targeted brute-force attacks.
 severity: medium
+tags:
+  - php
+  - wordpress
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Backup .old Files Exposed
 description: Backup files with .old extension are publicly accessible. Developers often create these when updating configuration or source files, leaving the old version with sensitive data exposed in the web root.
 severity: medium
+tags:
+  - generic
 cwe: CWE-530
 
 requests:

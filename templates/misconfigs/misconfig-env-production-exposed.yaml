@@ -1,6 +1,8 @@
 name: .env.production File Exposed
 description: The .env.production file is publicly accessible. This file contains production environment secrets including database credentials, payment API keys, and third-party service tokens.
 severity: critical
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

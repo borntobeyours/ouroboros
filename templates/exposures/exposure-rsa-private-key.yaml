@@ -1,6 +1,8 @@
 name: RSA Private Key Exposure
 description: Detects exposed RSA private key material in HTTP responses, which could allow attackers to impersonate servers or decrypt traffic.
 severity: critical
+tags:
+  - generic
 cwe: CWE-321
 
 requests:

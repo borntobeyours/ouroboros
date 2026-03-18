@@ -1,6 +1,9 @@
 name: Node.js Debug Port (9229) Exposed
 description: Detects a publicly exposed Node.js debugging port (9229/9230). When the --inspect or --inspect-brk flag is used and the debug port is accessible, attackers can connect a Chrome DevTools debugger and execute arbitrary code.
 severity: critical
+tags:
+  - generic
+  - nodejs
 cwe: CWE-94
 
 requests:

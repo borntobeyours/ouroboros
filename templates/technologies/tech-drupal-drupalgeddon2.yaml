@@ -1,6 +1,9 @@
 name: Drupalgeddon2 CVE-2018-7600 Detection
 description: Probes for the Drupalgeddon2 remote code execution vulnerability (CVE-2018-7600) affecting Drupal 6, 7, and 8. The vulnerability allows unauthenticated attackers to execute arbitrary PHP code via the user registration form.
 severity: critical
+tags:
+  - drupal
+  - php
 cwe: CWE-74
 
 requests:

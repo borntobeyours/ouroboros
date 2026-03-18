@@ -1,6 +1,9 @@
 name: WordPress Login Endpoint Detection
 description: Confirms the presence of the WordPress login page (wp-login.php). This endpoint is a common target for credential stuffing and brute-force attacks. Its exposure warrants login protection measures.
 severity: info
+tags:
+  - php
+  - wordpress
 cwe: CWE-307
 
 requests:

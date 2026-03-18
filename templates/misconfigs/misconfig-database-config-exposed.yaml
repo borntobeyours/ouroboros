@@ -1,6 +1,8 @@
 name: Database Configuration File Exposed
 description: A database configuration file is publicly accessible, exposing database hostnames, usernames, passwords, and connection parameters for MySQL, PostgreSQL, or other database systems.
 severity: critical
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

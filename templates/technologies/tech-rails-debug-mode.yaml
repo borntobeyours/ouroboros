@@ -1,6 +1,10 @@
 name: Ruby on Rails Development Mode Enabled
 description: Detects a Ruby on Rails application running in development mode (RAILS_ENV=development). Development mode enables detailed error pages with source code, request parameters, and session data visible in exceptions.
 severity: high
+tags:
+  - generic
+  - rails
+  - ruby
 cwe: CWE-489
 
 requests:

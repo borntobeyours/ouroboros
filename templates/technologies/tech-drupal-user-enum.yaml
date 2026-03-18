@@ -1,6 +1,9 @@
 name: Drupal User Enumeration
 description: Detects Drupal user enumeration via the /user/N path. Drupal returns different responses for valid and invalid user IDs, allowing attackers to enumerate registered users and harvest usernames.
 severity: medium
+tags:
+  - drupal
+  - php
 cwe: CWE-200
 
 requests:

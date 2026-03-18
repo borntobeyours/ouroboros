@@ -1,6 +1,8 @@
 name: HAProxy Stats Page Default Credentials
 description: Detects HAProxy statistics page accessible with default or no credentials. Access exposes backend server topology, health status, and connection statistics enabling targeted attacks against backend services.
 severity: medium
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

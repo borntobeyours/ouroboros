@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /logfile Endpoint Exposed
 description: Detects an unauthenticated Spring Boot Actuator /logfile endpoint. Application logs may contain exception stack traces, authentication events, database queries, user actions, and sensitive data written during normal operations.
 severity: high
+tags:
+  - java
+  - spring
 cwe: CWE-532
 
 requests:

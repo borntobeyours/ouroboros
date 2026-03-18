@@ -1,6 +1,8 @@
 name: Node.js Environment Variable Disclosure
 description: Detects Node.js applications that expose process.env data via API endpoints or error messages. Leaked environment variables may contain database URLs, API keys, JWT secrets, cloud credentials, and service tokens.
 severity: critical
+tags:
+  - nodejs
 cwe: CWE-200
 
 requests:

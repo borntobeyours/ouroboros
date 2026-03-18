@@ -1,6 +1,8 @@
 name: Kubernetes API Server Exposed Unauthenticated
 description: The Kubernetes API server is publicly accessible and responds to unauthenticated requests. This can expose cluster configuration, secrets, and allow deployment of malicious workloads.
 severity: critical
+tags:
+  - kubernetes
 cwe: CWE-306
 
 requests:

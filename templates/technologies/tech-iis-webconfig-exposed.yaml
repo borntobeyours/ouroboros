@@ -1,6 +1,9 @@
 name: IIS web.config File Exposed
 description: Detects a publicly readable IIS web.config file. This configuration file may contain connection strings with database credentials, machine keys used for session and viewstate signing, API keys, and other application secrets.
 severity: critical
+tags:
+  - iis
+  - microsoft
 cwe: CWE-312
 
 requests:

@@ -1,6 +1,8 @@
 name: Open Redirect via return Parameter
 description: The application processes a return or returnUrl parameter without proper validation, allowing attackers to redirect users to arbitrary external sites after authentication or form submission.
 severity: medium
+tags:
+  - generic
 cwe: CWE-601
 
 requests:

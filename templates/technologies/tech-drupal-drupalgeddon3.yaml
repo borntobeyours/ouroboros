@@ -1,6 +1,9 @@
 name: Drupalgeddon3 CVE-2018-7602 Detection
 description: Probes for the Drupalgeddon3 remote code execution vulnerability (CVE-2018-7602), a follow-on to CVE-2018-7600. This variant requires authentication but affects Drupal 7.x and 8.x with AJAX form processing.
 severity: critical
+tags:
+  - drupal
+  - php
 cwe: CWE-74
 
 requests:

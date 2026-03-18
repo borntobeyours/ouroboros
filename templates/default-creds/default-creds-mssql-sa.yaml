@@ -1,6 +1,8 @@
 name: Microsoft SQL Server SA Default Credentials
 description: Attempts to authenticate to Microsoft SQL Server using the default sa/sa system administrator credentials. The sa account has unrestricted access to all databases on the server.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

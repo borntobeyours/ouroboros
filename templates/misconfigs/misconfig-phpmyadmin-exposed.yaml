@@ -1,6 +1,8 @@
 name: phpMyAdmin Exposed
 description: phpMyAdmin database management interface is publicly accessible, providing a web-based UI to manage MySQL/MariaDB databases. Unauthenticated or default credential access could lead to full database compromise.
 severity: high
+tags:
+  - php
 cwe: CWE-306
 
 requests:

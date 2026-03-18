@@ -1,6 +1,10 @@
 name: WordPress.com Subdomain Takeover
 description: Detects a dangling CNAME pointing to WordPress.com where the site has been deleted and the custom domain is unregistered. An attacker can register the WordPress.com blog name matching the victim's domain.
 severity: high
+tags:
+  - generic
+  - php
+  - wordpress
 cwe: CWE-116
 
 requests:

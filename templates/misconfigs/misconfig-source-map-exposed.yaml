@@ -1,6 +1,8 @@
 name: JavaScript Source Maps Exposed
 description: JavaScript source map files (.map) are publicly accessible, allowing attackers to view the original unminified/unobfuscated source code of the frontend application, revealing logic, API endpoints, and potentially hardcoded secrets.
 severity: medium
+tags:
+  - generic
 cwe: CWE-540
 
 requests:

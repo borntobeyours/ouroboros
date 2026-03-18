@@ -1,6 +1,8 @@
 name: Open Redirect via next Parameter
 description: The application uses a next parameter (common in Django, Next.js, and other frameworks) to redirect after authentication, but does not restrict the redirect target, enabling open redirect abuse.
 severity: medium
+tags:
+  - generic
 cwe: CWE-601
 
 requests:

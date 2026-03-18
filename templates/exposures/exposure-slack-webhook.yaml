@@ -1,6 +1,8 @@
 name: Slack Webhook URL Exposure
 description: Detects exposed Slack incoming webhook URLs in HTTP responses. Leaked webhook URLs allow attackers to post arbitrary messages to the configured Slack channel.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

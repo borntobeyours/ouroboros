@@ -1,6 +1,9 @@
 name: Drupal install.php Exposed
 description: Detects an accessible Drupal install.php file. If accessible post-installation, this file can be used to reinstall Drupal over the existing site, potentially wiping data or creating a rogue admin account.
 severity: high
+tags:
+  - drupal
+  - php
 cwe: CWE-425
 
 requests:

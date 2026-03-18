@@ -1,6 +1,8 @@
 name: Adminer Default Database Access
 description: Detects publicly accessible Adminer database management tool. Adminer with no authentication restriction allows connecting to any database server accessible from the server, enabling SSRF and data exfiltration.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

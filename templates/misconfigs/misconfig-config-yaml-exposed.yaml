@@ -1,6 +1,8 @@
 name: config.yaml Application Configuration Exposed
 description: An application configuration file (config.yaml or config.yml) is publicly accessible, potentially containing database credentials, API keys, service endpoints, and other sensitive configuration data.
 severity: high
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

@@ -1,6 +1,8 @@
 name: Heroku Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Heroku application that has been deleted. An attacker can create a new Heroku app with the same name and serve malicious content under the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

@@ -60,7 +60,51 @@ func LoadPlugins(dir string) ([]probers.Prober, error) {
 			errs = append(errs, fmt.Sprintf("%s: validation failed: %v", name, err))
 			continue
 		}
-		result = append(result, &PluginProber{def: def})
+		result = append(result, &PluginProber{def: def, filename: name})
+	}
+
+	if len(errs) > 0 {
+		return result, fmt.Errorf("plugin load errors:\n  %s", strings.Join(errs, "\n  "))
+	}
+	return result, nil
+}
+
+// LoadPluginProbers is like LoadPlugins but returns []*PluginProber so callers
+// can access tags and perform smart filtering before registering probers.
+func LoadPluginProbers(dir string) ([]*PluginProber, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read plugin dir %s: %w", dir, err)
+	}
+
+	var result []*PluginProber
+	var errs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
+			continue
+		}
+		def, err := ParsePluginFile(data)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
+			continue
+		}
+		if err := ValidatePluginDef(def); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: validation failed: %v", name, err))
+			continue
+		}
+		result = append(result, &PluginProber{def: def, filename: name})
 	}
 
 	if len(errs) > 0 {
@@ -94,11 +138,23 @@ func ValidatePluginDef(def *types.PluginDef) error {
 
 // PluginProber adapts a PluginDef so it satisfies the probers.Prober interface.
 type PluginProber struct {
-	def    *types.PluginDef
-	client *http.Client
+	def      *types.PluginDef
+	client   *http.Client
+	filename string // basename of the source YAML file, used for tag inference
 }
 
 func (p *PluginProber) Name() string { return "plugin:" + p.def.Name }
+
+// Tags returns the tags defined in the template, or infers them from the filename.
+func (p *PluginProber) Tags() []string {
+	if len(p.def.Tags) > 0 {
+		return p.def.Tags
+	}
+	return inferTagsFromFilename(p.filename)
+}
+
+// Filename returns the source YAML filename.
+func (p *PluginProber) Filename() string { return p.filename }
 
 func (p *PluginProber) Probe(ctx context.Context, target types.Target, endpoints []types.Endpoint) []types.Finding {
 	if p.client == nil {
@@ -359,6 +415,9 @@ func ParsePluginFile(data []byte) (*types.PluginDef, error) {
 				def.Severity = val
 			case "cwe":
 				def.CWE = val
+			case "tags":
+				flushItem()
+				section = "tags"
 			case "requests", "matchers", "extractors":
 				flushItem()
 				section = key
@@ -368,6 +427,14 @@ func ParsePluginFile(data []byte) (*types.PluginDef, error) {
 
 		// List item start (indent == 2, starts with "- ")
 		if indent == 2 && strings.HasPrefix(line, "- ") {
+			// Tags are a plain string list — handle before the general map-item logic.
+			if section == "tags" {
+				tag := strings.TrimSpace(strings.TrimPrefix(line, "- "))
+				if tag != "" {
+					def.Tags = append(def.Tags, tag)
+				}
+				continue
+			}
 			inHeaders = false
 			flushItem()
 			rest := strings.TrimPrefix(line, "- ")
@@ -410,6 +477,311 @@ func ParsePluginFile(data []byte) (*types.PluginDef, error) {
 	flushItem()
 
 	return def, nil
+}
+
+// inferTagsFromFilename derives technology tags from a template filename.
+// This is the fallback when a template has no explicit tags: field.
+func inferTagsFromFilename(filename string) []string {
+	name := strings.ToLower(filepath.Base(filename))
+	name = strings.TrimSuffix(name, ".yaml")
+	name = strings.TrimSuffix(name, ".yml")
+
+	// Takeovers are always relevant (generic subdomain checks).
+	if strings.HasPrefix(name, "takeover") {
+		return []string{"generic"}
+	}
+
+	has := func(sub string) bool { return strings.Contains(name, sub) }
+
+	var tags []string
+	add := func(ts ...string) { tags = append(tags, ts...) }
+
+	// Frameworks / languages
+	if has("struts") {
+		add("apache", "java", "struts")
+	}
+	if has("spring") {
+		add("java", "spring")
+	}
+	if has("log4") {
+		add("java", "log4j")
+	}
+	if has("weblogic") {
+		add("java", "weblogic", "oracle")
+	}
+	if has("tomcat") || has("ghostcat") {
+		add("java", "tomcat")
+	}
+	if has("glassfish") {
+		add("java", "glassfish")
+	}
+	if has("jboss") {
+		add("java", "jboss")
+	}
+	if has("websphere") {
+		add("java", "websphere")
+	}
+	if has("solr") {
+		add("java", "solr", "apache")
+	}
+	if has("confluence") {
+		add("java", "confluence")
+	}
+	if has("jenkins") {
+		add("jenkins", "java")
+	}
+	if has("nexus") {
+		add("java")
+	}
+	if has("sonarqube") {
+		add("java")
+	}
+	if has("artifactory") {
+		add("java")
+	}
+	if has("activemq") {
+		add("activemq", "java")
+	}
+	if has("druid") {
+		add("java")
+	}
+	if has("nacos") {
+		add("java")
+	}
+	if has("spark") && !has("apache-spark") {
+		add("java")
+	}
+	if has("teamcity") {
+		add("java")
+	}
+	if has("glpi") {
+		add("php")
+	}
+	if has("cacti") {
+		add("php")
+	}
+	if has("october") {
+		add("php")
+	}
+	if has("opencart") {
+		add("php")
+	}
+	if has("prestashop") {
+		add("php")
+	}
+	if has("typo3") {
+		add("php")
+	}
+	if has("concrete5") {
+		add("php")
+	}
+	if has("phpmyadmin") {
+		add("php", "mysql")
+	}
+	if has("adminer") {
+		add("php", "mysql")
+	}
+	if has("laravel") {
+		add("php", "laravel")
+	}
+	if has("wordpress") || has("wp-") {
+		add("php", "wordpress")
+	}
+	if has("joomla") {
+		add("php", "joomla")
+	}
+	if has("drupal") {
+		add("php", "drupal")
+	}
+	if has("magento") {
+		add("php", "magento")
+	}
+	if has("roundcube") {
+		add("php")
+	}
+	if has("php") && !has("phpmyadmin") {
+		add("php")
+	}
+	if has("django") {
+		add("python", "django")
+	}
+	if has("flask") {
+		add("python", "flask")
+	}
+	if has("airflow") {
+		add("python", "airflow")
+	}
+	if has("superset") {
+		add("python", "superset")
+	}
+	if has("jupyter") {
+		add("python", "jupyter")
+	}
+	if has("saltstack") {
+		add("python", "saltstack")
+	}
+	if has("rails") {
+		add("ruby", "rails")
+	}
+	if has("nodejs") || has("node-") || has("npm") {
+		add("nodejs")
+	}
+	if has("express") {
+		add("nodejs", "express")
+	}
+	if has("dotnet") || has("aspnet") || has("asp-net") || has("viewstate") || has("elmah") || has("trace-axd") {
+		add("dotnet", "aspnet")
+	}
+	if has("exchange") || has("proxylogon") || has("proxyshell") || has("proxynotshell") {
+		add("dotnet", "microsoft", "exchange")
+	}
+	if has("apisix") {
+		add("go")
+	}
+
+	// Web servers
+	if has("nginx") {
+		add("nginx")
+	}
+	if has("apache") && !has("struts") && !has("solr") && !has("cassandra") && !has("activemq") && !has("kafka") {
+		add("apache")
+	}
+	if has("iis") {
+		add("iis")
+	}
+
+	// Databases
+	if has("mysql") && !has("phpmyadmin") && !has("adminer") {
+		add("mysql")
+	}
+	if has("postgres") || has("pgadmin") {
+		add("postgres")
+	}
+	if has("mssql") {
+		add("mssql")
+	}
+	if has("mongodb") || has("mongo") {
+		add("mongodb")
+	}
+	if has("redis") {
+		add("redis")
+	}
+	if has("elasticsearch") || has("kibana") {
+		add("elasticsearch")
+	}
+	if has("cassandra") {
+		add("cassandra")
+	}
+	if has("couchdb") {
+		add("couchdb")
+	}
+	if has("influx") {
+		add("influxdb")
+	}
+	if has("oracle") && !has("weblogic") {
+		add("java", "oracle")
+	}
+
+	// Infrastructure / cloud
+	if has("docker") {
+		add("docker")
+	}
+	if has("kubernetes") || has("-k8s-") || has("rancher") || has("harbor") {
+		add("kubernetes")
+	}
+	if has("portainer") || has("traefik") {
+		add("docker")
+	}
+	if has("aws") || has("-s3-") || has("cloudfront") || has("amplify") || has("elastic-beanstalk") || has("minio") {
+		add("aws")
+	}
+	if has("azure") {
+		add("azure")
+	}
+	if has("gcp") || has("google-cloud") {
+		add("gcp")
+	}
+	if has("vault") && !has("vmware") {
+		add("vault")
+	}
+	if has("consul") {
+		add("consul")
+	}
+	if has("rabbitmq") {
+		add("rabbitmq")
+	}
+
+	// Networking / devices
+	if has("cisco") {
+		add("cisco")
+	}
+	if has("fortinet") || has("fortios") || has("fortimanager") || has("fortivpn") || has("forticlient") {
+		add("fortinet")
+	}
+	if has("vmware") || has("vcenter") || has("xenserver") || has("proxmox") {
+		add("vmware")
+	}
+	if has("paloalto") || has("panos") {
+		add("paloalto")
+	}
+	if has("dlink") || has("linksys") || has("netgear") || has("mikrotik") || has("tp-link") ||
+		has("trendnet") || has("asus-router") || has("zyxel") || has("ubiquiti") || has("opnsense") ||
+		has("pfsense") || has("buffalo") {
+		add("networking")
+	}
+	if has("camera") || has("axis-cam") || has("dahua") || has("foscam") || has("hikvision") ||
+		has("netwave") || has("honeywell") {
+		add("iot")
+	}
+	if has("printer") || has("brother") || has("canon") || has("ricoh") || has("hp-printer") {
+		add("iot")
+	}
+
+	// Security tools / monitoring
+	if has("grafana") {
+		add("grafana")
+	}
+	if has("gitlab") {
+		add("gitlab")
+	}
+	if has("gitea") {
+		add("git")
+	}
+	if has("splunk") {
+		add("splunk")
+	}
+	if has("nagios") || has("icinga") || has("zabbix") || has("prtg") {
+		add("monitoring")
+	}
+	if has("haproxy") {
+		add("nginx", "haproxy")
+	}
+
+	// Protocols / generic
+	if has("graphql") {
+		add("graphql")
+	}
+	if has("websocket") {
+		add("websocket")
+	}
+
+	// Exposures and misconfigs: if nothing matched, tag as generic.
+	if strings.HasPrefix(name, "exposure-") || strings.HasPrefix(name, "misconfig-") {
+		if len(tags) == 0 {
+			return []string{"generic"}
+		}
+	}
+
+	// De-duplicate while preserving order.
+	seen := make(map[string]bool, len(tags))
+	deduped := tags[:0]
+	for _, t := range tags {
+		if !seen[t] {
+			seen[t] = true
+			deduped = append(deduped, t)
+		}
+	}
+	return deduped
 }
 
 func countLeadingSpaces(s string) int {

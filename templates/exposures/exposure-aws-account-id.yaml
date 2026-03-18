@@ -1,6 +1,9 @@
 name: AWS Account ID Disclosure
 description: Detects exposed AWS account IDs in HTTP responses. Knowing the 12-digit AWS account ID enables cross-account enumeration and targeted IAM attacks.
 severity: low
+tags:
+  - aws
+  - cloud
 cwe: CWE-200
 
 requests:

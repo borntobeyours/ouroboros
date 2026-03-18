@@ -1,6 +1,10 @@
 name: WordPress Backup Files Exposed
 description: Detects publicly accessible WordPress backup files commonly created by backup plugins or administrators. These archives may contain the full WordPress installation including wp-config.php with database credentials.
 severity: high
+tags:
+  - generic
+  - php
+  - wordpress
 cwe: CWE-530
 
 requests:

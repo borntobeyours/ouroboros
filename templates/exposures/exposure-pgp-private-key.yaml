@@ -1,6 +1,8 @@
 name: PGP Private Key Block Exposure
 description: Detects exposed PGP/GPG private key blocks in HTTP responses. Leaked PGP private keys allow decrypting messages and forging signatures.
 severity: critical
+tags:
+  - generic
 cwe: CWE-321
 
 requests:

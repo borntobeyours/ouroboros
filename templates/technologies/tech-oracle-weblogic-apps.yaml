@@ -1,6 +1,9 @@
 name: Oracle WebLogic Deployed Applications Enumeration
 description: Detects the Oracle WebLogic Server deployed applications listing endpoint. Enumerating deployed apps reveals application names, context roots, and server information useful for targeted exploitation of WebLogic CVEs.
 severity: medium
+tags:
+  - java
+  - weblogic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Prometheus Metrics with Sensitive Labels
 description: Detects exposed Prometheus metrics endpoints containing sensitive label values such as hostnames, IPs, usernames, or service credentials in metric labels.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

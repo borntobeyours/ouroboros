@@ -1,6 +1,8 @@
 name: JDBC Connection String Exposure
 description: Detects exposed JDBC connection strings in HTTP responses. JDBC strings often contain database hostnames, ports, credentials and schema names.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

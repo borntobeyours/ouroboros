@@ -1,6 +1,8 @@
 name: EC Private Key Exposure
 description: Detects exposed Elliptic Curve private keys in HTTP responses. EC private keys are used in TLS certificates and JWT signing; their exposure enables impersonation and decryption attacks.
 severity: critical
+tags:
+  - generic
 cwe: CWE-321
 
 requests:

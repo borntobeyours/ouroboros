@@ -1,6 +1,8 @@
 name: MinIO Default Credentials
 description: Attempts to authenticate to MinIO object storage using default minioadmin/minioadmin credentials. Successful access exposes all stored objects and may allow arbitrary file upload or deletion affecting application integrity.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

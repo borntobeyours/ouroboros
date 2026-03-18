@@ -1,6 +1,10 @@
 name: Express.js Debug Mode Enabled
 description: Express.js application is running with debug mode or detailed error stack traces enabled, leaking internal file paths and stack frames.
 severity: medium
+tags:
+  - express
+  - generic
+  - nodejs
 cwe: CWE-489
 
 requests:

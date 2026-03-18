@@ -1,6 +1,9 @@
 name: Joomla User Enumeration
 description: Detects Joomla user enumeration via the index.php?option=com_users component. Unauthenticated access to the user list or profile pages can reveal valid usernames.
 severity: medium
+tags:
+  - joomla
+  - php
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /shutdown Endpoint Exposed
 description: Detects an unauthenticated Spring Boot Actuator /shutdown endpoint. This endpoint allows an unauthenticated attacker to remotely shut down the application, causing a denial of service.
 severity: high
+tags:
+  - java
+  - spring
 cwe: CWE-306
 
 requests:

@@ -1,6 +1,8 @@
 name: Heroku API Key Exposure
 description: Detects exposed Heroku API keys in HTTP responses. Leaked Heroku API keys allow attackers to deploy malicious code, scale dynos, and access environment variables of hosted apps.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

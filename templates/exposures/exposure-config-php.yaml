@@ -1,6 +1,8 @@
 name: Generic config.php Exposed
 description: Detects exposed PHP configuration files that commonly contain database credentials, API keys, and application secrets.
 severity: critical
+tags:
+  - php
 cwe: CWE-200
 
 requests:

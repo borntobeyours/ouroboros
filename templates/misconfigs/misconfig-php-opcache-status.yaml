@@ -1,6 +1,8 @@
 name: PHP OPcache Status Page Exposed
 description: The PHP OPcache status page is publicly accessible, revealing cached scripts with their full filesystem paths, memory usage statistics, and hit/miss ratios that can aid in mapping the application.
 severity: low
+tags:
+  - php
 cwe: CWE-200
 
 requests:

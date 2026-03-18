@@ -1,6 +1,8 @@
 name: AWS S3 Bucket URL Exposure
 description: Detects exposed AWS S3 bucket URLs in HTTP responses. Disclosed bucket names enable enumeration of bucket contents and may reveal sensitive files if the bucket is misconfigured.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

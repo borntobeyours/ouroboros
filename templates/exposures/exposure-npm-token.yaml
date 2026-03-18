@@ -1,6 +1,8 @@
 name: NPM Auth Token Exposure
 description: Detects exposed NPM authentication tokens in HTTP responses. Leaked NPM tokens allow attackers to publish malicious packages or access private package registries.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

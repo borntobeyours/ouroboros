@@ -1,6 +1,8 @@
 name: Magento Default Admin Credentials
 description: Attempts to authenticate to Magento e-commerce admin panel using default admin/admin123 credentials. Successful access exposes customer data, payment information, and allows server-side template injection.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

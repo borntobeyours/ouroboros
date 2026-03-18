@@ -1,6 +1,8 @@
 name: Encryption Key Exposure
 description: Detects exposed encryption keys in HTTP responses. Leaked AES or other symmetric encryption keys allow decryption of encrypted data stored in databases or transmitted over the wire.
 severity: critical
+tags:
+  - generic
 cwe: CWE-321
 
 requests:

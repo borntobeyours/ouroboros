@@ -1,6 +1,8 @@
 name: Django settings.py Exposed
 description: Detects exposed Django settings.py files containing SECRET_KEY, database credentials, and other sensitive configuration.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: CORS Null Origin Allowed
 description: The server accepts null as a valid CORS origin, reflected in Access-Control-Allow-Origin: null. Attackers can exploit this from sandboxed iframes or redirects to make credentialed cross-origin requests.
 severity: medium
+tags:
+  - generic
 cwe: CWE-942
 
 requests:

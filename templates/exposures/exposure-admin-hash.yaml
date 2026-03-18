@@ -1,6 +1,8 @@
 name: Password Hash Exposure
 description: Detects password hashes in HTTP responses. Exposed hashes can be subjected to offline cracking attacks to recover plaintext passwords.
 severity: high
+tags:
+  - generic
 cwe: CWE-312
 
 requests:

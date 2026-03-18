@@ -1,6 +1,8 @@
 name: ActiveMQ Default Credentials
 description: Attempts to authenticate to Apache ActiveMQ Web Console using default admin/admin credentials. Successful login enables message queue manipulation and potential remote code execution via the Hawtio interface.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

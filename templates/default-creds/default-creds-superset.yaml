@@ -1,6 +1,9 @@
 name: Apache Superset Default Credentials
 description: Attempts to authenticate to Apache Superset data exploration platform using default admin/general credentials. Successful access exposes database connections, dashboards, and potential SQL injection via custom queries.
 severity: high
+tags:
+  - python
+  - superset
 cwe: CWE-1392
 
 requests:

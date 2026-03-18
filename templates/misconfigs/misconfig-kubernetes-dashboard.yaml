@@ -1,6 +1,8 @@
 name: Kubernetes Dashboard Exposed
 description: The Kubernetes Dashboard web UI is publicly accessible without authentication. An attacker can enumerate cluster resources, execute commands in containers, and escalate to cluster-admin privileges.
 severity: critical
+tags:
+  - kubernetes
 cwe: CWE-306
 
 requests:

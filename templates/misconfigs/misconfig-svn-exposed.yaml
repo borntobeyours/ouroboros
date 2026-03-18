@@ -1,6 +1,8 @@
 name: SVN Repository Exposed
 description: The .svn directory is publicly accessible, leaking source code, repository metadata, and potentially credentials embedded in SVN externals or configuration files.
 severity: high
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

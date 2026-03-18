@@ -1,6 +1,8 @@
 name: TYPO3 CMS Default Credentials
 description: Attempts to authenticate to TYPO3 CMS backend using default admin/password credentials. Successful login allows template modification and extension management which can lead to remote code execution.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

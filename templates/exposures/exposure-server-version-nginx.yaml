@@ -1,6 +1,9 @@
 name: Nginx Version Disclosure
 description: Detects Nginx web server version numbers in HTTP response headers. Disclosed versions allow targeted exploitation of known CVEs for that specific Nginx version.
 severity: info
+tags:
+  - generic
+  - nginx
 cwe: CWE-200
 
 requests:

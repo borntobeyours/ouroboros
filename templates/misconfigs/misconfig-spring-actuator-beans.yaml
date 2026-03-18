@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /beans Endpoint Exposed
 description: The Spring Boot Actuator /beans endpoint is publicly accessible, exposing the complete list of Spring beans in the application context, revealing application architecture, class names, and component structure.
 severity: medium
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

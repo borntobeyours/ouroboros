@@ -1,6 +1,8 @@
 name: OPNsense Default Credentials
 description: Attempts to authenticate to OPNsense firewall web interface using default root/opnsense credentials. Successful access enables full firewall policy and network infrastructure control.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

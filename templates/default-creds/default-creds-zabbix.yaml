@@ -1,6 +1,8 @@
 name: Zabbix Default Credentials
 description: Attempts to authenticate to Zabbix monitoring platform using default Admin/zabbix credentials. Successful access allows script execution on monitored hosts via Zabbix agent commands.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

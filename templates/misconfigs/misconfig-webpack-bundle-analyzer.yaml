@@ -1,6 +1,8 @@
 name: Webpack Bundle Analyzer Exposed
 description: The Webpack Bundle Analyzer interface is publicly accessible, revealing the complete dependency tree and module structure of the JavaScript application. This exposes library versions for vulnerability targeting and internal module names.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

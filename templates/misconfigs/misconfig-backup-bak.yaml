@@ -1,6 +1,8 @@
 name: Backup .bak Files Exposed
 description: Backup files with .bak extension are publicly accessible. These often contain copies of configuration files, scripts, or database exports with sensitive data that the web server should not serve.
 severity: medium
+tags:
+  - generic
 cwe: CWE-530
 
 requests:

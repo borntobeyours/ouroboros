@@ -1,6 +1,8 @@
 name: Missing HTTP Strict Transport Security (HSTS) Header
 description: The application does not set the Strict-Transport-Security header, making it vulnerable to SSL stripping attacks where an attacker can downgrade HTTPS connections to HTTP to intercept traffic.
 severity: medium
+tags:
+  - generic
 cwe: CWE-319
 
 requests:

@@ -1,6 +1,9 @@
 name: Drupal cron.php Exposed
 description: Detects a publicly accessible Drupal cron.php endpoint. Unauthenticated access to cron can trigger expensive maintenance tasks leading to denial of service, or reveal cron key information used in authenticated operations.
 severity: medium
+tags:
+  - drupal
+  - php
 cwe: CWE-425
 
 requests:

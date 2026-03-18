@@ -1,6 +1,8 @@
 name: Firebase Configuration Exposure
 description: Detects exposed Firebase configuration objects in HTTP responses. Leaked Firebase configs may expose API keys and project identifiers that allow unauthorized database or storage access.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

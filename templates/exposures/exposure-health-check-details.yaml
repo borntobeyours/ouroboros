@@ -1,6 +1,8 @@
 name: Verbose Health Check with Version Details
 description: Detects health check endpoints that return verbose information including dependency versions, database connection details, internal service URLs, and system metrics.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

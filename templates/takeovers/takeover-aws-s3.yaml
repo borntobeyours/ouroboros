@@ -1,6 +1,10 @@
 name: AWS S3 Bucket Subdomain Takeover
 description: Detects dangling CNAME pointing to an unclaimed AWS S3 bucket. The bucket name matches the subdomain but has been deleted, allowing an attacker to claim it and serve arbitrary content.
 severity: high
+tags:
+  - aws
+  - cloud
+  - generic
 cwe: CWE-116
 
 requests:

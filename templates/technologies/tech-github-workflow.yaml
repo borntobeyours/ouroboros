@@ -1,6 +1,8 @@
 name: GitHub Actions Workflow with Secrets Exposed
 description: Detects publicly accessible GitHub Actions workflow files. These YAML files may reveal hardcoded secrets, environment variable names used in CI/CD, deployment targets, and third-party service integrations used in automated pipelines.
 severity: medium
+tags:
+  - generic
 cwe: CWE-312
 
 requests:

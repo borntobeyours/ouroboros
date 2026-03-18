@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /beans Endpoint Exposed
 description: Detects an unauthenticated Spring Boot Actuator /beans endpoint. This endpoint enumerates all registered Spring beans, their types, dependencies, and resource locations, revealing the application's internal architecture.
 severity: medium
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,9 @@
 name: Oracle WebLogic Default Credentials
 description: Attempts to authenticate to Oracle WebLogic Server Administration Console using default weblogic/weblogic credentials. Successful login enables remote deployment and Java deserialization attacks.
 severity: critical
+tags:
+  - java
+  - weblogic
 cwe: CWE-1392
 
 requests:

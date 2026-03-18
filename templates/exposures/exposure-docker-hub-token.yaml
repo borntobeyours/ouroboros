@@ -1,6 +1,8 @@
 name: Docker Hub Access Token Exposure
 description: Detects exposed Docker Hub access tokens in HTTP responses. Leaked tokens allow pushing malicious images or pulling private images from Docker Hub repositories.
 severity: high
+tags:
+  - docker
 cwe: CWE-200
 
 requests:

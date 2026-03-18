@@ -1,6 +1,8 @@
 name: HTTP PUT Method Enabled
 description: The HTTP PUT method is enabled, potentially allowing attackers to upload arbitrary files to the web server if not properly restricted. This can lead to remote code execution through malicious file upload.
 severity: high
+tags:
+  - generic
 cwe: CWE-650
 
 requests:

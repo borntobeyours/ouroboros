@@ -1,6 +1,10 @@
 name: Azure Traffic Manager Subdomain Takeover
 description: Detects a dangling CNAME pointing to an Azure Traffic Manager profile that has been deleted. An attacker can register the Traffic Manager DNS name and redirect victim traffic to a malicious server.
 severity: high
+tags:
+  - azure
+  - cloud
+  - generic
 cwe: CWE-116
 
 requests:

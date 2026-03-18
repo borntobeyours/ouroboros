@@ -1,6 +1,9 @@
 name: AWS Session Token Exposure
 description: Detects exposed AWS session tokens in HTTP responses. Session tokens are temporary credentials that grant access to AWS resources for a limited time.
 severity: high
+tags:
+  - aws
+  - cloud
 cwe: CWE-200
 
 requests:

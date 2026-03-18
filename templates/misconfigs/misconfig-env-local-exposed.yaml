@@ -1,6 +1,8 @@
 name: .env.local File Exposed
 description: The .env.local file is publicly accessible. This local environment override file often contains developer-specific or production override credentials and secret keys.
 severity: critical
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

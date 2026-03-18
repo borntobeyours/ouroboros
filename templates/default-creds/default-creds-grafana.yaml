@@ -2,6 +2,8 @@ name: Grafana Default Credentials
 description: Attempts to authenticate to Grafana using default admin/admin credentials. Default credentials indicate the initial password was never changed during setup.
 severity: high
 cwe: CWE-1392
+tags:
+  - grafana
 
 requests:
   - method: POST

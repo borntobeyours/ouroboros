@@ -1,6 +1,8 @@
 name: Rancher Kubernetes Management Default Credentials
 description: Attempts to authenticate to Rancher container management platform using default admin/admin credentials. Successful access grants full Kubernetes cluster management including workload deployment.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: security.txt File Analysis
 description: The security.txt file (/.well-known/security.txt) is present. While intentional, it reveals contact information for the security team, policy details, and optionally the security scope that can aid in reconnaissance.
 severity: info
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

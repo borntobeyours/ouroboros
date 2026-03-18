@@ -1,6 +1,9 @@
 name: Joomla Admin Panel Detection
 description: Detects the presence of the Joomla administrator login panel at /administrator. Exposed admin panels are targets for brute-force and credential stuffing attacks.
 severity: info
+tags:
+  - joomla
+  - php
 cwe: CWE-200
 
 requests:

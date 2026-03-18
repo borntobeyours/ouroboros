@@ -1,6 +1,8 @@
 name: Squarespace Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Squarespace site that has been deleted or suspended. An attacker can associate the victim's domain with a new or existing Squarespace account.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

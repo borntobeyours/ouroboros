@@ -1,6 +1,8 @@
 name: Fortinet FortiGate Default Credentials
 description: Attempts to authenticate to Fortinet FortiGate firewall web interface using default admin with empty password. Successful access grants full firewall policy and network configuration control.
 severity: critical
+tags:
+  - fortinet
 cwe: CWE-1392
 
 requests:

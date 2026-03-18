@@ -1,6 +1,8 @@
 name: Grafana Default Credentials
 description: Grafana dashboard is accessible with default admin/admin credentials. This allows full access to dashboards, data sources, and alerts, and may lead to credential reuse or plugin-based RCE.
 severity: critical
+tags:
+  - grafana
 cwe: CWE-1188
 
 requests:

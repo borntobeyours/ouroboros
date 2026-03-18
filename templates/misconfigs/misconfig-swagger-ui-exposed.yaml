@@ -1,6 +1,8 @@
 name: Swagger UI Exposed
 description: Swagger UI API documentation interface is publicly accessible. This reveals all API endpoints, request/response formats, authentication methods, and may allow direct API interaction through the browser-based test console.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

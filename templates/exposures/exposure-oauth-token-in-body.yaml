@@ -1,6 +1,8 @@
 name: OAuth Token in Response Body
 description: Detects OAuth access and refresh tokens returned in HTTP response bodies outside of proper token endpoints. Improperly handled tokens can be intercepted and reused.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

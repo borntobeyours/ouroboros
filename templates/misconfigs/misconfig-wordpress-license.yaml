@@ -1,6 +1,9 @@
 name: WordPress license.txt Exposed
 description: The WordPress license.txt file is publicly accessible. While not immediately dangerous, it confirms a WordPress installation and reveals version information used for fingerprinting.
 severity: info
+tags:
+  - php
+  - wordpress
 cwe: CWE-200
 
 requests:

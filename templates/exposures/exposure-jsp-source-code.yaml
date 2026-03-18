@@ -1,6 +1,8 @@
 name: JSP Source Code Exposure
 description: Detects JSP source code in HTTP responses. Exposed JSP source reveals Java application logic, database queries, and potential credentials.
 severity: high
+tags:
+  - generic
 cwe: CWE-540
 
 requests:

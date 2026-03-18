@@ -1,6 +1,9 @@
 name: Kibana Default Credentials
 description: Attempts to authenticate to Kibana using default elastic/changeme credentials shipped with older Elastic Stack installations. Exposure allows access to all indexed Elasticsearch data.
 severity: high
+tags:
+  - elasticsearch
+  - kibana
 cwe: CWE-1392
 
 requests:

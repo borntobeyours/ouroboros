@@ -1,6 +1,8 @@
 name: ASP.NET web.config Exposed
 description: The ASP.NET web.config file is publicly accessible, potentially exposing database connection strings, encryption keys, authentication settings, and application secrets.
 severity: high
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

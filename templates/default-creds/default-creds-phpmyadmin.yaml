@@ -1,6 +1,8 @@
 name: phpMyAdmin Root Empty Password
 description: Attempts to authenticate to phpMyAdmin using root account with empty password. This common misconfiguration exposes all MySQL databases to full administrative control via the web interface.
 severity: critical
+tags:
+  - php
 cwe: CWE-1392
 
 requests:

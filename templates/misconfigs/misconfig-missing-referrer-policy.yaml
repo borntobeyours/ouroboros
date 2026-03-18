@@ -1,6 +1,8 @@
 name: Missing Referrer-Policy Header
 description: The application does not set a Referrer-Policy header. By default, browsers may send the full URL as the Referer header to third-party sites, potentially leaking sensitive path parameters, tokens, or session identifiers.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

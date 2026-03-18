@@ -1,6 +1,8 @@
 name: Internal IP Address Disclosure
 description: Detects internal/private IP addresses in HTTP responses. Disclosed internal IPs reveal network topology and can assist in lateral movement during an attack.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

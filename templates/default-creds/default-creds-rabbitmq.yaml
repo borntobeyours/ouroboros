@@ -1,6 +1,8 @@
 name: RabbitMQ Default Credentials
 description: Attempts to authenticate to RabbitMQ Management UI using the default guest/guest credentials. This account has full administrator privileges on the message broker.
 severity: high
+tags:
+  - rabbitmq
 cwe: CWE-1392
 
 requests:

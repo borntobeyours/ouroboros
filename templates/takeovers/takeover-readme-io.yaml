@@ -1,6 +1,8 @@
 name: ReadMe.io Documentation Subdomain Takeover
 description: Detects a dangling CNAME pointing to a ReadMe.io documentation project that has been deleted. An attacker can create a new ReadMe project and associate the victim's domain with it.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

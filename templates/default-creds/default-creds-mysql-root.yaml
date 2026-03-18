@@ -1,6 +1,8 @@
 name: MySQL Root Empty Password
 description: Checks for MySQL root account accessible without a password. Many default MySQL installations ship with an unauthenticated root account, allowing full database compromise.
 severity: critical
+tags:
+  - mysql
 cwe: CWE-1392
 
 requests:

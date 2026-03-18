@@ -1,6 +1,8 @@
 name: Redis Exposed Without Authentication
 description: Redis server is accessible without authentication (no requirepass configured). Attackers can read all cached data, write arbitrary keys, and use CONFIG SET to achieve RCE via cron jobs or SSH key injection.
 severity: critical
+tags:
+  - redis
 cwe: CWE-306
 
 requests:

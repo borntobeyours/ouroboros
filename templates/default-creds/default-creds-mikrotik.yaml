@@ -1,6 +1,8 @@
 name: MikroTik RouterOS Default Credentials
 description: Attempts to authenticate to MikroTik RouterOS web interface (Webfig) using default admin account with empty password. Access enables full router configuration modification.
 severity: critical
+tags:
+  - mikrotik
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,9 @@
 name: Django Admin Panel Exposed
 description: Detects the presence of the Django admin interface at /admin/. The admin panel provides full management access to the Django application and its database if credentials are compromised or defaults are used.
 severity: medium
+tags:
+  - django
+  - python
 cwe: CWE-200
 
 requests:

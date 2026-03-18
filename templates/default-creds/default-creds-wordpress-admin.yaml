@@ -1,6 +1,9 @@
 name: WordPress Default Admin Credentials
 description: Attempts to authenticate to WordPress admin dashboard using default admin/admin credentials. Successful login allows theme/plugin modification enabling PHP remote code execution.
 severity: critical
+tags:
+  - php
+  - wordpress
 cwe: CWE-1392
 
 requests:

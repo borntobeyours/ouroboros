@@ -1,6 +1,8 @@
 name: Java Stack Trace Disclosure
 description: Detects Java stack traces in HTTP responses. Exposed stack traces reveal application internals, class names, file paths, and line numbers that aid in targeted exploitation.
 severity: medium
+tags:
+  - generic
 cwe: CWE-209
 
 requests:

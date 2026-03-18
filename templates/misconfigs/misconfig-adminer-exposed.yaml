@@ -1,6 +1,8 @@
 name: Adminer Database Manager Exposed
 description: Adminer (formerly phpMinAdmin) database management tool is publicly accessible, supporting MySQL, PostgreSQL, SQLite, and more. Exposure can lead to database enumeration and data exfiltration.
 severity: high
+tags:
+  - generic
 cwe: CWE-306
 
 requests:

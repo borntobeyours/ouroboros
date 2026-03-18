@@ -1,6 +1,8 @@
 name: InfluxDB Default Credentials
 description: Attempts to authenticate to InfluxDB time-series database using default admin/admin credentials or unauthenticated access. Exposure allows reading and writing metrics data including sensitive telemetry.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

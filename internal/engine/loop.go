@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/borntobeyours/ouroboros/internal/ai"
 	"github.com/borntobeyours/ouroboros/internal/auth"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/memory"
 	"github.com/borntobeyours/ouroboros/internal/notify"
+	"github.com/borntobeyours/ouroboros/internal/plugin"
 	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
 	"github.com/borntobeyours/ouroboros/internal/red/probers"
@@ -33,6 +36,11 @@ type Engine struct {
 	logger        *log.Logger
 	notifier      *notify.Notifier // optional; nil means no webhook
 	eventCallback EventCallbackFn  // optional; nil means no callback
+
+	// Smart template filtering
+	aiProvider   ai.Provider
+	pluginProbers []*plugin.PluginProber
+	aiFilter     *plugin.AIFilter
 }
 
 // NewEngine creates a new loop engine.
@@ -56,6 +64,20 @@ func (e *Engine) SetNotifier(n *notify.Notifier) {
 // to push real-time SSE events. Set to nil to disable (the default).
 func (e *Engine) SetEventCallback(cb EventCallbackFn) {
 	e.eventCallback = cb
+}
+
+// SetAIProvider stores the AI provider so the engine can use it for smart
+// template filtering.  Call this before Run().
+func (e *Engine) SetAIProvider(p ai.Provider) {
+	e.aiProvider = p
+}
+
+// SetPluginProbers stores unregistered plugin probers for smart filtering.
+// The engine will filter and register them after the recon phase.
+// Do NOT call probers.RegisterProbers() in addition; the engine owns registration.
+func (e *Engine) SetPluginProbers(ps []*plugin.PluginProber) {
+	e.pluginProbers = ps
+	e.aiFilter = plugin.NewAIFilter()
 }
 
 // emitEvent calls the event callback if one is set.
@@ -106,6 +128,54 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		printReconSummary(reconResult)
 		progress = report.NewProgress(config.MaxLoops, config.Verbose)
 		progress.Start()
+	}
+
+	// === PLUGIN FILTERING ===
+	// Decide which templates are relevant based on the detected tech stack.
+	// This step replaces the blanket "run everything" approach.
+	if len(e.pluginProbers) > 0 {
+		progress.SetPhase("Plugins")
+		progress.SetStep("Filtering templates by tech stack...")
+
+		var techs []types.TechFingerprint
+		if reconResult != nil {
+			techs = reconResult.Technologies
+		}
+
+		var filtered []*plugin.PluginProber
+
+		switch {
+		case config.AllTemplates:
+			// --all-templates: skip filtering, run everything.
+			filtered = e.pluginProbers
+
+		case len(config.TemplateTags) > 0:
+			// --template-tags: manual tech tag override.
+			filtered = plugin.FilterByTags(e.pluginProbers, config.TemplateTags)
+
+		case e.aiFilter != nil && e.aiProvider != nil:
+			// AI-powered selection; falls back to tag-based internally.
+			filtered = e.aiFilter.Filter(ctx, e.aiProvider, e.pluginProbers, techs)
+
+		default:
+			// Tag-based fallback (no AI provider configured).
+			filtered = plugin.FilterByTechnology(e.pluginProbers, techs)
+		}
+
+		// Register the filtered set so the Red agent uses them during attack.
+		probers.SetPluginProbers(plugin.ToProbers(filtered))
+
+		// Log the result.
+		techNames := make([]string, 0, len(techs))
+		for _, t := range techs {
+			techNames = append(techNames, t.Name)
+		}
+		techStr := "none detected"
+		if len(techNames) > 0 {
+			techStr = strings.Join(techNames, ", ")
+		}
+		e.logger.Printf("[PLUGINS] %d templates loaded, %d relevant for [%s]",
+			len(e.pluginProbers), len(filtered), techStr)
 	}
 
 	// === AUTH PHASE ===

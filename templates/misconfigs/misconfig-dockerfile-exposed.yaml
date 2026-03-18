@@ -1,6 +1,8 @@
 name: Dockerfile Exposed
 description: A Dockerfile is publicly accessible, revealing the application's build process, base images, exposed ports, environment variables, and potentially hardcoded secrets passed as build arguments.
 severity: medium
+tags:
+  - docker
 cwe: CWE-538
 
 requests:

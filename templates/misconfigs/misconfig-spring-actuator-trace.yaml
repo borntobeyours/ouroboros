@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /httptrace Endpoint Exposed
 description: The Spring Boot Actuator /httptrace (or /trace) endpoint is publicly accessible, exposing recent HTTP request/response history including authorization headers, cookies, session tokens, and request bodies.
 severity: high
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

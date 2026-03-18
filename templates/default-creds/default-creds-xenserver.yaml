@@ -1,6 +1,8 @@
 name: Citrix XenServer Default Credentials
 description: Attempts to authenticate to Citrix XenServer (XCP-ng) management interface using default root/xenroot credentials. Successful access provides full hypervisor and virtual machine control.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

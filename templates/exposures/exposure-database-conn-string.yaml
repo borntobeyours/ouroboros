@@ -1,6 +1,8 @@
 name: Database Connection String Exposure
 description: Detects exposed database connection strings in HTTP responses. Leaked connection strings contain credentials and host information enabling direct database access.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

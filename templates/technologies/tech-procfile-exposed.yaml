@@ -1,6 +1,8 @@
 name: Heroku Procfile Exposed
 description: Detects a publicly accessible Heroku Procfile. This file defines the commands run by each process type and may reveal application startup commands, environment variable names, worker scripts, and internal service architecture.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Splunk Default Credentials
 description: Attempts to authenticate to Splunk SIEM platform using default admin/changeme credentials. Successful access exposes log data, security alerts, dashboards, and may allow search query injection for data exfiltration.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

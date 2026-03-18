@@ -1,6 +1,8 @@
 name: Spring application.yml Exposed
 description: Detects exposed Spring Boot application.yml files containing datasource credentials, JWT secrets, and other sensitive configuration.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

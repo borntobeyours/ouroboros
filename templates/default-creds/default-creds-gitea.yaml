@@ -1,6 +1,8 @@
 name: Gitea Default Credentials
 description: Attempts to authenticate to Gitea self-hosted Git service using default gitea/gitea credentials. Successful access exposes source code repositories and may allow pushing malicious code to repositories.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

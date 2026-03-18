@@ -1,6 +1,8 @@
 name: HelpScout Docs Subdomain Takeover
 description: Detects a dangling CNAME pointing to a HelpScout Docs portal whose custom domain configuration has been removed. An attacker can create a HelpScout Docs site and claim the victim's subdomain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

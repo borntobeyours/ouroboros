@@ -1,6 +1,8 @@
 name: Braintree Access Token Exposure
 description: Detects exposed Braintree payment gateway access tokens in HTTP responses. Leaked tokens allow unauthorized processing of payments and access to transaction history.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

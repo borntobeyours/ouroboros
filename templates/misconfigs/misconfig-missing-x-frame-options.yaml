@@ -1,6 +1,8 @@
 name: Missing X-Frame-Options Header
 description: The application does not set the X-Frame-Options header, making it vulnerable to clickjacking attacks where malicious sites can embed the application in an invisible iframe to trick users into unintended actions.
 severity: medium
+tags:
+  - generic
 cwe: CWE-1021
 
 requests:

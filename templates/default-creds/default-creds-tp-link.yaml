@@ -1,6 +1,8 @@
 name: TP-Link Router Default Credentials
 description: Attempts to authenticate to TP-Link router web management interface using default admin/admin credentials. Successful access allows DNS, routing, and wireless configuration changes.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

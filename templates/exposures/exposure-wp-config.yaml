@@ -1,6 +1,8 @@
 name: WordPress wp-config.php Exposed
 description: Detects exposed WordPress configuration files containing database credentials, secret keys, and other sensitive settings.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

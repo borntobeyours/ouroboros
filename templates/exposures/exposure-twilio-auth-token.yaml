@@ -1,6 +1,8 @@
 name: Twilio Auth Token Exposure
 description: Detects exposed Twilio authentication tokens in HTTP responses. Leaked Twilio auth tokens allow attackers to send SMS, make calls, and access communications data billed to the account.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

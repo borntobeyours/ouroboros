@@ -71,6 +71,8 @@ type scanOpts struct {
 	rps            float64
 	pluginsDir     string
 	disablePlugins bool
+	allTemplates   bool     // --all-templates: disable smart filtering
+	templateTags   []string // --template-tags: manual tech tag override
 }
 
 func newScanCmd() *cobra.Command {
@@ -107,6 +109,8 @@ func newScanCmd() *cobra.Command {
 		// Plugin flags
 		pluginsDir     string
 		disablePlugins bool
+		allTemplates   bool
+		templateTags   string
 		// Batch flags
 		targetsFile string
 		parallel    int
@@ -164,6 +168,14 @@ Examples:
 				}
 			}
 
+			var parsedTemplateTags []string
+			if templateTags != "" {
+				for _, t := range strings.Split(templateTags, ",") {
+					if t = strings.TrimSpace(t); t != "" {
+						parsedTemplateTags = append(parsedTemplateTags, t)
+					}
+				}
+			}
 			opts := scanOpts{
 				webhook:        webhookURL,
 				webhookFmt:     webhookFmt,
@@ -171,6 +183,8 @@ Examples:
 				rps:            customRPS,
 				pluginsDir:     pluginsDir,
 				disablePlugins: disablePlugins,
+				allTemplates:   allTemplates,
+				templateTags:   parsedTemplateTags,
 			}
 
 			// Batch mode: --targets file provided
@@ -237,6 +251,8 @@ Examples:
 	// Plugin flags
 	cmd.Flags().StringVar(&pluginsDir, "plugins-dir", "", "Directory to load custom YAML plugins from (default: ~/.ouroboros/plugins/)")
 	cmd.Flags().BoolVar(&disablePlugins, "disable-plugins", false, "Skip loading custom plugins")
+	cmd.Flags().BoolVar(&allTemplates, "all-templates", false, "Disable smart template filtering — run all 522 templates against every target")
+	cmd.Flags().StringVar(&templateTags, "template-tags", "", "Comma-separated tech tags to run (e.g. nodejs,php,mysql) — overrides AI selection")
 	// Batch flags
 	cmd.Flags().StringVar(&targetsFile, "targets", "", "File with one URL per line for batch scanning")
 	cmd.Flags().IntVar(&parallel, "parallel", 3, "Number of concurrent scans when using --targets")
@@ -342,19 +358,21 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 		probers.SetThrottleProfile(throttle.ParseProfile(opts.rateProfile))
 	}
 
-	// Load custom plugins (non-fatal)
+	// Load custom plugins into PluginProbers (not yet registered).
+	// The engine will filter and register them after the recon phase.
+	var loadedPluginProbers []*plugin.PluginProber
 	if !opts.disablePlugins {
 		plugDir := opts.pluginsDir
 		if plugDir == "" {
 			plugDir = plugin.DefaultPluginsDir()
 		}
-		pluginProbers, plugErr := plugin.LoadPlugins(plugDir)
+		var plugErr error
+		loadedPluginProbers, plugErr = plugin.LoadPluginProbers(plugDir)
 		if plugErr != nil {
 			logger.Printf("[PLUGINS] Warning: %v", plugErr)
 		}
-		if len(pluginProbers) > 0 {
-			probers.RegisterProbers(pluginProbers)
-			logger.Printf("[PLUGINS] Loaded %d custom plugin(s)", len(pluginProbers))
+		if len(loadedPluginProbers) > 0 {
+			logger.Printf("[PLUGINS] Loaded %d template(s) (filtering after recon)", len(loadedPluginProbers))
 		}
 	}
 
@@ -373,6 +391,12 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 	// Initialize engine
 	eng := engine.NewEngine(redAgent, blueAgent, bossAgent, store, reporter, logger)
 
+	// Wire AI provider and plugin probers for smart template filtering.
+	eng.SetAIProvider(aiProvider)
+	if len(loadedPluginProbers) > 0 {
+		eng.SetPluginProbers(loadedPluginProbers)
+	}
+
 	// Attach webhook notifier if requested (non-fatal)
 	if opts.webhook != "" {
 		wfmt := notify.WebhookFormat(opts.webhookFmt)
@@ -385,14 +409,16 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 
 	// Build scan config
 	config := types.ScanConfig{
-		Target:     types.Target{URL: targetURL},
-		MaxLoops:   maxLoops,
-		FinalBoss:  finalBoss,
-		SkipBlue:   skipBlue,
-		Verbose:    verbose,
-		Provider:   providerName,
-		Model:      model,
-		AuthConfig: authCfg,
+		Target:       types.Target{URL: targetURL},
+		MaxLoops:     maxLoops,
+		FinalBoss:    finalBoss,
+		SkipBlue:     skipBlue,
+		Verbose:      verbose,
+		Provider:     providerName,
+		Model:        model,
+		AuthConfig:   authCfg,
+		AllTemplates: opts.allTemplates,
+		TemplateTags: opts.templateTags,
 	}
 	if len(reconCfg) > 0 {
 		config.ReconConfig = reconCfg[0]
@@ -494,14 +520,14 @@ func runBatchScan(
 	} else if opts.rateProfile != "" {
 		probers.SetThrottleProfile(throttle.ParseProfile(opts.rateProfile))
 	}
+	// Load plugin probers once for all batch targets (filtering happens per-target in the engine).
+	var batchPluginProbers []*plugin.PluginProber
 	if !opts.disablePlugins {
 		plugDir := opts.pluginsDir
 		if plugDir == "" {
 			plugDir = plugin.DefaultPluginsDir()
 		}
-		if pluginProbers, err := plugin.LoadPlugins(plugDir); err == nil && len(pluginProbers) > 0 {
-			probers.RegisterProbers(pluginProbers)
-		}
+		batchPluginProbers, _ = plugin.LoadPluginProbers(plugDir)
 	}
 
 	results := make([]batchResult, len(targets))
@@ -541,6 +567,10 @@ func runBatchScan(
 			}
 			scanReporter := report.NewReporter(false)
 			eng := engine.NewEngine(redAgent, blueAgent, bossAgent, store, scanReporter, logger)
+			eng.SetAIProvider(aiProvider)
+			if len(batchPluginProbers) > 0 {
+				eng.SetPluginProbers(batchPluginProbers)
+			}
 
 			if opts.webhook != "" {
 				wfmt := notify.WebhookFormat(opts.webhookFmt)
@@ -549,14 +579,16 @@ func runBatchScan(
 			}
 
 			config := types.ScanConfig{
-				Target:     types.Target{URL: target},
-				MaxLoops:   maxLoops,
-				FinalBoss:  finalBoss,
-				SkipBlue:   skipBlue,
-				Verbose:    verbose,
-				Provider:   providerName,
-				Model:      model,
-				AuthConfig: authCfg,
+				Target:       types.Target{URL: target},
+				MaxLoops:     maxLoops,
+				FinalBoss:    finalBoss,
+				SkipBlue:     skipBlue,
+				Verbose:      verbose,
+				Provider:     providerName,
+				Model:        model,
+				AuthConfig:   authCfg,
+				AllTemplates: opts.allTemplates,
+				TemplateTags: opts.templateTags,
 			}
 
 			session, err := eng.Run(ctx, config)

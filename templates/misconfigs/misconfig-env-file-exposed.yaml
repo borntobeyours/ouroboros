@@ -1,6 +1,8 @@
 name: .env File Exposed
 description: The application's .env configuration file is publicly accessible. This file typically contains database credentials, API keys, secret tokens, and other sensitive configuration values.
 severity: critical
+tags:
+  - generic
 cwe: CWE-538
 
 requests:

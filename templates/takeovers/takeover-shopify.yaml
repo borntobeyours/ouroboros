@@ -1,6 +1,8 @@
 name: Shopify Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Shopify store that has been closed or deleted. An attacker can create a new Shopify store and associate the victim's domain, potentially running a fake storefront.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

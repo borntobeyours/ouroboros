@@ -1,6 +1,8 @@
 name: GitLab Open User Registration
 description: GitLab has open user registration enabled, allowing anyone to create accounts and potentially access internal repositories, view source code, and abuse CI/CD pipelines.
 severity: medium
+tags:
+  - gitlab
 cwe: CWE-306
 
 requests:

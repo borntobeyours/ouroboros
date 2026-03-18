@@ -1,6 +1,8 @@
 name: Foscam IP Camera Default Credentials
 description: Attempts to authenticate to Foscam IP cameras using default admin account with empty password. Successful access grants live feed access, full PTZ control, and camera configuration.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

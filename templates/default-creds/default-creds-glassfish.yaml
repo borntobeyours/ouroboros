@@ -1,6 +1,8 @@
 name: GlassFish Application Server Default Credentials
 description: Attempts to authenticate to GlassFish Administration Console using default admin/adminadmin credentials. Successful access allows arbitrary application deployment and server configuration changes.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

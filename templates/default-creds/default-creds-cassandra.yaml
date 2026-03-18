@@ -1,6 +1,8 @@
 name: Apache Cassandra Default Credentials
 description: Attempts to authenticate to Apache Cassandra management interfaces using default cassandra/cassandra credentials. Successful access provides full control over all keyspaces and data.
 severity: high
+tags:
+  - cassandra
 cwe: CWE-1392
 
 requests:

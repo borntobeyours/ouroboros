@@ -1,6 +1,8 @@
 name: ASP.NET web.config Exposed
 description: Detects exposed ASP.NET web.config files containing connection strings, app settings, and potentially sensitive configuration data.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

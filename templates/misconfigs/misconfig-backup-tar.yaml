@@ -1,6 +1,8 @@
 name: Backup TAR Archive Exposed
 description: A tar or tar.gz archive is publicly accessible from the web server. These archives often contain complete web application source code, configuration files, and database dumps with sensitive information.
 severity: high
+tags:
+  - generic
 cwe: CWE-530
 
 requests:

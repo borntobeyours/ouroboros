@@ -30,6 +30,7 @@ type PluginDef struct {
 	Description string            `json:"description"`
 	Severity    string            `json:"severity"`
 	CWE         string            `json:"cwe"`
+	Tags        []string          `json:"tags,omitempty"`
 	Requests    []PluginRequest   `json:"requests"`
 	Matchers    []PluginMatcher   `json:"matchers"`
 	Extractors  []PluginExtractor `json:"extractors,omitempty"`

@@ -1,6 +1,8 @@
 name: Proxmox VE Default Credentials
 description: Attempts to authenticate to Proxmox Virtual Environment web interface using default root/proxmox credentials. Successful login enables full virtualization infrastructure control including VM creation and deletion.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: pfSense Default Credentials
 description: Attempts to authenticate to pfSense firewall web GUI using default admin/pfsense credentials. Successful access provides full firewall, VPN, and routing configuration control.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

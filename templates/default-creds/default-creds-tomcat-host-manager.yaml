@@ -1,6 +1,9 @@
 name: Apache Tomcat Host Manager Default Credentials
 description: Attempts to authenticate to Apache Tomcat Host Manager using known default credentials. Access to Host Manager allows creating new virtual hosts which can be used to deploy malicious web applications.
 severity: critical
+tags:
+  - java
+  - tomcat
 cwe: CWE-1392
 
 requests:

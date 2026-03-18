@@ -1,6 +1,10 @@
 name: IIS Directory Listing Enabled
 description: Microsoft IIS has directory browsing enabled, exposing folder contents to unauthenticated users. This can reveal sensitive files, scripts, and configuration data.
 severity: medium
+tags:
+  - generic
+  - iis
+  - microsoft
 cwe: CWE-548
 
 requests:

@@ -1,6 +1,8 @@
 name: Concrete5 CMS Default Credentials
 description: Attempts to authenticate to Concrete5 CMS dashboard using default admin/12345 credentials. Successful access allows arbitrary file upload and PHP code execution through theme or file manager.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

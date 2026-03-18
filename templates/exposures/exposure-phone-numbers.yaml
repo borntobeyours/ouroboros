@@ -1,6 +1,8 @@
 name: Phone Number Bulk Exposure
 description: Detects bulk phone number disclosure in HTTP responses. Exposed phone numbers can enable SIM swapping attacks, spam, and social engineering.
 severity: low
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

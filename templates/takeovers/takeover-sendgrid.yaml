@@ -1,6 +1,8 @@
 name: SendGrid Domain Authentication Subdomain Takeover
 description: Detects a dangling CNAME pointing to SendGrid's email infrastructure for domain authentication that is no longer claimed. An attacker can create a SendGrid account and associate the DNS record, potentially enabling email spoofing.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

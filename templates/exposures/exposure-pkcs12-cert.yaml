@@ -1,6 +1,8 @@
 name: PKCS12 Certificate Exposure
 description: Detects exposed PKCS12 certificate bundles in HTTP responses. PKCS12 files contain both the certificate and private key, enabling full TLS impersonation.
 severity: critical
+tags:
+  - generic
 cwe: CWE-321
 
 requests:

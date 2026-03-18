@@ -1,6 +1,9 @@
 name: Apache Cassandra No Authentication
 description: Detects Apache Cassandra instances running without authentication (authenticator: AllowAllAuthenticator). Unauthenticated Cassandra allows any client to connect and read or write all keyspaces and tables.
 severity: critical
+tags:
+  - apache
+  - cassandra
 cwe: CWE-306
 
 requests:

@@ -1,6 +1,8 @@
 name: GitHub Personal Access Token Exposure
 description: Detects exposed GitHub personal access tokens in HTTP responses. Leaked tokens can allow repository access, code exfiltration, and modification of GitHub resources.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

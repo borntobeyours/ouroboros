@@ -1,6 +1,8 @@
 name: Nginx proxy_pass SSRF Misconfiguration
 description: Detects potential SSRF via Nginx proxy_pass misconfigurations. When proxy_pass uses the request URI without normalization, attackers can use encoded characters or special paths to reach internal services not intended to be proxied.
 severity: high
+tags:
+  - nginx
 cwe: CWE-918
 
 requests:

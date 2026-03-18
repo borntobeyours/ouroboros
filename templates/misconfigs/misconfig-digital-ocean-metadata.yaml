@@ -1,6 +1,8 @@
 name: DigitalOcean Droplet Metadata Service Accessible
 description: The DigitalOcean Droplet Metadata Service is reachable via SSRF. Attackers can retrieve droplet ID, region, user-data scripts (which often contain secrets), SSH keys, and network configuration.
 severity: high
+tags:
+  - generic
 cwe: CWE-918
 
 requests:

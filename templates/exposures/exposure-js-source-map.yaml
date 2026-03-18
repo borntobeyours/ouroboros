@@ -1,6 +1,8 @@
 name: JavaScript Source Map Exposure
 description: Detects exposed JavaScript source map files in HTTP responses. Source maps reconstruct original unminified source code, exposing application logic, comments, and sometimes credentials.
 severity: medium
+tags:
+  - generic
 cwe: CWE-540
 
 requests:

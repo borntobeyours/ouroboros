@@ -1,6 +1,8 @@
 name: WordPress Debug Log Exposed
 description: Detects exposed WordPress debug.log files containing PHP errors, warnings, and potentially sensitive debug information including file paths and database queries.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

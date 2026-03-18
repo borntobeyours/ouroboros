@@ -1,6 +1,8 @@
 name: Nginx Alias Path Traversal
 description: Detects the Nginx off-by-slash alias configuration vulnerability. When an alias directive lacks a trailing slash while the location does, attackers can traverse outside the intended directory by appending ../ sequences to the URL.
 severity: high
+tags:
+  - nginx
 cwe: CWE-22
 
 requests:

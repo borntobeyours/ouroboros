@@ -1,6 +1,8 @@
 name: Ansible Vault File Exposure
 description: Detects exposed Ansible Vault files in HTTP responses. While encrypted, their presence may indicate the location of sensitive variable files; weak vault passwords can be brute-forced.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

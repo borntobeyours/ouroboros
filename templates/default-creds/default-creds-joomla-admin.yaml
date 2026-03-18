@@ -1,6 +1,9 @@
 name: Joomla Default Admin Credentials
 description: Attempts to authenticate to Joomla CMS administrator backend using default admin/admin credentials. Successful access allows template modification and extension installation leading to remote code execution.
 severity: critical
+tags:
+  - joomla
+  - php
 cwe: CWE-1392
 
 requests:

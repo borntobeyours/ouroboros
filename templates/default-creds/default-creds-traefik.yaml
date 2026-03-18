@@ -1,6 +1,8 @@
 name: Traefik Dashboard No Authentication
 description: Detects Traefik reverse proxy dashboard accessible without authentication. Unauthenticated access reveals all configured routes, backend services, middleware, and network topology.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

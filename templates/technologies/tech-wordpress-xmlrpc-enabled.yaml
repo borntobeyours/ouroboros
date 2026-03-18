@@ -2,6 +2,9 @@ name: WordPress XML-RPC Enabled
 description: Detects an exposed WordPress XML-RPC endpoint (xmlrpc.php). This interface can be abused for brute-force amplification attacks, SSRF, and command execution via plugins if authentication is weak.
 severity: medium
 cwe: CWE-749
+tags:
+  - php
+  - wordpress
 
 requests:
   - method: GET

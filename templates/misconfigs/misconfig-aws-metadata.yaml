@@ -1,6 +1,9 @@
 name: AWS EC2 Instance Metadata Service Accessible
 description: The AWS EC2 Instance Metadata Service (IMDS) endpoint is reachable, indicating a potential SSRF vulnerability. An attacker can retrieve IAM role credentials, user-data scripts, and instance configuration.
 severity: critical
+tags:
+  - aws
+  - cloud
 cwe: CWE-918
 
 requests:

@@ -1,6 +1,9 @@
 name: Joomla configuration.php Exposed
 description: Detects a publicly readable Joomla configuration.php file. This file contains database credentials ($password, $db), secret keys, and other sensitive configuration values.
 severity: critical
+tags:
+  - joomla
+  - php
 cwe: CWE-312
 
 requests:

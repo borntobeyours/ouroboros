@@ -1,6 +1,8 @@
 name: PHP phpinfo() Page Exposed
 description: A phpinfo() output page is publicly accessible, revealing PHP version, loaded extensions, server environment variables, configuration directives, and potentially sensitive paths and credentials.
 severity: medium
+tags:
+  - php
 cwe: CWE-200
 
 requests:

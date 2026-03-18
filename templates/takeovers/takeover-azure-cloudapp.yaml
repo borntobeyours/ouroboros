@@ -1,6 +1,10 @@
 name: Azure CloudApp Subdomain Takeover
 description: Detects a dangling CNAME pointing to an Azure cloudapp.net deployment that has been removed. An attacker can register the cloudapp.net hostname and serve content from the victim's subdomain.
 severity: high
+tags:
+  - azure
+  - cloud
+  - generic
 cwe: CWE-116
 
 requests:

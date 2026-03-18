@@ -1,6 +1,8 @@
 name: HTTP DELETE Method Enabled Without Authorization
 description: The HTTP DELETE method is enabled and accessible without proper authorization checks. Attackers may delete arbitrary resources on the server, causing data loss or application disruption.
 severity: medium
+tags:
+  - generic
 cwe: CWE-650
 
 requests:

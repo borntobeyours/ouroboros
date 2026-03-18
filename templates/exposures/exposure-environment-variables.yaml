@@ -1,6 +1,8 @@
 name: Environment Variables Exposed
 description: Detects endpoints that expose environment variables in HTTP responses. Environment variables often contain credentials, API keys, and service configuration.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

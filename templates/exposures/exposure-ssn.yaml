@@ -1,6 +1,8 @@
 name: US Social Security Number Exposure
 description: Detects US Social Security Numbers in HTTP responses. Exposed SSNs constitute a serious PII breach that may violate HIPAA, state privacy laws, and other regulations.
 severity: high
+tags:
+  - generic
 cwe: CWE-312
 
 requests:

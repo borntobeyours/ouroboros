@@ -1,6 +1,8 @@
 name: PHP Source Code Exposure
 description: Detects PHP source code in HTTP responses. Exposed PHP source reveals application logic, database queries, and hardcoded credentials that enable further exploitation.
 severity: high
+tags:
+  - php
 cwe: CWE-540
 
 requests:

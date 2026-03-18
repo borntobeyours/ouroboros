@@ -1,6 +1,8 @@
 name: Kinsta WordPress Hosting Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Kinsta-hosted WordPress site that has been deleted. An attacker can register a new Kinsta environment and attach the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

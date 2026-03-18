@@ -1,6 +1,9 @@
 name: Azure Blob Storage URL Exposure
 description: Detects exposed Azure Blob Storage URLs in HTTP responses. Disclosed Azure storage account names and container names can enable unauthorized access if ACLs are misconfigured.
 severity: low
+tags:
+  - azure
+  - cloud
 cwe: CWE-200
 
 requests:

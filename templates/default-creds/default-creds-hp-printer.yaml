@@ -1,6 +1,8 @@
 name: HP Printer Default Credentials
 description: Attempts to authenticate to HP printer Embedded Web Server (EWS) using default admin credentials. Access enables printer configuration changes, stored job access, and potential network pivoting.
 severity: medium
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

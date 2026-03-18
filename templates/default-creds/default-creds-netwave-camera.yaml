@@ -1,6 +1,8 @@
 name: Netwave IP Camera Default Credentials
 description: Attempts to authenticate to Netwave IP cameras using default admin/admin credentials. Many Netwave-based OEM cameras share the same firmware with identical default credentials.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: Linksys Router Default Credentials
 description: Attempts to authenticate to Linksys router web management interface using default admin/admin credentials. Successful access enables full network configuration including DNS and firewall settings.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

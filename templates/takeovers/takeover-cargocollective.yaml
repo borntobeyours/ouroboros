@@ -1,6 +1,8 @@
 name: Cargo Collective Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Cargo Collective portfolio site that has been deleted. An attacker can register a new Cargo Collective portfolio and assign the victim's domain to it.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

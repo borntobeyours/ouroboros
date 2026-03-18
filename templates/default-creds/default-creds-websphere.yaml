@@ -1,6 +1,8 @@
 name: IBM WebSphere Application Server Default Credentials
 description: Attempts to authenticate to IBM WebSphere Administration Console using default admin/admin credentials. Successful access enables deployment of malicious applications and full server compromise.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,9 @@
 name: Rails Routes Disclosure
 description: Detects a Rails application leaking its route table. In development or misconfigured production environments, the /rails/info/routes endpoint reveals all URL patterns, controller names, and HTTP methods.
 severity: medium
+tags:
+  - rails
+  - ruby
 cwe: CWE-200
 
 requests:

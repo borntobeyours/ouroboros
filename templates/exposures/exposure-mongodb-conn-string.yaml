@@ -1,6 +1,8 @@
 name: MongoDB Connection String Exposure
 description: Detects exposed MongoDB connection strings in HTTP responses. Leaked MongoDB URIs contain credentials and host information enabling unauthorized database access.
 severity: critical
+tags:
+  - mongodb
 cwe: CWE-200
 
 requests:

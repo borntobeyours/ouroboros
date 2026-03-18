@@ -1,6 +1,8 @@
 name: Memcached Exposed Without Authentication
 description: Memcached server is accessible without authentication on its default port. Attackers can read all cached session data, tokens, and application cache, as well as flush the entire cache causing denial of service.
 severity: high
+tags:
+  - generic
 cwe: CWE-306
 
 requests:

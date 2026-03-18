@@ -1,6 +1,8 @@
 name: Railway Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Railway.app deployment that has been deleted. An attacker can create a new Railway project, add a service, and attach the victim's custom domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

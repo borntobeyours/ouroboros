@@ -1,6 +1,9 @@
 name: ASP.NET Custom Errors Disabled
 description: ASP.NET application has customErrors mode set to Off or RemoteOnly, which exposes detailed exception information including stack traces and file paths.
 severity: medium
+tags:
+  - dotnet
+  - microsoft
 cwe: CWE-489
 
 requests:

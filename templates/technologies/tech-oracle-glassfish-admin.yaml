@@ -1,6 +1,8 @@
 name: Oracle GlassFish Admin Console Exposed
 description: Detects an exposed Oracle GlassFish Server administration console (default port 4848 or at /admin-gui). The console allows deploying applications, managing configurations, and accessing server internals without authentication in older versions.
 severity: high
+tags:
+  - generic
 cwe: CWE-306
 
 requests:

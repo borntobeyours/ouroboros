@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /env Endpoint Exposed
 description: The Spring Boot Actuator /env endpoint is publicly accessible, exposing all application environment properties including database passwords, API keys, and cloud credentials, even if some values are partially masked.
 severity: critical
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

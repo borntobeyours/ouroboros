@@ -1,6 +1,8 @@
 name: Credit Card Number Exposure
 description: Detects credit card numbers in HTTP responses. Exposed payment card data may violate PCI-DSS compliance requirements.
 severity: high
+tags:
+  - generic
 cwe: CWE-312
 
 requests:

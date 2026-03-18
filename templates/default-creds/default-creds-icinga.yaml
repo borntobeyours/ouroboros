@@ -1,6 +1,8 @@
 name: Icinga Default Credentials
 description: Attempts to authenticate to Icinga monitoring web interface using default admin/icinga credentials. Successful access exposes network monitoring data and host configurations.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

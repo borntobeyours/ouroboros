@@ -1,6 +1,8 @@
 name: Roundcube Webmail Default Credentials
 description: Attempts to authenticate to Roundcube webmail using default admin/admin credentials. Successful access exposes email communications and contact data, and may allow server-side plugin manipulation.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: Elasticsearch Unauthenticated Access
 description: Elasticsearch instance is accessible without authentication, potentially exposing all indexed data.
 severity: critical
+tags:
+  - elasticsearch
 cwe: CWE-306
 
 requests:

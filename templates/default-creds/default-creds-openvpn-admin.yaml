@@ -1,6 +1,8 @@
 name: OpenVPN Admin Interface Default Credentials
 description: Attempts to authenticate to OpenVPN Access Server admin web interface using default admin/openvpn credentials. Successful access enables VPN configuration changes, user management, and network routing manipulation.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

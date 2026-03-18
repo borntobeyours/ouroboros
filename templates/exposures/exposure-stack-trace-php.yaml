@@ -1,6 +1,9 @@
 name: PHP Error/Stack Trace Disclosure
 description: Detects PHP error messages and stack traces in HTTP responses. PHP errors expose file paths, line numbers, and application logic that can assist attackers.
 severity: medium
+tags:
+  - generic
+  - php
 cwe: CWE-209
 
 requests:

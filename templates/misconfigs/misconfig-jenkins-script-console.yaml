@@ -1,6 +1,8 @@
 name: Jenkins Script Console Exposed
 description: The Jenkins Groovy Script Console is accessible, allowing execution of arbitrary Groovy code on the Jenkins master. This provides complete remote code execution on the server.
 severity: critical
+tags:
+  - jenkins
 cwe: CWE-94
 
 requests:

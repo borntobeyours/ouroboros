@@ -1,6 +1,10 @@
 name: Spring Boot Debug Mode Enabled
 description: Spring Boot application is running with debug logging or developer tools enabled, potentially exposing internal application state and auto-restart features.
 severity: medium
+tags:
+  - generic
+  - java
+  - spring
 cwe: CWE-489
 
 requests:

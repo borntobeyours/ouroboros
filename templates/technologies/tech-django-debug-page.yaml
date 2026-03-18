@@ -1,6 +1,10 @@
 name: Django Debug 404 Page
 description: Detects a Django application running with DEBUG=True. The verbose 404 page reveals installed URL patterns, middleware, installed apps, and system path information useful for further exploitation.
 severity: high
+tags:
+  - django
+  - generic
+  - python
 cwe: CWE-489
 
 requests:

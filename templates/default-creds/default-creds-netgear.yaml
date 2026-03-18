@@ -1,6 +1,8 @@
 name: Netgear Router Default Credentials
 description: Attempts to authenticate to Netgear router web management interface using default admin/password credentials. Successful access allows DNS hijacking, port forwarding changes, and network reconfiguration.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

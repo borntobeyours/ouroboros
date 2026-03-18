@@ -1,6 +1,8 @@
 name: Debug Information in Response
 description: Detects debug information in HTTP responses including environment details, configuration values, and internal system information that aids attackers in profiling the target.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

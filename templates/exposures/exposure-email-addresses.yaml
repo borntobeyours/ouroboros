@@ -1,6 +1,8 @@
 name: Bulk Email Address Exposure
 description: Detects bulk email address disclosure in HTTP responses. Mass exposure of email addresses can enable spam campaigns and targeted phishing attacks.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

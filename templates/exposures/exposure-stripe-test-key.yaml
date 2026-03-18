@@ -1,6 +1,8 @@
 name: Stripe Test API Key Exposure
 description: Detects exposed Stripe test API keys in HTTP responses. While test keys do not process real payments, their exposure reveals application patterns and may indicate poor secret management.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

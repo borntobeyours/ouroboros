@@ -1,6 +1,8 @@
 name: S3 Bucket Listing Enabled
 description: Detects publicly accessible S3 buckets with directory listing enabled. Listed buckets expose all stored file names and may allow unauthorized file downloads.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

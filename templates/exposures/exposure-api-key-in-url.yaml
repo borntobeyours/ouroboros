@@ -1,6 +1,8 @@
 name: API Key in URL Parameters
 description: Detects API keys passed as URL query parameters. API keys in URLs can be logged in server logs, proxies, and browser history, enabling unauthorized API access.
 severity: medium
+tags:
+  - generic
 cwe: CWE-598
 
 requests:

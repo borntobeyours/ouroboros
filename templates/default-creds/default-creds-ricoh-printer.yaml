@@ -1,6 +1,8 @@
 name: Ricoh Printer Default Credentials
 description: Attempts to authenticate to Ricoh printer web management interface using default admin account with empty password. Access exposes printer settings, address books, and stored documents.
 severity: medium
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

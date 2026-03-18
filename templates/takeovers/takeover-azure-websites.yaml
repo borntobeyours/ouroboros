@@ -1,6 +1,10 @@
 name: Azure App Service Subdomain Takeover
 description: Detects a dangling CNAME pointing to an Azure App Service web app that no longer exists. An attacker can register the same Azure App Service name and host malicious content under the victim's domain.
 severity: high
+tags:
+  - azure
+  - cloud
+  - generic
 cwe: CWE-116
 
 requests:

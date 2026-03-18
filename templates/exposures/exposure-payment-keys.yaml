@@ -1,6 +1,8 @@
 name: Payment Gateway Keys Exposure
 description: Detects payment gateway API keys and secrets in HTTP responses. Leaked payment keys enable unauthorized charges, refunds, and access to transaction data.
 severity: critical
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

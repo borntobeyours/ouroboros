@@ -1,6 +1,8 @@
 name: Algolia API Key Exposure
 description: Detects exposed Algolia API keys in HTTP responses. Leaked admin API keys allow modifying search indexes; leaked search keys may expose private data.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

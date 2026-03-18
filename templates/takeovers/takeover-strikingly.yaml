@@ -1,6 +1,8 @@
 name: Strikingly Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Strikingly-hosted site whose custom domain mapping has been removed. An attacker can create a Strikingly site and associate the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

@@ -1,6 +1,8 @@
 name: Cloudflare Pages Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Cloudflare Pages project that has been deleted. An attacker can create a new Cloudflare Pages project with the same name and associate it with the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

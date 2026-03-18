@@ -1,6 +1,8 @@
 name: Google OAuth Client Secret Exposure
 description: Detects exposed Google OAuth client secrets in HTTP responses. Leaked OAuth client secrets allow attackers to impersonate the application and hijack OAuth flows.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

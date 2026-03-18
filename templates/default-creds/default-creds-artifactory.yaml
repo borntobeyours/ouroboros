@@ -1,6 +1,8 @@
 name: JFrog Artifactory Default Credentials
 description: Attempts to authenticate to JFrog Artifactory using default admin/password credentials. Successful access enables artifact manipulation, supply chain attacks, and access to proprietary build artifacts.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

@@ -1,6 +1,8 @@
 name: OpenAPI with Internal Server URLs
 description: Detects OpenAPI/Swagger specifications containing internal server URLs. Internal URLs reveal network architecture and may provide direct access to backend services bypassing perimeter controls.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,8 @@
 name: Date of Birth Exposure
 description: Detects date of birth fields in API responses. Exposed birthdates are sensitive PII that can enable identity theft and account takeover via knowledge-based authentication.
 severity: medium
+tags:
+  - generic
 cwe: CWE-312
 
 requests:

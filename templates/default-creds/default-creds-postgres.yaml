@@ -1,6 +1,8 @@
 name: PostgreSQL Default Credentials
 description: Attempts to authenticate to PostgreSQL via web interfaces using the default postgres/postgres superuser credentials. Successful access grants full control over all databases.
 severity: critical
+tags:
+  - postgres
 cwe: CWE-1392
 
 requests:

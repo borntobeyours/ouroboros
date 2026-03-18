@@ -1,6 +1,8 @@
 name: HashiCorp Vault Default Root Token
 description: Detects HashiCorp Vault instances accessible with a known or default root token. Unauthenticated or default-token access exposes all stored secrets including API keys, certificates, and database credentials.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

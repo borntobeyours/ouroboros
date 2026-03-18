@@ -1,6 +1,8 @@
 name: MySQL Root/Root Default Credentials
 description: Checks for MySQL root account with password set to "root". This is a common misconfiguration in development environments promoted to production without credential hardening.
 severity: critical
+tags:
+  - mysql
 cwe: CWE-1392
 
 requests:

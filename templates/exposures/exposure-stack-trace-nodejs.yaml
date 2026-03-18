@@ -1,6 +1,9 @@
 name: Node.js Error Stack Disclosure
 description: Detects Node.js error stack traces in HTTP responses. Exposed Node.js stacks reveal module paths, file names, and application logic that assist in targeted exploitation.
 severity: medium
+tags:
+  - generic
+  - nodejs
 cwe: CWE-209
 
 requests:

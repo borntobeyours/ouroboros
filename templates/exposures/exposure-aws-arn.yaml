@@ -1,6 +1,9 @@
 name: AWS ARN Disclosure
 description: Detects exposed AWS ARNs (Amazon Resource Names) in HTTP responses. ARNs reveal account IDs, resource types, and names that can assist in AWS reconnaissance and privilege escalation.
 severity: low
+tags:
+  - aws
+  - cloud
 cwe: CWE-200
 
 requests:

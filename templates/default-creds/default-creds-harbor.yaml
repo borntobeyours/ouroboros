@@ -1,6 +1,8 @@
 name: Harbor Container Registry Default Credentials
 description: Attempts to authenticate to Harbor container registry using default admin/Harbor12345 credentials. Successful access enables manipulation of container images potentially introducing backdoored images into the supply chain.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

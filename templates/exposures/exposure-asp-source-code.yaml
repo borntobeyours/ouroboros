@@ -1,6 +1,8 @@
 name: ASP.NET Source Code Exposure
 description: Detects ASP.NET source code in HTTP responses. Exposed source code reveals business logic, database connection details, and security mechanisms.
 severity: high
+tags:
+  - generic
 cwe: CWE-540
 
 requests:

@@ -1,6 +1,8 @@
 name: Weebly Subdomain Takeover
 description: Detects a dangling CNAME pointing to a Weebly-hosted site that has been deleted or the custom domain mapping removed. An attacker can create a Weebly site and claim the victim's domain.
 severity: high
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

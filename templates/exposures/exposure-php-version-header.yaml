@@ -1,6 +1,9 @@
 name: PHP Version in X-Powered-By Header
 description: Detects PHP version information in the X-Powered-By HTTP response header. Disclosed PHP versions allow targeted exploitation of version-specific CVEs and insecure functions.
 severity: info
+tags:
+  - generic
+  - php
 cwe: CWE-200
 
 requests:

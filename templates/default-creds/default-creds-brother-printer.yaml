@@ -1,6 +1,8 @@
 name: Brother Printer Default Credentials
 description: Attempts to authenticate to Brother printer web management interface using default admin/access credentials. Access allows printer configuration, stored job access, and address book retrieval.
 severity: medium
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

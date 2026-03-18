@@ -1,6 +1,8 @@
 name: Firebase Database URL Exposure
 description: Detects exposed Firebase Realtime Database URLs in HTTP responses. Exposed Firebase URLs may allow unauthorized read or write access if security rules are misconfigured.
 severity: medium
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

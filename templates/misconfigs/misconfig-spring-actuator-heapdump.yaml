@@ -1,6 +1,9 @@
 name: Spring Boot Actuator /heapdump Endpoint Exposed
 description: The Spring Boot Actuator /heapdump endpoint is publicly accessible. An attacker can download a full JVM heap dump and extract sensitive data including plaintext credentials, session tokens, and cryptographic keys from memory.
 severity: critical
+tags:
+  - java
+  - spring
 cwe: CWE-200
 
 requests:

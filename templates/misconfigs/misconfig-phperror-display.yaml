@@ -1,6 +1,8 @@
 name: PHP Error Display Enabled
 description: PHP is configured with display_errors=On in production, causing detailed error messages to appear in browser responses. These reveal file paths, function names, database queries, and internal application logic.
 severity: medium
+tags:
+  - php
 cwe: CWE-209
 
 requests:

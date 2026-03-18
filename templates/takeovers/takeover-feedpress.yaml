@@ -1,6 +1,8 @@
 name: FeedPress Feed Subdomain Takeover
 description: Detects a dangling CNAME pointing to a FeedPress feed that has been deleted. An attacker can register the same feed slug on FeedPress and control the feed content served from the victim's subdomain.
 severity: medium
+tags:
+  - generic
 cwe: CWE-116
 
 requests:

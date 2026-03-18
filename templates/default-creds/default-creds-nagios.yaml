@@ -1,6 +1,8 @@
 name: Nagios Default Credentials
 description: Attempts to authenticate to Nagios monitoring system using default nagiosadmin/nagios credentials. Successful access exposes infrastructure topology, host/service configurations, and can trigger monitoring actions.
 severity: high
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

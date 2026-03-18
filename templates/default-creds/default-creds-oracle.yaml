@@ -1,6 +1,8 @@
 name: Oracle Database Default Credentials
 description: Attempts to authenticate to Oracle Database using default sys/change_on_install and system/manager credentials. These accounts ship with Oracle and provide full database administrator access.
 severity: critical
+tags:
+  - generic
 cwe: CWE-1392
 
 requests:

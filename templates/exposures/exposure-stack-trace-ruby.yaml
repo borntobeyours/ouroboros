@@ -1,6 +1,9 @@
 name: Ruby Backtrace Disclosure
 description: Detects Ruby backtraces in HTTP responses. Ruby backtraces expose gem paths, application structure, and code logic that aid in exploitation.
 severity: medium
+tags:
+  - generic
+  - ruby
 cwe: CWE-209
 
 requests:

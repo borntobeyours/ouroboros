@@ -1,6 +1,8 @@
 name: Open Redirect via url Parameter
 description: The application accepts an untrusted URL via the url query parameter and redirects users to it without validation. Attackers can use this for phishing, credential harvesting, or OAuth token theft.
 severity: medium
+tags:
+  - generic
 cwe: CWE-601
 
 requests:

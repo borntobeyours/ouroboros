@@ -1,6 +1,9 @@
 name: WordPress User Enumeration
 description: WordPress is vulnerable to user enumeration via the author parameter. By iterating the ?author=N parameter, attackers can discover valid usernames for use in targeted brute-force attacks.
 severity: low
+tags:
+  - php
+  - wordpress
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,10 @@
 name: Laravel APP_DEBUG Enabled
 description: Laravel application has APP_DEBUG=true set, which exposes detailed error pages including stack traces, environment variables, and application configuration.
 severity: high
+tags:
+  - generic
+  - laravel
+  - php
 cwe: CWE-489
 
 requests:

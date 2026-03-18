@@ -1,6 +1,8 @@
 name: PHP Local File Inclusion (LFI) Detection
 description: Probes for PHP Local File Inclusion vulnerabilities via common include/require parameters. Successful LFI allows reading arbitrary server files including /etc/passwd, SSH keys, application source code, and configuration files with credentials.
 severity: high
+tags:
+  - php
 cwe: CWE-98
 
 requests:

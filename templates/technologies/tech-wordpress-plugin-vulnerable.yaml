@@ -1,6 +1,9 @@
 name: WordPress Vulnerable Plugin Detection
 description: Detects installed WordPress plugins by checking for their readme.txt files which contain version information. Known vulnerable versions can be cross-referenced against the WPScan vulnerability database.
 severity: medium
+tags:
+  - php
+  - wordpress
 cwe: CWE-1035
 
 requests:

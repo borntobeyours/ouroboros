@@ -1,6 +1,9 @@
 name: Apache Directory Listing Enabled
 description: Apache web server has directory listing (Options Indexes) enabled, allowing attackers to browse directory contents and discover sensitive files, configuration files, and backup data.
 severity: medium
+tags:
+  - apache
+  - generic
 cwe: CWE-548
 
 requests:

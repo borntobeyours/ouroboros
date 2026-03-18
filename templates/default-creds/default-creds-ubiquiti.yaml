@@ -1,6 +1,8 @@
 name: Ubiquiti Network Device Default Credentials
 description: Attempts to authenticate to Ubiquiti UniFi or AirOS devices using default ubnt/ubnt credentials. Successful login enables network configuration changes and access to network topology data.
 severity: high
+tags:
+  - ubiquiti
 cwe: CWE-1392
 
 requests:

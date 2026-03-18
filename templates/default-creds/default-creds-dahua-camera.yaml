@@ -1,6 +1,8 @@
 name: Dahua IP Camera Default Credentials
 description: Attempts to authenticate to Dahua IP cameras and DVR/NVR systems using default admin/admin credentials. Successful access provides live video feed, recording access, and PTZ camera control.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:

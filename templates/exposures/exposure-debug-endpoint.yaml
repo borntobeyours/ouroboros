@@ -1,6 +1,8 @@
 name: Debug Endpoint with Sensitive Info
 description: Detects debug or diagnostic endpoints that expose sensitive runtime information including heap dumps, configuration, and system details in production environments.
 severity: high
+tags:
+  - generic
 cwe: CWE-200
 
 requests:

@@ -1,6 +1,10 @@
 name: Joomla Backup Files Exposed
 description: Detects publicly accessible Joomla backup archives. These files may contain the full application source code and database dumps including credentials, user data, and configuration secrets.
 severity: high
+tags:
+  - generic
+  - joomla
+  - php
 cwe: CWE-530
 
 requests:

@@ -1,6 +1,8 @@
 name: Session ID in URL
 description: Detects session IDs passed as URL parameters. Session IDs in URLs can be logged, bookmarked, or leaked via the Referer header, enabling session fixation and hijacking.
 severity: medium
+tags:
+  - generic
 cwe: CWE-598
 
 requests:

@@ -2,6 +2,9 @@ name: Jenkins Default Credentials
 description: Attempts to authenticate to Jenkins using default admin credentials. Jenkins installations without proper initial setup may retain default or auto-generated credentials that are trivially guessable.
 severity: critical
 cwe: CWE-1392
+tags:
+  - jenkins
+  - java
 
 requests:
   - method: POST

@@ -1,6 +1,8 @@
 name: Axis IP Camera Default Credentials
 description: Attempts to authenticate to Axis IP cameras using default root/pass credentials. Successful access enables live video feed access, camera configuration changes, and potential network pivoting.
 severity: high
+tags:
+  - iot
 cwe: CWE-1392
 
 requests:
