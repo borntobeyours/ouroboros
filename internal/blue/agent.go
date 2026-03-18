@@ -26,13 +26,14 @@ func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 }
 
 // Defend analyzes findings and generates patches.
-// For large finding sets, it batches into chunks to avoid timeouts.
+// For large finding sets, it batches into concurrent chunks.
 func (a *Agent) Defend(ctx context.Context, findings []types.Finding) ([]types.Patch, error) {
 	if len(findings) == 0 {
 		return nil, nil
 	}
 
 	const batchSize = 10
+	const maxConcurrent = 3 // Limit concurrent Claude Code processes
 
 	// Small batch: single call
 	if len(findings) <= batchSize {
@@ -40,30 +41,56 @@ func (a *Agent) Defend(ctx context.Context, findings []types.Finding) ([]types.P
 		return a.analyzeBatch(ctx, findings)
 	}
 
-	// Large batch: split into chunks
-	totalBatches := (len(findings) + batchSize - 1) / batchSize
-	a.logger.Printf("[BLUE] Analyzing %d findings in %d batches...", len(findings), totalBatches)
-
-	var allPatches []types.Patch
+	// Split into batches
+	var batches [][]types.Finding
 	for i := 0; i < len(findings); i += batchSize {
 		end := i + batchSize
 		if end > len(findings) {
 			end = len(findings)
 		}
-		batch := findings[i:end]
-		batchNum := (i / batchSize) + 1
-
-		a.logger.Printf("[BLUE] Batch %d/%d (%d findings)...", batchNum, totalBatches, len(batch))
-
-		patches, err := a.analyzeBatch(ctx, batch)
-		if err != nil {
-			a.logger.Printf("[BLUE] Warning: batch %d failed: %v (continuing)", batchNum, err)
-			continue // Don't fail the whole defense on one batch
-		}
-		allPatches = append(allPatches, patches...)
+		batches = append(batches, findings[i:end])
 	}
 
-	a.logger.Printf("[BLUE] Generated %d total patches from %d batches", len(allPatches), totalBatches)
+	a.logger.Printf("[BLUE] Analyzing %d findings in %d concurrent batches (max %d parallel)...", len(findings), len(batches), maxConcurrent)
+
+	// Run batches concurrently with semaphore
+	type batchResult struct {
+		patches []types.Patch
+		err     error
+		idx     int
+	}
+
+	results := make(chan batchResult, len(batches))
+	sem := make(chan struct{}, maxConcurrent)
+
+	for i, batch := range batches {
+		sem <- struct{}{} // Acquire semaphore
+		go func(idx int, b []types.Finding) {
+			defer func() { <-sem }() // Release semaphore
+
+			a.logger.Printf("[BLUE] Batch %d/%d started (%d findings)...", idx+1, len(batches), len(b))
+			patches, err := a.analyzeBatch(ctx, b)
+			if err != nil {
+				a.logger.Printf("[BLUE] Batch %d failed: %v", idx+1, err)
+			} else {
+				a.logger.Printf("[BLUE] Batch %d done: %d patches", idx+1, len(patches))
+			}
+			results <- batchResult{patches: patches, err: err, idx: idx}
+		}(i, batch)
+	}
+
+	// Collect results
+	var allPatches []types.Patch
+	succeeded := 0
+	for range batches {
+		r := <-results
+		if r.err == nil {
+			allPatches = append(allPatches, r.patches...)
+			succeeded++
+		}
+	}
+
+	a.logger.Printf("[BLUE] Generated %d patches (%d/%d batches succeeded)", len(allPatches), succeeded, len(batches))
 	return allPatches, nil
 }
 

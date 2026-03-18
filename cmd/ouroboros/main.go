@@ -139,11 +139,6 @@ Examples:
 				}
 			}
 
-			// Auto-skip Blue AI for claude-code provider (too slow via CLI)
-			if !cmd.Flags().Changed("skip-blue") && (provider == "claude-code" || provider == "claudecode" || provider == "claude") {
-				skipBlue = true
-			}
-
 			return runScan(targetURL, maxLoops, finalBoss, skipBlue, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
 		},
 	}
