@@ -1,0 +1,32 @@
+# Build artefacts
+*.o
+*.a
+*.so
+ouroboros
+
+# Test data and coverage
+testdata/
+*.test
+*.out
+coverage.html
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+
+# Scan results / local database
+results/
+*.db
+*.sarif
+*.html
+
+# Documentation
+*.md
+docs/
+
+# Docker files themselves (avoid recursive copy)
+Dockerfile
+docker-compose.yml
+.dockerignore

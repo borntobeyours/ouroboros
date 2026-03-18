@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,9 +9,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -18,7 +21,9 @@ import (
 	"github.com/borntobeyours/ouroboros/internal/ai"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
+	"github.com/borntobeyours/ouroboros/internal/compliance"
 	"github.com/borntobeyours/ouroboros/internal/engine"
+	"github.com/borntobeyours/ouroboros/internal/integrations"
 	"github.com/borntobeyours/ouroboros/internal/memory"
 	"github.com/borntobeyours/ouroboros/internal/notify"
 	"github.com/borntobeyours/ouroboros/internal/plugin"
@@ -100,6 +105,9 @@ func newScanCmd() *cobra.Command {
 		// Plugin flags
 		pluginsDir     string
 		disablePlugins bool
+		// Batch flags
+		targetsFile string
+		parallel    int
 	)
 
 	cmd := &cobra.Command{
@@ -115,27 +123,16 @@ Profiles:
 Examples:
   ouroboros scan http://target.com --profile quick
   ouroboros scan http://target.com --profile deep --min-confidence 50
-  ouroboros scan http://target.com --profile paranoid -o report.sarif`,
-		Args: cobra.ExactArgs(1),
+  ouroboros scan http://target.com --profile paranoid -o report.sarif
+  ouroboros scan --targets urls.txt --profile quick --parallel 3 --provider claude-code`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			targetURL := args[0]
+			if targetsFile == "" && len(args) == 0 {
+				return fmt.Errorf("provide a target URL or --targets file")
+			}
 			applyProfile(profile, cmd, &maxLoops, &finalBoss, &minConfidence, &minCVSS)
 			if rateLimit > 0 {
 				probers.SetRate(rateLimit)
-			}
-
-			// Determine recon config
-			rc := types.DefaultReconConfig()
-			if noRecon {
-				rc.Enabled = false
-			} else if cmd.Flags().Changed("recon") {
-				rc.Enabled = reconEnabled
-			} else {
-				// Default: enabled for domain targets, disabled for localhost/IP
-				rc.Enabled = shouldEnableRecon(targetURL)
-			}
-			if reconModules != "" {
-				rc.Modules = strings.Split(reconModules, ",")
 			}
 
 			// Build AuthConfig from flags
@@ -173,6 +170,35 @@ Examples:
 				pluginsDir:     pluginsDir,
 				disablePlugins: disablePlugins,
 			}
+
+			// Batch mode: --targets file provided
+			if targetsFile != "" {
+				targets, err := readTargetsFile(targetsFile)
+				if err != nil {
+					return err
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				sigCh := make(chan os.Signal, 1)
+				signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+				go func() { <-sigCh; cancel() }()
+				return runBatchScan(ctx, targets, parallel, maxLoops, finalBoss, skipBlue, verbose,
+					provider, model, output, minConfidence, minCVSS, sortBy, authCfg, opts)
+			}
+
+			// Single target mode
+			targetURL := args[0]
+			rc := types.DefaultReconConfig()
+			if noRecon {
+				rc.Enabled = false
+			} else if cmd.Flags().Changed("recon") {
+				rc.Enabled = reconEnabled
+			} else {
+				rc.Enabled = shouldEnableRecon(targetURL)
+			}
+			if reconModules != "" {
+				rc.Modules = strings.Split(reconModules, ",")
+			}
 			return runScan(targetURL, maxLoops, finalBoss, skipBlue, verbose, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, opts, rc)
 		},
 	}
@@ -209,6 +235,9 @@ Examples:
 	// Plugin flags
 	cmd.Flags().StringVar(&pluginsDir, "plugins-dir", "", "Directory to load custom YAML plugins from (default: ~/.ouroboros/plugins/)")
 	cmd.Flags().BoolVar(&disablePlugins, "disable-plugins", false, "Skip loading custom plugins")
+	// Batch flags
+	cmd.Flags().StringVar(&targetsFile, "targets", "", "File with one URL per line for batch scanning")
+	cmd.Flags().IntVar(&parallel, "parallel", 3, "Number of concurrent scans when using --targets")
 
 	return cmd
 }
@@ -398,21 +427,278 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 	return nil
 }
 
+// readTargetsFile parses a targets file, skipping blank lines and # comments.
+func readTargetsFile(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open targets file %q: %w", path, err)
+	}
+	defer f.Close()
+
+	var targets []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		targets = append(targets, line)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read targets file: %w", err)
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("no targets found in %q", path)
+	}
+	return targets, nil
+}
+
+// batchResult holds the outcome of scanning a single target in batch mode.
+type batchResult struct {
+	url      string
+	session  *types.ScanSession
+	findings []types.Finding
+	err      error
+}
+
+// runBatchScan scans multiple targets in parallel and prints an aggregate summary.
+func runBatchScan(
+	ctx context.Context,
+	targets []string,
+	parallel int,
+	maxLoops int,
+	finalBoss bool,
+	skipBlue bool,
+	verbose bool,
+	providerName, model, output string,
+	minConfidence int,
+	minCVSS float64,
+	sortBy string,
+	authCfg types.AuthConfig,
+	opts scanOpts,
+) error {
+	if parallel < 1 {
+		parallel = 1
+	}
+
+	reporter := report.NewReporter(true)
+	reporter.PrintBanner()
+	fmt.Printf("Batch scanning %d targets (parallelism: %d)\n\n", len(targets), parallel)
+
+	// Set up global throttle / plugins once before spawning goroutines to avoid
+	// concurrent modification of shared prober state.
+	if opts.rps > 0 {
+		probers.SetThrottleRPS(opts.rps)
+	} else if opts.rateProfile != "" {
+		probers.SetThrottleProfile(throttle.ParseProfile(opts.rateProfile))
+	}
+	if !opts.disablePlugins {
+		plugDir := opts.pluginsDir
+		if plugDir == "" {
+			plugDir = plugin.DefaultPluginsDir()
+		}
+		if pluginProbers, err := plugin.LoadPlugins(plugDir); err == nil && len(pluginProbers) > 0 {
+			probers.RegisterProbers(pluginProbers)
+		}
+	}
+
+	results := make([]batchResult, len(targets))
+	sem := make(chan struct{}, parallel)
+	var wg sync.WaitGroup
+
+	for i, target := range targets {
+		wg.Add(1)
+		i, target := i, target
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			fmt.Printf("[%d/%d] Scanning %s...\n", i+1, len(targets), target)
+
+			apiKey := resolveAPIKey(providerName)
+			aiProvider, err := ai.NewProvider(providerName, model, apiKey)
+			if err != nil {
+				results[i] = batchResult{url: target, err: err}
+				return
+			}
+
+			store, err := memory.NewStore("")
+			if err != nil {
+				results[i] = batchResult{url: target, err: err}
+				return
+			}
+			defer store.Close()
+
+			logger := log.New(os.Stderr, fmt.Sprintf("[batch:%s] ", target), log.LstdFlags)
+			redAgent := red.NewAgent(aiProvider, logger)
+			blueAgent := blue.NewAgent(aiProvider, logger)
+			var bossAgent *boss.Agent
+			if finalBoss {
+				bossAgent = boss.NewAgent(aiProvider, logger)
+			}
+			scanReporter := report.NewReporter(false)
+			eng := engine.NewEngine(redAgent, blueAgent, bossAgent, store, scanReporter, logger)
+
+			if opts.webhook != "" {
+				wfmt := notify.WebhookFormat(opts.webhookFmt)
+				n := notify.NewNotifier(notify.WebhookConfig{URL: opts.webhook, Format: wfmt})
+				eng.SetNotifier(n)
+			}
+
+			config := types.ScanConfig{
+				Target:     types.Target{URL: target},
+				MaxLoops:   maxLoops,
+				FinalBoss:  finalBoss,
+				SkipBlue:   skipBlue,
+				Verbose:    verbose,
+				Provider:   providerName,
+				Model:      model,
+				AuthConfig: authCfg,
+			}
+
+			session, err := eng.Run(ctx, config)
+			if err != nil {
+				results[i] = batchResult{url: target, err: err}
+				return
+			}
+
+			findings, err := store.GetSessionFindings(session.ID)
+			if err != nil {
+				results[i] = batchResult{url: target, session: session, err: err}
+				return
+			}
+			findings = filterFindings(findings, minConfidence, minCVSS)
+			sortFindings(findings, sortBy)
+
+			results[i] = batchResult{url: target, session: session, findings: findings}
+			fmt.Printf("[%d/%d] Done %s — %d finding(s)\n", i+1, len(targets), target, len(findings))
+
+			// Per-target report export
+			if output != "" {
+				ext := filepath.Ext(output)
+				base := strings.TrimSuffix(output, ext)
+				slug := sanitizeURLForFilename(target)
+				targetOutput := fmt.Sprintf("%s-%s%s", base, slug, ext)
+				if err := exportReport(targetOutput, findings, session); err != nil {
+					logger.Printf("Warning: export failed: %v", err)
+				} else {
+					fmt.Printf("  Report: %s\n", targetOutput)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	printBatchSummary(results, output)
+	return nil
+}
+
+// sanitizeURLForFilename converts a URL into a safe filename component.
+func sanitizeURLForFilename(rawURL string) string {
+	s := strings.TrimPrefix(rawURL, "https://")
+	s = strings.TrimPrefix(s, "http://")
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, ":", "-")
+	s = strings.ReplaceAll(s, ".", "-")
+	// Remove any remaining unsafe characters
+	var out []rune
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			out = append(out, r)
+		}
+	}
+	if len(out) == 0 {
+		return "target"
+	}
+	return string(out)
+}
+
+// printBatchSummary prints an aggregate table of all batch scan results.
+func printBatchSummary(results []batchResult, output string) {
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println("BATCH SCAN SUMMARY")
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Printf("%-40s  %8s  %8s  %5s  %5s  %6s  %3s\n",
+		"Target", "Findings", "Critical", "High", "Med", "Low", "Err")
+	fmt.Println(strings.Repeat("-", 80))
+
+	totalFindings := 0
+	totalErrors := 0
+	for _, r := range results {
+		if r.err != nil {
+			totalErrors++
+			fmt.Printf("%-40s  %8s  ERROR: %v\n", truncateTo(r.url, 40), "-", r.err)
+			continue
+		}
+		counts := map[types.Severity]int{}
+		for _, f := range r.findings {
+			sev := f.AdjustedSeverity
+			if sev == 0 {
+				sev = f.Severity
+			}
+			counts[sev]++
+		}
+		totalFindings += len(r.findings)
+		fmt.Printf("%-40s  %8d  %8d  %5d  %5d  %6d  %3s\n",
+			truncateTo(r.url, 40),
+			len(r.findings),
+			counts[types.SeverityCritical],
+			counts[types.SeverityHigh],
+			counts[types.SeverityMedium],
+			counts[types.SeverityLow],
+			"-",
+		)
+	}
+
+	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("Totals: %d targets, %d findings, %d errors\n",
+		len(results), totalFindings, totalErrors)
+
+	if output != "" {
+		ext := filepath.Ext(output)
+		base := strings.TrimSuffix(output, ext)
+		summaryPath := base + "-summary" + ext
+		fmt.Printf("\nCombined summary report: %s\n", summaryPath)
+		// Build combined findings list for export
+		var all []types.Finding
+		var firstSession *types.ScanSession
+		for _, r := range results {
+			if r.session != nil && firstSession == nil {
+				firstSession = r.session
+			}
+			all = append(all, r.findings...)
+		}
+		if firstSession != nil {
+			_ = exportReport(summaryPath, all, firstSession)
+		}
+	}
+}
+
+func truncateTo(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
+}
+
 func newReportCmd() *cobra.Command {
 	var (
-		sessionID     string
-		format        string
-		output        string
-		minConfidence int
-		minCVSS       float64
-		sortBy        string
+		sessionID            string
+		format               string
+		output               string
+		minConfidence        int
+		minCVSS              float64
+		sortBy               string
+		complianceFrameworks string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "View findings from a scan session",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReport(sessionID, format, output, minConfidence, minCVSS, sortBy)
+			return runReport(sessionID, format, output, minConfidence, minCVSS, sortBy, complianceFrameworks)
 		},
 	}
 
@@ -422,11 +708,12 @@ func newReportCmd() *cobra.Command {
 	cmd.Flags().IntVar(&minConfidence, "min-confidence", 0, "Minimum confidence score (0-100)")
 	cmd.Flags().Float64Var(&minCVSS, "min-cvss", 0, "Minimum CVSS score (0.0-10.0)")
 	cmd.Flags().StringVar(&sortBy, "sort", "cvss", "Sort by: cvss, confidence, severity")
+	cmd.Flags().StringVar(&complianceFrameworks, "compliance", "", "Map findings to compliance frameworks: owasp,pci,cis,nist (comma-separated)")
 
 	return cmd
 }
 
-func runReport(sessionID, format, output string, minConfidence int, minCVSS float64, sortBy string) error {
+func runReport(sessionID, format, output string, minConfidence int, minCVSS float64, sortBy, complianceFrameworks string) error {
 	store, err := memory.NewStore("")
 	if err != nil {
 		return fmt.Errorf("initialize store: %w", err)
@@ -471,6 +758,12 @@ func runReport(sessionID, format, output string, minConfidence int, minCVSS floa
 	findings = filterFindings(findings, minConfidence, minCVSS)
 	sortFindings(findings, sortBy)
 
+	// Apply compliance mappings if requested
+	if complianceFrameworks != "" {
+		frameworks := strings.Split(complianceFrameworks, ",")
+		compliance.MapFindings(findings, frameworks)
+	}
+
 	if output != "" {
 		return exportReport(output, findings, session)
 	}
@@ -483,6 +776,10 @@ func runReport(sessionID, format, output string, minConfidence int, minCVSS floa
 		fmt.Println("\nDetailed Findings:")
 		fmt.Println()
 		reporter.PrintFindings(findings, 0)
+	}
+
+	if complianceFrameworks != "" {
+		reporter.PrintComplianceSummary(findings)
 	}
 
 	return nil
@@ -1274,6 +1571,8 @@ func newCICmd() *cobra.Command {
 		failOn        string
 		minConfidence int
 		baseline      string
+		githubPR      int
+		githubRepo    string
 	)
 
 	cmd := &cobra.Command{
@@ -1289,11 +1588,12 @@ Exit codes:
 Examples:
   ouroboros ci http://staging.example.com --fail-on high
   ouroboros ci http://staging.example.com --fail-on critical -o results.sarif
-  ouroboros ci http://staging.example.com --baseline abc123 --fail-on high`,
+  ouroboros ci http://staging.example.com --baseline abc123 --fail-on high
+  ouroboros ci http://staging.example.com --github-pr 42 --github-repo owner/repo`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetURL := args[0]
-			return runCI(targetURL, maxLoops, provider, model, output, failOn, minConfidence, baseline)
+			return runCI(targetURL, maxLoops, provider, model, output, failOn, minConfidence, baseline, githubPR, githubRepo)
 		},
 	}
 
@@ -1304,11 +1604,13 @@ Examples:
 	cmd.Flags().StringVar(&failOn, "fail-on", "high", "Fail threshold: critical, high, medium, low, info")
 	cmd.Flags().IntVar(&minConfidence, "min-confidence", 50, "Only count findings with this confidence+")
 	cmd.Flags().StringVar(&baseline, "baseline", "", "Baseline session — only fail on NEW findings")
+	cmd.Flags().IntVar(&githubPR, "github-pr", 0, "GitHub PR number to post scan summary as a comment")
+	cmd.Flags().StringVar(&githubRepo, "github-repo", "", "GitHub repository in owner/repo format for PR comments")
 
 	return cmd
 }
 
-func runCI(targetURL string, maxLoops int, providerName, model, output, failOn string, minConf int, baselineID string) error {
+func runCI(targetURL string, maxLoops int, providerName, model, output, failOn string, minConf int, baselineID string, githubPR int, githubRepo string) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1410,6 +1712,19 @@ func runCI(targetURL string, maxLoops int, providerName, model, output, failOn s
 	fmt.Printf("Findings:  %d (confidence >= %d%%)\n", len(findings), minConf)
 	fmt.Printf("Threshold: %s\n", failOn)
 	fmt.Printf("Failing:   %d findings at %s or above\n", failCount, failOn)
+
+	// Post GitHub PR comment if configured
+	if githubPR > 0 && githubRepo != "" {
+		ghClient := integrations.NewGitHubClient(integrations.GitHubConfig{
+			Repo:     githubRepo,
+			PRNumber: githubPR,
+		})
+		if err := ghClient.PostPRComment(findings, session, threshold, failCount, nil); err != nil {
+			logger.Printf("Warning: GitHub PR comment failed: %v", err)
+		} else {
+			fmt.Printf("📝 Posted scan summary to PR #%d\n", githubPR)
+		}
+	}
 
 	if failCount > 0 {
 		fmt.Printf("\n❌ FAILED — %d finding(s) at %s severity or above\n", failCount, failOn)

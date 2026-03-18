@@ -135,6 +135,16 @@ func (r *Reporter) printFinding(f types.Finding) {
 	if f.ExfiltratedData != "" {
 		color.New(color.FgRed).Printf("    Data Exfiltrated: %s\n", truncateStr(f.ExfiltratedData, 200))
 	}
+	if len(f.Compliance) > 0 {
+		fmt.Printf("    Compliance: ")
+		for i, m := range f.Compliance {
+			if i > 0 {
+				fmt.Printf(", ")
+			}
+			fmt.Printf("%s %s", m.Framework, m.RequirementID)
+		}
+		fmt.Println()
+	}
 }
 
 func truncateStr(s string, max int) string {
@@ -182,6 +192,52 @@ func (r *Reporter) PrintBossResults(findings []types.Finding) {
 	for _, f := range findings {
 		r.printFinding(f)
 	}
+}
+
+// PrintComplianceSummary prints an aggregate compliance mapping table for all
+// findings that have compliance data attached.
+func (r *Reporter) PrintComplianceSummary(findings []types.Finding) {
+	// Collect unique requirement IDs per framework.
+	type reqKey struct {
+		framework string
+		id        string
+	}
+	seen := make(map[reqKey]types.ComplianceMapping)
+	for _, f := range findings {
+		for _, m := range f.Compliance {
+			k := reqKey{framework: string(m.Framework), id: m.RequirementID}
+			if _, ok := seen[k]; !ok {
+				seen[k] = m
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return
+	}
+
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	color.New(color.Bold).Println("COMPLIANCE MAPPINGS")
+	fmt.Println(strings.Repeat("=", 60))
+
+	// Group by framework for readability.
+	grouped := make(map[string][]types.ComplianceMapping)
+	for _, m := range seen {
+		grouped[string(m.Framework)] = append(grouped[string(m.Framework)], m)
+	}
+	for _, fw := range []string{
+		"OWASP Top 10 2021", "PCI DSS v4.0", "CIS Controls v8", "NIST 800-53",
+	} {
+		mappings, ok := grouped[fw]
+		if !ok {
+			continue
+		}
+		color.New(color.FgCyan, color.Bold).Printf("\n%s\n", fw)
+		for _, m := range mappings {
+			fmt.Printf("  %-12s %s\n", m.RequirementID, m.RequirementName)
+		}
+	}
+	fmt.Println()
 }
 
 func (r *Reporter) PrintError(msg string) {
@@ -326,6 +382,15 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 		}
 		if f.Remediation != "" {
 			sb.WriteString(fmt.Sprintf("**Remediation:** %s\n\n", f.Remediation))
+		}
+		if len(f.Compliance) > 0 {
+			sb.WriteString("**Compliance Mappings:**\n\n")
+			sb.WriteString("| Framework | Requirement ID | Requirement Name |\n")
+			sb.WriteString("|-----------|---------------|------------------|\n")
+			for _, m := range f.Compliance {
+				sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", m.Framework, m.RequirementID, m.RequirementName))
+			}
+			sb.WriteString("\n")
 		}
 		sb.WriteString("---\n\n")
 	}

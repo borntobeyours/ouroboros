@@ -52,8 +52,9 @@ type Finding struct {
 	Confirmed        bool       `json:"confirmed"`
 	ExploitEvidence  string     `json:"exploit_evidence,omitempty"`
 	ExfiltratedData  string     `json:"exfiltrated_data,omitempty"`
-	FoundAt          time.Time  `json:"found_at"`
-	Loop             int        `json:"loop"`
+	FoundAt          time.Time         `json:"found_at"`
+	Loop             int               `json:"loop"`
+	Compliance       []ComplianceMapping `json:"compliance,omitempty"`
 }
 
 // AdjustSeverity recalculates severity based on confidence.

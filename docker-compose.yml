@@ -1,0 +1,41 @@
+# Ouroboros — docker-compose.yml
+#
+# Usage examples:
+#
+#   Single scan:
+#     docker compose run --rm scanner scan http://target.example.com --profile quick
+#
+#   Batch scan from file:
+#     docker compose run --rm scanner scan --targets /data/urls.txt --parallel 3
+#
+#   CI mode:
+#     docker compose run --rm scanner ci http://staging.example.com --fail-on high
+#
+#   View recent sessions:
+#     docker compose run --rm scanner report
+
+services:
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouroboros:latest
+
+    # Mount a local directory so scan results (SQLite DB, exported reports) persist
+    # between runs.  Create the directory first: mkdir -p ./results
+    volumes:
+      - ./results:/data
+
+    # API keys — set these in a .env file or export them in your shell before
+    # running docker compose.
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+
+    # Ouroboros writes the SQLite database to the working directory (/data).
+    working_dir: /data
+
+    # Do not restart automatically — each run is a one-shot command.
+    restart: "no"
