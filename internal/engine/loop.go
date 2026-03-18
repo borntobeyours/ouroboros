@@ -193,7 +193,10 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		}
 
 		// === DEFEND PHASE ===
-		if len(newFindings) > 0 {
+		if config.SkipBlue && len(newFindings) > 0 {
+			e.logger.Printf("[ENGINE] Blue AI skipped (--skip-blue / claude-code provider)")
+		}
+		if len(newFindings) > 0 && !config.SkipBlue {
 			progress.SetPhase("Defending")
 			progress.SetStep("Blue AI analyzing...")
 

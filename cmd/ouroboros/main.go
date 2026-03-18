@@ -73,6 +73,7 @@ func newScanCmd() *cobra.Command {
 		authToken   string
 		authHeaders []string
 		authCookies []string
+		skipBlue    bool
 	)
 
 	cmd := &cobra.Command{
@@ -138,13 +139,19 @@ Examples:
 				}
 			}
 
-			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
+			// Auto-skip Blue AI for claude-code provider (too slow via CLI)
+			if !cmd.Flags().Changed("skip-blue") && (provider == "claude-code" || provider == "claudecode" || provider == "claude") {
+				skipBlue = true
+			}
+
+			return runScan(targetURL, maxLoops, finalBoss, skipBlue, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
 		},
 	}
 
 	cmd.Flags().StringVar(&profile, "profile", "", "Scan profile: quick, deep, paranoid")
 	cmd.Flags().IntVar(&maxLoops, "max-loops", 3, "Maximum number of attack-fix loops")
 	cmd.Flags().BoolVar(&finalBoss, "final-boss", false, "Enable Final Boss validation after convergence")
+	cmd.Flags().BoolVar(&skipBlue, "skip-blue", false, "Skip Blue AI defense analysis (auto-enabled for claude-code provider)")
 	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model to use")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Export report to file (.json, .md, .sarif, .html)")
@@ -223,7 +230,7 @@ func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *
 	}
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -278,6 +285,7 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 		Target:     types.Target{URL: targetURL},
 		MaxLoops:   maxLoops,
 		FinalBoss:  finalBoss,
+		SkipBlue:   skipBlue,
 		Provider:   providerName,
 		Model:      model,
 		AuthConfig: authCfg,
@@ -824,7 +832,7 @@ Examples:
 							strings.TrimSuffix(scanOutput, ext), sub.Name, ext)
 					}
 
-					err := runScan(targetURL, maxLoops, finalBoss, scanProvider, scanModel,
+					err := runScan(targetURL, maxLoops, finalBoss, false, scanProvider, scanModel,
 						subOutput, minConfidence, minCVSS, "cvss", types.AuthConfig{})
 					if err != nil {
 						fmt.Printf("  \033[31m✗ Error scanning %s: %v\033[0m\n\n", sub.Name, err)

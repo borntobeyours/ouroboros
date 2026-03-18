@@ -82,6 +82,7 @@ type ScanConfig struct {
 	Target      Target      `json:"target"`
 	MaxLoops    int         `json:"max_loops"`
 	FinalBoss   bool        `json:"final_boss"`
+	SkipBlue    bool        `json:"skip_blue"`
 	Provider    string      `json:"provider"`
 	Model       string      `json:"model"`
 	ReconConfig ReconConfig `json:"recon_config,omitempty"`
