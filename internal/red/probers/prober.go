@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/borntobeyours/ouroboros/internal/auth"
+	"github.com/borntobeyours/ouroboros/internal/throttle"
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
@@ -98,6 +99,31 @@ type ProberConfig struct {
 // running probers. It is thread-safe via AuthSession's own mutex.
 var currentAuthSession *auth.AuthSession
 
+// globalThrottle is the optional stealth limiter. When set it takes precedence
+// over globalRateLimiter for both timing and UA rotation.
+var globalThrottle *throttle.Limiter
+
+// extraProbers holds plugin-supplied probers registered at startup.
+var extraProbers []Prober
+
+// SetThrottleProfile configures the global stealth throttle using a named profile.
+// Call this before running any scans.
+func SetThrottleProfile(p throttle.Profile) {
+	globalThrottle = throttle.New(p)
+}
+
+// SetThrottleRPS configures the global stealth throttle with a custom RPS.
+// 0 = unlimited. Jitter is not applied when using this function directly.
+func SetThrottleRPS(rps float64) {
+	globalThrottle = throttle.NewWithRPS(rps)
+}
+
+// RegisterProbers appends additional probers (e.g. from the plugin system) to
+// the built-in set. Safe to call before any scan starts.
+func RegisterProbers(ps []Prober) {
+	extraProbers = append(extraProbers, ps...)
+}
+
 // SetAuthSession stores the global auth session so all probers pick it up.
 func SetAuthSession(s *auth.AuthSession) {
 	currentAuthSession = s
@@ -172,13 +198,21 @@ func (c *ProberConfig) IsSPAResponse(url string) bool {
 
 // DoRequest sends an HTTP request with rate limiting and UA rotation.
 func (c *ProberConfig) DoRequest(method, url string, body io.Reader, headers map[string]string) (int, http.Header, string, error) {
-	globalRateLimiter.wait()
+	if globalThrottle != nil {
+		globalThrottle.Wait()
+	} else {
+		globalRateLimiter.wait()
+	}
 
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return 0, nil, "", err
 	}
-	req.Header.Set("User-Agent", randomUA())
+	ua := randomUA()
+	if globalThrottle != nil {
+		ua = globalThrottle.NextUserAgent()
+	}
+	req.Header.Set("User-Agent", ua)
 	if c.AuthToken != "" {
 		req.Header.Set("Authorization", c.AuthToken)
 	}
@@ -268,9 +302,9 @@ func MakeFinding(title, severity, desc, endpoint, method, cwe, poc, evidence, te
 	return f
 }
 
-// AllProbers returns all registered probers.
+// AllProbers returns all built-in probers plus any registered plugin probers.
 func AllProbers() []Prober {
-	return []Prober{
+	builtin := []Prober{
 		&SQLiProber{},
 		&XSSProber{},
 		&IDORProber{},
@@ -284,6 +318,13 @@ func AllProbers() []Prober {
 		&CryptoProber{},
 		&AdditionalProber{},
 	}
+	if len(extraProbers) == 0 {
+		return builtin
+	}
+	all := make([]Prober, 0, len(builtin)+len(extraProbers))
+	all = append(all, builtin...)
+	all = append(all, extraProbers...)
+	return all
 }
 
 // RunAllProbers runs every prober against the target and returns combined findings.

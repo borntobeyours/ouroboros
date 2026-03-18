@@ -2,28 +2,32 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
-
-	"encoding/json"
 
 	"github.com/borntobeyours/ouroboros/internal/ai"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/engine"
 	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/internal/notify"
+	"github.com/borntobeyours/ouroboros/internal/plugin"
 	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
 	"github.com/borntobeyours/ouroboros/internal/red/probers"
 	"github.com/borntobeyours/ouroboros/internal/report"
+	"github.com/borntobeyours/ouroboros/internal/scheduler"
+	"github.com/borntobeyours/ouroboros/internal/throttle"
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
@@ -44,10 +48,22 @@ func main() {
 	rootCmd.AddCommand(newDiffCmd())
 	rootCmd.AddCommand(newCICmd())
 	rootCmd.AddCommand(newReconCmd())
+	rootCmd.AddCommand(newPluginsCmd())
+	rootCmd.AddCommand(newScheduleCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// scanOpts carries the optional feature flags added in the second generation of CLI flags.
+type scanOpts struct {
+	webhook        string
+	webhookFmt     string
+	rateProfile    string
+	rps            float64
+	pluginsDir     string
+	disablePlugins bool
 }
 
 func newScanCmd() *cobra.Command {
@@ -75,6 +91,15 @@ func newScanCmd() *cobra.Command {
 		authHeaders []string
 		authCookies []string
 		skipBlue    bool
+		// Webhook flags
+		webhookURL string
+		webhookFmt string
+		// Throttle flags
+		rateLimitProfile string
+		customRPS        float64
+		// Plugin flags
+		pluginsDir     string
+		disablePlugins bool
 	)
 
 	cmd := &cobra.Command{
@@ -140,7 +165,15 @@ Examples:
 				}
 			}
 
-			return runScan(targetURL, maxLoops, finalBoss, skipBlue, verbose, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
+			opts := scanOpts{
+				webhook:        webhookURL,
+				webhookFmt:     webhookFmt,
+				rateProfile:    rateLimitProfile,
+				rps:            customRPS,
+				pluginsDir:     pluginsDir,
+				disablePlugins: disablePlugins,
+			}
+			return runScan(targetURL, maxLoops, finalBoss, skipBlue, verbose, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, opts, rc)
 		},
 	}
 
@@ -167,6 +200,15 @@ Examples:
 	cmd.Flags().StringVar(&authToken, "auth-token", "", "Direct bearer token")
 	cmd.Flags().StringArrayVar(&authHeaders, "auth-header", nil, "Custom auth header 'Name: Value' (repeatable)")
 	cmd.Flags().StringArrayVar(&authCookies, "auth-cookie", nil, "Custom cookie 'name=value' (repeatable)")
+	// Webhook flags
+	cmd.Flags().StringVar(&webhookURL, "webhook", "", "Webhook URL to notify on scan completion (Discord/Slack/generic)")
+	cmd.Flags().StringVar(&webhookFmt, "webhook-format", "", "Webhook payload format: discord, slack, json (auto-detected from URL)")
+	// Throttle flags
+	cmd.Flags().StringVar(&rateLimitProfile, "rate-limit", "", "Throttle profile: aggressive, normal, stealth, paranoid-stealth")
+	cmd.Flags().Float64Var(&customRPS, "rps", 0, "Custom requests per second (overrides --rate-limit)")
+	// Plugin flags
+	cmd.Flags().StringVar(&pluginsDir, "plugins-dir", "", "Directory to load custom YAML plugins from (default: ~/.ouroboros/plugins/)")
+	cmd.Flags().BoolVar(&disablePlugins, "disable-plugins", false, "Skip loading custom plugins")
 
 	return cmd
 }
@@ -227,7 +269,7 @@ func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *
 	}
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verbose bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verbose bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, opts scanOpts, reconCfg ...types.ReconConfig) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -262,6 +304,29 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 	}
 	defer store.Close()
 
+	// Apply throttle / stealth profile
+	if opts.rps > 0 {
+		probers.SetThrottleRPS(opts.rps)
+	} else if opts.rateProfile != "" {
+		probers.SetThrottleProfile(throttle.ParseProfile(opts.rateProfile))
+	}
+
+	// Load custom plugins (non-fatal)
+	if !opts.disablePlugins {
+		plugDir := opts.pluginsDir
+		if plugDir == "" {
+			plugDir = plugin.DefaultPluginsDir()
+		}
+		pluginProbers, plugErr := plugin.LoadPlugins(plugDir)
+		if plugErr != nil {
+			logger.Printf("[PLUGINS] Warning: %v", plugErr)
+		}
+		if len(pluginProbers) > 0 {
+			probers.RegisterProbers(pluginProbers)
+			logger.Printf("[PLUGINS] Loaded %d custom plugin(s)", len(pluginProbers))
+		}
+	}
+
 	// Initialize agents
 	redAgent := red.NewAgent(aiProvider, logger)
 	blueAgent := blue.NewAgent(aiProvider, logger)
@@ -276,6 +341,16 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 
 	// Initialize engine
 	eng := engine.NewEngine(redAgent, blueAgent, bossAgent, store, reporter, logger)
+
+	// Attach webhook notifier if requested (non-fatal)
+	if opts.webhook != "" {
+		wfmt := notify.WebhookFormat(opts.webhookFmt)
+		n := notify.NewNotifier(notify.WebhookConfig{
+			URL:    opts.webhook,
+			Format: wfmt,
+		})
+		eng.SetNotifier(n)
+	}
 
 	// Build scan config
 	config := types.ScanConfig{
@@ -1006,7 +1081,7 @@ Examples:
 					}
 
 					err := runScan(targetURL, maxLoops, finalBoss, false, false, scanProvider, scanModel,
-						subOutput, minConfidence, minCVSS, "cvss", types.AuthConfig{})
+						subOutput, minConfidence, minCVSS, "cvss", types.AuthConfig{}, scanOpts{})
 					if err != nil {
 						fmt.Printf("  \033[31m✗ Error scanning %s: %v\033[0m\n\n", sub.Name, err)
 						continue
@@ -1352,4 +1427,321 @@ func runCI(targetURL string, maxLoops int, providerName, model, output, failOn s
 
 	fmt.Println("\n✅ PASSED — no findings at or above threshold")
 	return nil
+}
+
+// ============================================================
+// PLUGINS COMMAND — Manage custom YAML probers
+// ============================================================
+
+func newPluginsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plugins",
+		Short: "Manage custom YAML plugin probers",
+	}
+	cmd.AddCommand(newPluginsListCmd())
+	cmd.AddCommand(newPluginsValidateCmd())
+	return cmd
+}
+
+func newPluginsListCmd() *cobra.Command {
+	var pluginsDir string
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List loaded custom plugins",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := pluginsDir
+			if dir == "" {
+				dir = plugin.DefaultPluginsDir()
+			}
+			proberList, err := plugin.LoadPlugins(dir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			}
+			if len(proberList) == 0 {
+				fmt.Printf("No plugins found in %s\n", dir)
+				fmt.Println("Create *.yaml files there to add custom probers.")
+				fmt.Println("See examples/plugins/ for the file format.")
+				return nil
+			}
+			fmt.Printf("Plugins loaded from %s:\n\n", dir)
+			for _, p := range proberList {
+				fmt.Printf("  %s\n", p.Name())
+			}
+			fmt.Printf("\n%d plugin(s) total\n", len(proberList))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&pluginsDir, "plugins-dir", "", "Plugin directory (default: ~/.ouroboros/plugins/)")
+	return cmd
+}
+
+func newPluginsValidateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validate <file.yaml>",
+		Short: "Validate a plugin YAML file",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			def, err := plugin.ParsePluginFile(data)
+			if err != nil {
+				return fmt.Errorf("parse error: %w", err)
+			}
+			if err := plugin.ValidatePluginDef(def); err != nil {
+				return fmt.Errorf("validation failed: %w", err)
+			}
+			fmt.Printf("✅ Plugin valid: %q\n", def.Name)
+			fmt.Printf("   Description: %s\n", def.Description)
+			fmt.Printf("   Severity:    %s\n", def.Severity)
+			fmt.Printf("   CWE:         %s\n", def.CWE)
+			fmt.Printf("   Requests:    %d\n", len(def.Requests))
+			fmt.Printf("   Matchers:    %d\n", len(def.Matchers))
+			fmt.Printf("   Extractors:  %d\n", len(def.Extractors))
+			return nil
+		},
+	}
+	return cmd
+}
+
+// ============================================================
+// SCHEDULE COMMAND — Recurring scan scheduling
+// ============================================================
+
+func newScheduleCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "schedule",
+		Short: "Manage recurring scan schedules",
+		Long: `Schedule recurring scans using cron expressions.
+
+Examples:
+  ouroboros schedule add --target http://example.com --cron '@daily'
+  ouroboros schedule add --target http://example.com --cron '0 */6 * * *' --webhook https://...
+  ouroboros schedule list
+  ouroboros schedule remove 1
+  ouroboros schedule run`,
+	}
+	cmd.AddCommand(newScheduleAddCmd())
+	cmd.AddCommand(newScheduleListCmd())
+	cmd.AddCommand(newScheduleRemoveCmd())
+	cmd.AddCommand(newScheduleRunCmd())
+	return cmd
+}
+
+func newScheduleAddCmd() *cobra.Command {
+	var (
+		target   string
+		profile  string
+		provider string
+		model    string
+		cron     string
+		webhook  string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add a recurring scan schedule",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if target == "" {
+				return fmt.Errorf("--target is required")
+			}
+			if cron == "" {
+				return fmt.Errorf("--cron is required")
+			}
+			if profile == "" {
+				profile = "deep"
+			}
+			if provider == "" {
+				provider = "anthropic"
+			}
+			if model == "" {
+				model = "claude-sonnet-4-20250514"
+			}
+
+			store, err := memory.NewStore("")
+			if err != nil {
+				return fmt.Errorf("initialize store: %w", err)
+			}
+			defer store.Close()
+
+			r := scheduler.NewRunner(store.DB(), nil)
+			cfg := scheduler.ScheduleConfig{
+				Target:   target,
+				Profile:  profile,
+				Provider: provider,
+				Model:    model,
+				Cron:     cron,
+				Webhook:  webhook,
+			}
+			id, err := r.AddSchedule(context.Background(), cfg)
+			if err != nil {
+				return fmt.Errorf("add schedule: %w", err)
+			}
+			fmt.Printf("✅ Schedule #%d added\n", id)
+			fmt.Printf("   Target:  %s\n", target)
+			fmt.Printf("   Cron:    %s\n", cron)
+			fmt.Printf("   Profile: %s\n", profile)
+			if webhook != "" {
+				fmt.Printf("   Webhook: %s\n", webhook)
+			}
+			fmt.Println("\nRun 'ouroboros schedule run' to start the scheduler daemon.")
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&target, "target", "", "Target URL to scan (required)")
+	cmd.Flags().StringVar(&cron, "cron", "", "Cron expression: @daily, @hourly, or '0 * * * *' (required)")
+	cmd.Flags().StringVar(&profile, "profile", "deep", "Scan profile: quick, deep, paranoid")
+	cmd.Flags().StringVar(&provider, "provider", "anthropic", "AI provider")
+	cmd.Flags().StringVar(&model, "model", "claude-sonnet-4-20250514", "AI model")
+	cmd.Flags().StringVar(&webhook, "webhook", "", "Webhook URL for notifications")
+	return cmd
+}
+
+func newScheduleListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List all configured schedules",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := memory.NewStore("")
+			if err != nil {
+				return fmt.Errorf("initialize store: %w", err)
+			}
+			defer store.Close()
+
+			r := scheduler.NewRunner(store.DB(), nil)
+			schedules, err := r.ListSchedules()
+			if err != nil {
+				return fmt.Errorf("list schedules: %w", err)
+			}
+			if len(schedules) == 0 {
+				fmt.Println("No schedules configured.")
+				fmt.Println("Use 'ouroboros schedule add' to create one.")
+				return nil
+			}
+			fmt.Printf("%-4s  %-30s  %-20s  %-10s  %s\n", "ID", "Target", "Cron", "Profile", "Webhook")
+			fmt.Println(strings.Repeat("-", 90))
+			for _, s := range schedules {
+				wh := s.Webhook
+				if len(wh) > 30 {
+					wh = wh[:27] + "..."
+				}
+				tgt := s.Target
+				if len(tgt) > 28 {
+					tgt = tgt[:25] + "..."
+				}
+				fmt.Printf("%-4d  %-30s  %-20s  %-10s  %s\n", s.ID, tgt, s.Cron, s.Profile, wh)
+			}
+			return nil
+		},
+	}
+}
+
+func newScheduleRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <id>",
+		Short: "Remove a schedule by ID",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid schedule ID %q: %w", args[0], err)
+			}
+
+			store, err := memory.NewStore("")
+			if err != nil {
+				return fmt.Errorf("initialize store: %w", err)
+			}
+			defer store.Close()
+
+			r := scheduler.NewRunner(store.DB(), nil)
+			if err := r.RemoveSchedule(id); err != nil {
+				return fmt.Errorf("remove schedule: %w", err)
+			}
+			fmt.Printf("✅ Schedule #%d removed\n", id)
+			return nil
+		},
+	}
+}
+
+func newScheduleRunCmd() *cobra.Command {
+	var daemon bool
+
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "Start the scheduler daemon",
+		Long: `Start the scheduler daemon and run configured schedules.
+
+The daemon runs in the foreground by default. Use --daemon to background it.
+Each scheduled scan creates a new session accessible via 'ouroboros report'.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := memory.NewStore("")
+			if err != nil {
+				return fmt.Errorf("initialize store: %w", err)
+			}
+			defer store.Close()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+			go func() {
+				<-sigCh
+				fmt.Println("\nShutting down scheduler...")
+				cancel()
+			}()
+
+			// scanFn is called by the scheduler for each fired job.
+			scanFn := func(cfg scheduler.ScheduleConfig) (string, error) {
+				logger := log.New(os.Stderr, fmt.Sprintf("[schedule#%d] ", cfg.ID), log.LstdFlags)
+				logger.Printf("Starting scheduled scan: %s", cfg.Target)
+				opts := scanOpts{}
+				if cfg.Webhook != "" {
+					opts.webhook = cfg.Webhook
+				}
+				err := runScan(cfg.Target, 3, false, false, false,
+					cfg.Provider, cfg.Model, "", 0, 0, "cvss",
+					types.AuthConfig{}, opts)
+				if err != nil {
+					logger.Printf("Scheduled scan failed: %v", err)
+					return "", err
+				}
+				return "", nil
+			}
+
+			r := scheduler.NewRunner(store.DB(), scanFn)
+
+			schedules, err := r.ListSchedules()
+			if err != nil {
+				return fmt.Errorf("load schedules: %w", err)
+			}
+			if len(schedules) == 0 {
+				fmt.Println("No schedules configured. Use 'ouroboros schedule add' to create one.")
+				return nil
+			}
+
+			fmt.Printf("Ouroboros scheduler started with %d job(s). Press Ctrl+C to stop.\n", len(schedules))
+			for _, s := range schedules {
+				fmt.Printf("  #%d  %s  [%s]\n", s.ID, s.Target, s.Cron)
+			}
+			fmt.Println()
+
+			if daemon {
+				// Background: hand off to Start and return immediately.
+				go func() { _ = r.Start(ctx) }()
+				fmt.Println("Scheduler running in background.")
+				// In a real daemon you would detach the process; here we just run.
+				<-ctx.Done()
+				return nil
+			}
+
+			return r.Start(ctx)
+		},
+	}
+
+	cmd.Flags().BoolVar(&daemon, "daemon", false, "Run scheduler in background")
+	return cmd
 }

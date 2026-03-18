@@ -113,6 +113,17 @@ func (s *Store) migrate() error {
 		created_at DATETIME NOT NULL
 	);
 
+	CREATE TABLE IF NOT EXISTS schedules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		target TEXT NOT NULL,
+		profile TEXT NOT NULL DEFAULT 'deep',
+		provider TEXT NOT NULL DEFAULT 'anthropic',
+		model TEXT NOT NULL DEFAULT 'claude-sonnet-4-20250514',
+		cron TEXT NOT NULL,
+		webhook TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_findings_session ON findings(session_id);
 	CREATE INDEX IF NOT EXISTS idx_findings_technique ON findings(technique);
 	CREATE INDEX IF NOT EXISTS idx_playbooks_technique ON playbooks(technique);
@@ -267,6 +278,12 @@ func (s *Store) ListSessions(limit int) ([]types.ScanSession, error) {
 		sessions = append(sessions, session)
 	}
 	return sessions, rows.Err()
+}
+
+// DB returns the underlying *sql.DB so other packages (e.g. scheduler) can
+// reuse the same connection without opening a second database file.
+func (s *Store) DB() *sql.DB {
+	return s.db
 }
 
 // Close closes the database.

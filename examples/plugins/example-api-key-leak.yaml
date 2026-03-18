@@ -1,0 +1,55 @@
+# Ouroboros plugin — detects exposed API keys in HTTP responses.
+# Place this file in ~/.ouroboros/plugins/ to enable it.
+#
+# Format reference:
+#   name        — display name shown in findings
+#   description — human-readable explanation
+#   severity    — info | low | medium | high | critical
+#   cwe         — CWE identifier
+#   requests    — list of HTTP requests to issue
+#   matchers    — response patterns that indicate a vulnerability
+#   extractors  — optional regex groups to capture from the response
+
+name: API Key Exposure
+description: Detects API keys, tokens, and secrets accidentally exposed in HTTP responses or configuration endpoints.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /api/v1/config
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /config
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /api/config
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /env
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /api/settings
+    headers:
+      Accept: application/json
+
+matchers:
+  - regex: "(api[_-]?key|apikey|api[_-]?secret)[\"']?\\s*[:=]\\s*[\"']?[a-zA-Z0-9_\\-]{16,}"
+  - regex: "sk-[a-zA-Z0-9]{48}"
+  - regex: "(password|passwd|pwd)[\"']?\\s*[:=]\\s*[\"'][^\"']{8,}"
+  - body_contains: "AWS_SECRET_ACCESS_KEY"
+  - body_contains: "PRIVATE_KEY"
+
+extractors:
+  - name: api_key
+    regex: "(api[_-]?key|apikey)[\"']?\\s*[:=]\\s*[\"']?([a-zA-Z0-9_\\-]{16,})"
+  - name: openai_key
+    regex: "(sk-[a-zA-Z0-9]{48})"
+  - name: aws_key
+    regex: "AWS_SECRET_ACCESS_KEY[\"']?\\s*[:=]\\s*[\"']?([a-zA-Z0-9/+]{40})"

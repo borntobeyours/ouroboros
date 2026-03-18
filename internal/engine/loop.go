@@ -10,6 +10,7 @@ import (
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/memory"
+	"github.com/borntobeyours/ouroboros/internal/notify"
 	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
 	"github.com/borntobeyours/ouroboros/internal/red/probers"
@@ -25,6 +26,7 @@ type Engine struct {
 	store     *memory.Store
 	reporter  *report.Reporter
 	logger    *log.Logger
+	notifier  *notify.Notifier // optional; nil means no webhook
 }
 
 // NewEngine creates a new loop engine.
@@ -37,6 +39,11 @@ func NewEngine(redAgent *red.Agent, blueAgent *blue.Agent, bossAgent *boss.Agent
 		reporter:  reporter,
 		logger:    logger,
 	}
+}
+
+// SetNotifier attaches a webhook notifier to the engine.
+func (e *Engine) SetNotifier(n *notify.Notifier) {
+	e.notifier = n
 }
 
 // Run executes the full attack-fix-reattack loop.
@@ -266,6 +273,11 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	}
 
 	lv.PrintSummaryBox(session, allFindings)
+
+	// === WEBHOOK NOTIFICATION ===
+	if e.notifier != nil {
+		e.notifier.NotifyScanComplete(session, allFindings)
+	}
 
 	return session, nil
 }
