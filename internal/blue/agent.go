@@ -26,13 +26,49 @@ func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 }
 
 // Defend analyzes findings and generates patches.
+// For large finding sets, it batches into chunks to avoid timeouts.
 func (a *Agent) Defend(ctx context.Context, findings []types.Finding) ([]types.Patch, error) {
 	if len(findings) == 0 {
 		return nil, nil
 	}
 
-	a.logger.Printf("[BLUE] Analyzing %d findings...", len(findings))
+	const batchSize = 10
 
+	// Small batch: single call
+	if len(findings) <= batchSize {
+		a.logger.Printf("[BLUE] Analyzing %d findings...", len(findings))
+		return a.analyzeBatch(ctx, findings)
+	}
+
+	// Large batch: split into chunks
+	totalBatches := (len(findings) + batchSize - 1) / batchSize
+	a.logger.Printf("[BLUE] Analyzing %d findings in %d batches...", len(findings), totalBatches)
+
+	var allPatches []types.Patch
+	for i := 0; i < len(findings); i += batchSize {
+		end := i + batchSize
+		if end > len(findings) {
+			end = len(findings)
+		}
+		batch := findings[i:end]
+		batchNum := (i / batchSize) + 1
+
+		a.logger.Printf("[BLUE] Batch %d/%d (%d findings)...", batchNum, totalBatches, len(batch))
+
+		patches, err := a.analyzeBatch(ctx, batch)
+		if err != nil {
+			a.logger.Printf("[BLUE] Warning: batch %d failed: %v (continuing)", batchNum, err)
+			continue // Don't fail the whole defense on one batch
+		}
+		allPatches = append(allPatches, patches...)
+	}
+
+	a.logger.Printf("[BLUE] Generated %d total patches from %d batches", len(allPatches), totalBatches)
+	return allPatches, nil
+}
+
+// analyzeBatch analyzes a single batch of findings.
+func (a *Agent) analyzeBatch(ctx context.Context, findings []types.Finding) ([]types.Patch, error) {
 	systemPrompt := BuildDefensePrompt()
 	userPrompt := BuildAnalysisPrompt(findings)
 
@@ -54,7 +90,6 @@ func (a *Agent) Defend(ctx context.Context, findings []types.Finding) ([]types.P
 		return []types.Patch{}, nil
 	}
 
-	a.logger.Printf("[BLUE] Generated %d patches", len(patches))
 	return patches, nil
 }
 
