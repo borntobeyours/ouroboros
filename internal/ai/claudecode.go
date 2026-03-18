@@ -61,21 +61,12 @@ func (c *ClaudeCode) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 	// The actual prompt goes last
 	args = append(args, prompt)
 
-	// Create command with its own timeout context (independent of parent).
-	// We use context.Background() because the parent ctx may get canceled
-	// by scan phases transitioning, which kills the claude CLI process.
-	// The timeout here is the sole cancellation mechanism.
+	// Create a fully independent context for the CLI subprocess.
+	// The parent ctx from the engine loop can get canceled during phase
+	// transitions, which would kill the claude CLI mid-response.
+	// We ONLY use our own timeout as the cancellation mechanism.
 	cmdCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
-
-	// But still respect explicit parent cancellation (e.g., SIGINT)
-	go func() {
-		select {
-		case <-ctx.Done():
-			cancel()
-		case <-cmdCtx.Done():
-		}
-	}()
 
 	cmd := exec.CommandContext(cmdCtx, c.binaryPath, args...)
 
@@ -88,10 +79,6 @@ func (c *ClaudeCode) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 	elapsed := time.Since(start)
 
 	if err != nil {
-		// Check if parent was canceled (user interrupt)
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("claude-code canceled by user")
-		}
 		// Check if it's our timeout
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf("claude-code timeout after %s (elapsed: %s)", c.timeout, elapsed)
