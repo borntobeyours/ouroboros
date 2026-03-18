@@ -1,0 +1,21 @@
+name: Microsoft SQL Server SA Default Credentials
+description: Attempts to authenticate to Microsoft SQL Server using the default sa/sa system administrator credentials. The sa account has unrestricted access to all databases on the server.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/mssql/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"sa","password":"sa","server":"localhost"}'
+  - method: POST
+    path: /mssql/connect
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=sa&password=sa&host=localhost&port=1433"
+
+matchers:
+  - body_contains: "\"connected\":true"
+  - body_contains: "master"
+  - status_code: 200

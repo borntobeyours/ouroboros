@@ -1,0 +1,13 @@
+name: Netlify Subdomain Takeover
+description: Detects a dangling CNAME pointing to Netlify where the site has been deleted or the custom domain removed. An attacker can deploy a new Netlify site and associate the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Not Found - Request ID"
+  - body_contains: "netlify"
+  - status_code: 404

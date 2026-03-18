@@ -1,0 +1,24 @@
+name: Azure Instance Metadata Service (IMDS) Accessible
+description: The Azure Instance Metadata Service endpoint is reachable, indicating a potential SSRF vulnerability. Attackers can obtain managed identity tokens, subscription details, and VM configuration.
+severity: critical
+cwe: CWE-918
+
+requests:
+  - method: GET
+    path: /metadata/instance?api-version=2021-02-01
+    headers:
+      Metadata: "true"
+      Host: 169.254.169.254
+  - method: GET
+    path: /metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/
+    headers:
+      Metadata: "true"
+
+matchers:
+  - body_contains: "subscriptionId"
+  - body_contains: "resourceGroupName"
+  - status_code: 200
+
+extractors:
+  - name: subscription_id
+    regex: "\"subscriptionId\":\"([^\"]+)\""

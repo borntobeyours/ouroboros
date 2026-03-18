@@ -1,0 +1,22 @@
+name: Apache Airflow Default Credentials
+description: Attempts to authenticate to Apache Airflow workflow orchestration platform using default airflow/airflow credentials. Successful access enables arbitrary Python code execution via DAG manipulation on worker nodes.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /login/
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=airflow&password=airflow&_csrf_token="
+  - method: POST
+    path: /api/v1/security/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"airflow","password":"airflow","provider":"db","refresh":true}'
+
+matchers:
+  - body_contains: "\"access_token\":"
+  - body_contains: "Airflow"
+  - header_contains: "session"
+  - status_code: 200

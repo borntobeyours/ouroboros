@@ -1,0 +1,22 @@
+name: JavaScript Source Maps Exposed
+description: JavaScript source map files (.map) are publicly accessible, allowing attackers to view the original unminified/unobfuscated source code of the frontend application, revealing logic, API endpoints, and potentially hardcoded secrets.
+severity: medium
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /static/js/main.chunk.js.map
+  - method: GET
+    path: /js/app.js.map
+  - method: GET
+    path: /assets/app.bundle.js.map
+
+matchers:
+  - status_code: 200
+  - body_contains: "\"sources\":"
+  - body_contains: "\"mappings\":"
+  - regex: "\"version\":\\s*3"
+
+extractors:
+  - name: source_files
+    regex: "\"sources\":\\[([^\\]]+)\\]"

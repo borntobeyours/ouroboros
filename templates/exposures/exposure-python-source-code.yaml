@@ -1,0 +1,25 @@
+name: Python Source Code Exposure
+description: Detects Python source code in HTTP responses. Exposed Python source reveals application logic, secret keys, and database connection details.
+severity: high
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /app.py
+  - method: GET
+    path: /views.py
+  - method: GET
+    path: /settings.py
+  - method: GET
+    path: /config.py
+
+matchers:
+  - body_contains: "import os"
+  - body_contains: "from django"
+  - body_contains: "from flask"
+  - regex: "^import [a-zA-Z]"
+  - regex: "def [a-zA-Z_]+\\(self"
+
+extractors:
+  - name: python_secret
+    regex: "(?i)(?:secret|password|api_key)\\s*=\\s*['\"]([^'\"]{8,})['\"]"

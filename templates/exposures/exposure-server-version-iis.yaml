@@ -1,0 +1,16 @@
+name: IIS Version Disclosure
+description: Detects Microsoft IIS web server version numbers in HTTP response headers. Disclosed IIS versions allow targeted exploitation of known CVEs for that specific IIS version.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - regex: "Microsoft-IIS/[0-9]+\\.[0-9]+"
+  - header_contains: "Microsoft-IIS/"
+
+extractors:
+  - name: iis_version
+    regex: "Microsoft-IIS/([0-9]+\\.[0-9]+)"

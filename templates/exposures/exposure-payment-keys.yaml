@@ -1,0 +1,20 @@
+name: Payment Gateway Keys Exposure
+description: Detects payment gateway API keys and secrets in HTTP responses. Leaked payment keys enable unauthorized charges, refunds, and access to transaction data.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "(?i)(?:PAYMENT|GATEWAY)_(?:API_)?(?:KEY|SECRET|TOKEN)[\\s=:\"']+[a-zA-Z0-9\\-_]{16,}"
+  - regex: "(?i)(?:square|adyen|worldpay).{0,20}(?:key|secret)[\\s=:\"']+[a-zA-Z0-9\\-_]{16,}"
+
+extractors:
+  - name: payment_key
+    regex: "(?i)(?:PAYMENT|GATEWAY)_(?:API_)?(?:KEY|SECRET|TOKEN)[\\s=:\"']+([a-zA-Z0-9\\-_]{16,})"

@@ -1,0 +1,15 @@
+name: PHP Version in X-Powered-By Header
+description: Detects PHP version information in the X-Powered-By HTTP response header. Disclosed PHP versions allow targeted exploitation of version-specific CVEs and insecure functions.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - regex: "X-Powered-By: PHP/[0-9]+\\.[0-9]+"
+
+extractors:
+  - name: php_version
+    regex: "PHP/([0-9]+\\.[0-9]+\\.?[0-9]*)"

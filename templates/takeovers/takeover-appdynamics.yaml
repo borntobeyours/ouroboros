@@ -1,0 +1,13 @@
+name: AppDynamics Subdomain Takeover
+description: Detects a dangling CNAME pointing to an AppDynamics controller domain that has been decommissioned. An attacker may be able to register the subdomain on AppDynamics infrastructure.
+severity: medium
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "404 Not Found"
+  - body_contains: "appdynamics"
+  - status_code: 404

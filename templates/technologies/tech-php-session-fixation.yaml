@@ -1,0 +1,13 @@
+name: PHP Session Fixation Detection
+description: Detects PHP applications vulnerable to session fixation where the session ID is accepted from the URL parameter (PHPSESSID=). Attackers can set a known session ID and trick users into authenticating with it, hijacking their session.
+severity: medium
+cwe: CWE-384
+
+requests:
+  - method: GET
+    path: /?PHPSESSID=attacker_controlled_session_id
+
+matchers:
+  - body_contains: "PHPSESSID"
+  - regex: "Set-Cookie:.*PHPSESSID=attacker_controlled_session_id"
+  - status_code: 200

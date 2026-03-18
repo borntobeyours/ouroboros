@@ -1,0 +1,21 @@
+name: Hikvision DVR/NVR Default Credentials
+description: Attempts to authenticate to Hikvision DVR/NVR/IP cameras using default admin/12345 credentials. Successful access enables live video surveillance, recorded footage access, and camera configuration.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /ISAPI/Security/userCheck
+    headers:
+      Authorization: "Basic YWRtaW46MTIzNDU="
+  - method: POST
+    path: /ISAPI/Security/sessionLogin
+    headers:
+      Content-Type: application/json
+    body: '{"SessionLoginCap":{"userName":"admin","password":"313233343536"}}'
+
+matchers:
+  - body_contains: "Hikvision"
+  - body_contains: "isDefaultPassword"
+  - body_contains: "statusString"
+  - status_code: 200

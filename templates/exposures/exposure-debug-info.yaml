@@ -1,0 +1,22 @@
+name: Debug Information in Response
+description: Detects debug information in HTTP responses including environment details, configuration values, and internal system information that aids attackers in profiling the target.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /debug
+  - method: GET
+    path: /info
+  - method: GET
+    path: /api/debug
+
+matchers:
+  - body_contains: "DEBUG"
+  - body_contains: "debug_mode"
+  - body_contains: "APP_ENV"
+  - regex: "(?i)environment:\\s*(?:development|staging)"
+
+extractors:
+  - name: environment
+    regex: "(?i)(?:environment|APP_ENV|NODE_ENV)\\s*[=:]\\s*['\"]?([a-zA-Z]+)['\"]?"

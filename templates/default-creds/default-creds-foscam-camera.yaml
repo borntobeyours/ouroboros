@@ -1,0 +1,18 @@
+name: Foscam IP Camera Default Credentials
+description: Attempts to authenticate to Foscam IP cameras using default admin account with empty password. Successful access grants live feed access, full PTZ control, and camera configuration.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /cgi-bin/CGIProxy.fcgi?cmd=logIn&usr=admin&pwd=&
+  - method: GET
+    path: /get_status.cgi
+    headers:
+      Authorization: "Basic YWRtaW46"
+
+matchers:
+  - body_contains: "result=0"
+  - body_contains: "Foscam"
+  - body_contains: "foscam"
+  - status_code: 200

@@ -1,0 +1,19 @@
+name: Backup .bak Files Exposed
+description: Backup files with .bak extension are publicly accessible. These often contain copies of configuration files, scripts, or database exports with sensitive data that the web server should not serve.
+severity: medium
+cwe: CWE-530
+
+requests:
+  - method: GET
+    path: /index.php.bak
+  - method: GET
+    path: /config.php.bak
+  - method: GET
+    path: /web.config.bak
+  - method: GET
+    path: /settings.py.bak
+
+matchers:
+  - status_code: 200
+  - regex: "\\.(php|conf|ini|py|rb|js)"
+  - body_contains: "password"

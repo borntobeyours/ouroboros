@@ -1,0 +1,21 @@
+name: Google API Key Exposure
+description: Detects exposed Google API keys in HTTP responses. Leaked Google API keys can be abused to make requests on behalf of the victim, incurring charges or accessing sensitive data.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /js/app.js
+  - method: GET
+    path: /static/config.js
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "AIza[0-9A-Za-z\\-_]{35}"
+
+extractors:
+  - name: google_api_key
+    regex: "(AIza[0-9A-Za-z\\-_]{35})"

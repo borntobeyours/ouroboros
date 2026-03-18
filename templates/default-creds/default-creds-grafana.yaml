@@ -1,0 +1,21 @@
+name: Grafana Default Credentials
+description: Attempts to authenticate to Grafana using default admin/admin credentials. Default credentials indicate the initial password was never changed during setup.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /login
+    headers:
+      Content-Type: application/json
+    body: '{"user":"admin","password":"admin"}'
+  - method: POST
+    path: /api/login
+    headers:
+      Content-Type: application/json
+    body: '{"user":"admin","password":"admin"}'
+
+matchers:
+  - body_contains: "\"message\":\"Logged in\""
+  - regex: "\"role\":\\s*\"Admin\""
+  - header_contains: "grafana_session"

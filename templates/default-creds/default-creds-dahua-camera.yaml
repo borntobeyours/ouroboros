@@ -1,0 +1,21 @@
+name: Dahua IP Camera Default Credentials
+description: Attempts to authenticate to Dahua IP cameras and DVR/NVR systems using default admin/admin credentials. Successful access provides live video feed, recording access, and PTZ camera control.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /cgi-bin/magicBox.cgi?action=getSystemInfo
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /cgi-bin/global.login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=admin&loginType=0"
+
+matchers:
+  - body_contains: "Dahua"
+  - body_contains: "DeviceType"
+  - body_contains: "OK"
+  - status_code: 200

@@ -1,0 +1,21 @@
+name: IBM WebSphere Application Server Default Credentials
+description: Attempts to authenticate to IBM WebSphere Administration Console using default admin/admin credentials. Successful access enables deployment of malicious applications and full server compromise.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /ibm/console/j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=admin&j_password=admin&login-form-type=pwd"
+  - method: POST
+    path: /ibm/console/j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=wasadmin&j_password=wasadmin&login-form-type=pwd"
+
+matchers:
+  - body_contains: "WebSphere"
+  - body_contains: "Integrated Solutions Console"
+  - header_contains: "LtpaToken"

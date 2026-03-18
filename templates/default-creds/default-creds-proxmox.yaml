@@ -1,0 +1,16 @@
+name: Proxmox VE Default Credentials
+description: Attempts to authenticate to Proxmox Virtual Environment web interface using default root/proxmox credentials. Successful login enables full virtualization infrastructure control including VM creation and deletion.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api2/json/access/ticket
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=root%40pam&password=proxmox"
+
+matchers:
+  - body_contains: "\"ticket\":"
+  - body_contains: "CSRFPreventionToken"
+  - body_contains: "Proxmox"

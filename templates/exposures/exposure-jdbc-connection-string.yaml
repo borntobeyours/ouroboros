@@ -1,0 +1,22 @@
+name: JDBC Connection String Exposure
+description: Detects exposed JDBC connection strings in HTTP responses. JDBC strings often contain database hostnames, ports, credentials and schema names.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /application.properties
+
+matchers:
+  - regex: "jdbc:(mysql|postgresql|oracle|sqlserver|h2|mariadb):\\/\\/"
+  - regex: "(?i)spring\\.datasource\\.url\\s*=\\s*jdbc:"
+
+extractors:
+  - name: jdbc_url
+    regex: "(jdbc:[a-z]+://[^\\s\"'<>]+)"

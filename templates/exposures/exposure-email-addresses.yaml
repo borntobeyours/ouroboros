@@ -1,0 +1,21 @@
+name: Bulk Email Address Exposure
+description: Detects bulk email address disclosure in HTTP responses. Mass exposure of email addresses can enable spam campaigns and targeted phishing attacks.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /api/users
+  - method: GET
+    path: /api/customers
+  - method: GET
+    path: /api/contacts
+  - method: GET
+    path: /export/users
+
+matchers:
+  - regex: "[a-zA-Z0-9._%+\\-]{1,64}@[a-zA-Z0-9.\\-]{1,253}\\.[a-zA-Z]{2,}"
+
+extractors:
+  - name: email
+    regex: "([a-zA-Z0-9._%+\\-]{1,64}@[a-zA-Z0-9.\\-]{1,253}\\.[a-zA-Z]{2,})"

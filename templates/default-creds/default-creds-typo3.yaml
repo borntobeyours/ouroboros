@@ -1,0 +1,21 @@
+name: TYPO3 CMS Default Credentials
+description: Attempts to authenticate to TYPO3 CMS backend using default admin/password credentials. Successful login allows template modification and extension management which can lead to remote code execution.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /typo3/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login_status=login&userident=password&username=admin&commandLI=submit"
+  - method: POST
+    path: /typo3/
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login_status=login&userident=password&username=admin&commandLI=submit"
+
+matchers:
+  - body_contains: "TYPO3"
+  - body_contains: "typo3-inner-docbody"
+  - header_contains: "be_typo_user"

@@ -1,0 +1,22 @@
+name: OpenAPI with Internal Server URLs
+description: Detects OpenAPI/Swagger specifications containing internal server URLs. Internal URLs reveal network architecture and may provide direct access to backend services bypassing perimeter controls.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /openapi.json
+  - method: GET
+    path: /api/openapi.json
+  - method: GET
+    path: /swagger.json
+  - method: GET
+    path: /v3/api-docs
+
+matchers:
+  - regex: "\"servers\":\\s*\\[\\s*\\{\\s*\"url\":\\s*\"https?://(?:10\\.|172\\.|192\\.168\\.)"
+  - regex: "\"url\":\\s*\"https?://(?:localhost|127\\.0\\.0\\.1|internal)"
+
+extractors:
+  - name: internal_server_url
+    regex: "\"url\":\\s*\"(https?://[^\"]+)\""

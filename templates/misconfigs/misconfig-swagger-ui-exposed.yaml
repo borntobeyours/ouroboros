@@ -1,0 +1,19 @@
+name: Swagger UI Exposed
+description: Swagger UI API documentation interface is publicly accessible. This reveals all API endpoints, request/response formats, authentication methods, and may allow direct API interaction through the browser-based test console.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /swagger-ui.html
+  - method: GET
+    path: /swagger-ui/
+  - method: GET
+    path: /api/swagger-ui.html
+  - method: GET
+    path: /docs/
+
+matchers:
+  - body_contains: "Swagger UI"
+  - body_contains: "swagger"
+  - status_code: 200

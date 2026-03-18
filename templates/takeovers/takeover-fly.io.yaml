@@ -1,0 +1,14 @@
+name: Fly.io Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Fly.io application that has been deleted or the custom hostname removed. An attacker can deploy a new Fly.io app and attach the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "404 Not Found"
+  - body_contains: "fly.io"
+  - body_contains: "App not found"
+  - status_code: 404

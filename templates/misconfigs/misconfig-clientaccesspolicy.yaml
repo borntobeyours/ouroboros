@@ -1,0 +1,13 @@
+name: Permissive clientaccesspolicy.xml (Silverlight)
+description: The clientaccesspolicy.xml file used by Microsoft Silverlight grants cross-domain access to all domains. This legacy misconfiguration allows malicious Silverlight applications to make authenticated requests and read responses.
+severity: medium
+cwe: CWE-942
+
+requests:
+  - method: GET
+    path: /clientaccesspolicy.xml
+
+matchers:
+  - status_code: 200
+  - body_contains: "access-policy"
+  - regex: "<domain uri=\"\\*\">"

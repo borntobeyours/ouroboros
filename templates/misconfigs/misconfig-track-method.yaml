@@ -1,0 +1,12 @@
+name: HTTP TRACK Method Enabled
+description: The non-standard HTTP TRACK method is enabled. Like TRACE, it echoes the request back to the client and can be used in Cross-Site Tracing (XST) attacks to steal authentication credentials.
+severity: low
+cwe: CWE-16
+
+requests:
+  - method: TRACK
+    path: /
+
+matchers:
+  - status_code: 200
+  - body_contains: "TRACK / HTTP"

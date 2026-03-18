@@ -1,0 +1,16 @@
+name: Spring Boot Jolokia JMX Endpoint Exposed
+description: Detects an exposed Jolokia JMX-over-HTTP endpoint. Jolokia provides REST access to JMX operations, allowing attackers to read sensitive JVM properties, reload logging configurations, or execute JNDI lookups leading to remote code execution.
+severity: critical
+cwe: CWE-94
+
+requests:
+  - method: GET
+    path: /jolokia/list
+  - method: GET
+    path: /actuator/jolokia/list
+
+matchers:
+  - body_contains: "java.lang"
+  - body_contains: "jolokia"
+  - body_contains: "MBeans"
+  - status_code: 200

@@ -1,0 +1,13 @@
+name: IIS Short Filename (8.3) Disclosure
+description: Detects the IIS tilde (~) filename enumeration vulnerability allowing discovery of file and directory names in their 8.3 short format. Attackers can brute-force short names to discover hidden files, backups, and admin interfaces.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /~1/
+
+matchers:
+  - body_contains: "Object not found"
+  - body_contains: "400"
+  - status_code: 400

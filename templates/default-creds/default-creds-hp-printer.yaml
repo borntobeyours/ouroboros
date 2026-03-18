@@ -1,0 +1,25 @@
+name: HP Printer Default Credentials
+description: Attempts to authenticate to HP printer Embedded Web Server (EWS) using default admin credentials. Access enables printer configuration changes, stored job access, and potential network pivoting.
+severity: medium
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /hp/device/info_config_device.html
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /hp/device/webAccess/index.htm
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "admin_password=admin&button_login=OK"
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46"
+
+matchers:
+  - body_contains: "HP"
+  - body_contains: "Hewlett-Packard"
+  - body_contains: "Embedded Web Server"
+  - status_code: 200

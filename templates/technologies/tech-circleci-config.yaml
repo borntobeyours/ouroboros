@@ -1,0 +1,14 @@
+name: CircleCI Configuration with Secrets Exposed
+description: Detects a publicly accessible .circleci/config.yml file. CI configuration files may contain hardcoded environment variables, API keys, deployment credentials, cloud provider tokens, and service account secrets used during build pipelines.
+severity: high
+cwe: CWE-312
+
+requests:
+  - method: GET
+    path: /.circleci/config.yml
+
+matchers:
+  - body_contains: "version:"
+  - body_contains: "jobs:"
+  - body_contains: "circleci"
+  - status_code: 200

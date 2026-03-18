@@ -1,0 +1,21 @@
+name: Jenkins Unauthenticated Access
+description: Jenkins CI/CD server is accessible without authentication. An attacker can read build logs, view environment variables with secrets, trigger builds, and access source code repositories.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api/json
+    headers:
+      Accept: application/json
+
+matchers:
+  - body_contains: "Jenkins"
+  - body_contains: "Dashboard"
+  - status_code: 200
+
+extractors:
+  - name: jenkins_version
+    regex: "Jenkins/([0-9\\.]+)"

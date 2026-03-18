@@ -1,0 +1,23 @@
+name: Apache Tomcat Manager Default Credentials
+description: Attempts to log into Apache Tomcat Manager application using known default credentials (tomcat/tomcat, admin/admin, manager/manager). Successful authentication indicates default credentials have not been changed.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /manager/html
+    headers:
+      Authorization: "Basic dG9tY2F0OnRvbWNhdA=="
+  - method: GET
+    path: /manager/html
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /manager/html
+    headers:
+      Authorization: "Basic bWFuYWdlcjptYW5hZ2Vy"
+
+matchers:
+  - body_contains: "Tomcat Web Application Manager"
+  - body_contains: "Tomcat Manager Application"
+  - status_code: 200

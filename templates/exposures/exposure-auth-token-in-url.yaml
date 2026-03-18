@@ -1,0 +1,19 @@
+name: Auth Token in URL
+description: Detects authentication tokens passed as URL parameters. Tokens in URLs are logged in server access logs and proxy logs, enabling unauthorized session access.
+severity: medium
+cwe: CWE-598
+
+requests:
+  - method: GET
+    path: /api
+  - method: GET
+    path: /callback
+  - method: GET
+    path: /verify
+
+matchers:
+  - regex: "[?&](?:auth_token|authtoken|apitoken|bearertoken)=[a-zA-Z0-9\\-_\\.]{20,}"
+
+extractors:
+  - name: auth_token
+    regex: "(?:auth_token|authtoken|apitoken)=([a-zA-Z0-9\\-_\\.]{20,})"

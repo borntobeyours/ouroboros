@@ -1,0 +1,19 @@
+name: Portainer Docker UI Exposed
+description: Portainer Docker management UI is publicly accessible. An attacker can enumerate containers, images, and volumes, and potentially deploy malicious containers to gain host-level access.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api/status
+
+matchers:
+  - body_contains: "Portainer"
+  - body_contains: "portainer"
+  - status_code: 200
+
+extractors:
+  - name: portainer_version
+    regex: "\"Version\":\"([^\"]+)\""

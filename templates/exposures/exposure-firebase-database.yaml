@@ -1,0 +1,20 @@
+name: Firebase Database URL Exposure
+description: Detects exposed Firebase Realtime Database URLs in HTTP responses. Exposed Firebase URLs may allow unauthorized read or write access if security rules are misconfigured.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /js/app.js
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "https?://[a-z0-9\\-]+\\.firebaseio\\.com"
+  - regex: "https?://[a-z0-9\\-]+-default-rtdb\\.firebaseio\\.com"
+
+extractors:
+  - name: firebase_db_url
+    regex: "(https?://[a-z0-9\\-]+\\.firebaseio\\.com)"

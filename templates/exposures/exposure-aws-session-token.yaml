@@ -1,0 +1,22 @@
+name: AWS Session Token Exposure
+description: Detects exposed AWS session tokens in HTTP responses. Session tokens are temporary credentials that grant access to AWS resources for a limited time.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/credentials
+  - method: GET
+    path: /api/token
+
+matchers:
+  - regex: "(?i)aws.{0,20}session.{0,20}token[\\s=:\"']+[0-9a-zA-Z/+]{100,}"
+  - regex: "(?i)AWS_SESSION_TOKEN[\\s=:\"']+[0-9a-zA-Z/+=]{100,}"
+
+extractors:
+  - name: session_token
+    regex: "(?i)(?:session_token|AWS_SESSION_TOKEN)[\\s=:\"']+([0-9a-zA-Z/+=]{100,})"

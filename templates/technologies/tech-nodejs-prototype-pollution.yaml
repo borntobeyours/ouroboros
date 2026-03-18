@@ -1,0 +1,15 @@
+name: Node.js Prototype Pollution Detection
+description: Probes for prototype pollution vulnerabilities in Node.js applications via JSON body parsing. Successful exploitation can override Object.prototype properties, leading to authentication bypass, denial of service, or remote code execution.
+severity: high
+cwe: CWE-1321
+
+requests:
+  - method: POST
+    path: /
+    headers:
+      Content-Type: application/json
+    body: "{\"__proto__\":{\"polluted\":\"true\"},\"constructor\":{\"prototype\":{\"polluted\":\"true\"}}}"
+
+matchers:
+  - body_contains: "polluted"
+  - status_code: 200

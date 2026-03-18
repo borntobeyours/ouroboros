@@ -1,0 +1,16 @@
+name: WooCommerce SQL Injection Detection
+description: Probes for SQL injection vulnerabilities in WooCommerce product and order query parameters. Certain WooCommerce versions contain unsanitized parameters that allow unauthenticated database manipulation.
+severity: critical
+cwe: CWE-89
+
+requests:
+  - method: GET
+    path: /?post_type=product&s=1%27
+  - method: GET
+    path: /wp-json/wc/v3/products?sku=1%27
+
+matchers:
+  - body_contains: "You have an error in your SQL syntax"
+  - body_contains: "mysql_fetch"
+  - body_contains: "syntax error"
+  - status_code: 500

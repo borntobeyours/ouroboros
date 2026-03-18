@@ -1,0 +1,18 @@
+name: Traefik Dashboard No Authentication
+description: Detects Traefik reverse proxy dashboard accessible without authentication. Unauthenticated access reveals all configured routes, backend services, middleware, and network topology.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /dashboard/
+  - method: GET
+    path: /api/rawdata
+  - method: GET
+    path: /api/overview
+
+matchers:
+  - body_contains: "Traefik"
+  - body_contains: "\"routers\":"
+  - body_contains: "\"services\":"
+  - status_code: 200

@@ -1,0 +1,16 @@
+name: Spring Boot Actuator /beans Endpoint Exposed
+description: Detects an unauthenticated Spring Boot Actuator /beans endpoint. This endpoint enumerates all registered Spring beans, their types, dependencies, and resource locations, revealing the application's internal architecture.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /actuator/beans
+  - method: GET
+    path: /beans
+
+matchers:
+  - body_contains: "beans"
+  - body_contains: "scope"
+  - body_contains: "type"
+  - status_code: 200

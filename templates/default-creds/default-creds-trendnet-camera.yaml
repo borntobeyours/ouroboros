@@ -1,0 +1,21 @@
+name: TRENDnet IP Camera Default Credentials
+description: Attempts to authenticate to TRENDnet IP cameras using default admin/admin credentials. Successful access enables live video surveillance and camera configuration modifications.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /cgi-bin/viewer/video.jpg
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /admin/login.cgi
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "user_name=admin&user_password=admin"
+
+matchers:
+  - body_contains: "TRENDnet"
+  - body_contains: "trendnet"
+  - body_contains: "IPCamera"
+  - status_code: 200

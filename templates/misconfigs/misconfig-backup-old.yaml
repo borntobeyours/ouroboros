@@ -1,0 +1,17 @@
+name: Backup .old Files Exposed
+description: Backup files with .old extension are publicly accessible. Developers often create these when updating configuration or source files, leaving the old version with sensitive data exposed in the web root.
+severity: medium
+cwe: CWE-530
+
+requests:
+  - method: GET
+    path: /config.php.old
+  - method: GET
+    path: /index.php.old
+  - method: GET
+    path: /.env.old
+
+matchers:
+  - status_code: 200
+  - body_contains: "password"
+  - regex: "[A-Z_]+=.+"

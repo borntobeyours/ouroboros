@@ -1,0 +1,13 @@
+name: Apache Solr Admin Dashboard Exposed
+description: Detects an unauthenticated Apache Solr administration dashboard. The Solr admin panel exposes the search index configuration, schema, query execution, and data import capabilities that can be abused for data exfiltration or SSRF.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /solr/admin/
+
+matchers:
+  - body_contains: "Solr Admin"
+  - body_contains: "Apache Solr"
+  - status_code: 200

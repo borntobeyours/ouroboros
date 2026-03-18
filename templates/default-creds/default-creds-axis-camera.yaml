@@ -1,0 +1,20 @@
+name: Axis IP Camera Default Credentials
+description: Attempts to authenticate to Axis IP cameras using default root/pass credentials. Successful access enables live video feed access, camera configuration changes, and potential network pivoting.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /axis-cgi/jpg/image.cgi
+    headers:
+      Authorization: "Basic cm9vdDpwYXNz"
+  - method: GET
+    path: /view/viewer_index.shtml
+    headers:
+      Authorization: "Basic cm9vdDpwYXNz"
+
+matchers:
+  - body_contains: "Axis"
+  - body_contains: "AXIS"
+  - body_contains: "Live View"
+  - status_code: 200

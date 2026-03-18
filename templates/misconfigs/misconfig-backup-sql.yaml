@@ -1,0 +1,20 @@
+name: SQL Database Dump Exposed
+description: A SQL database dump file is publicly accessible. These files contain complete database schemas and data including user credentials, personal information, financial data, and application secrets.
+severity: critical
+cwe: CWE-530
+
+requests:
+  - method: GET
+    path: /backup.sql
+  - method: GET
+    path: /dump.sql
+  - method: GET
+    path: /database.sql
+  - method: GET
+    path: /db.sql
+
+matchers:
+  - status_code: 200
+  - body_contains: "CREATE TABLE"
+  - body_contains: "INSERT INTO"
+  - regex: "-- MySQL dump|-- PostgreSQL database dump"

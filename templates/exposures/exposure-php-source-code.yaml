@@ -1,0 +1,22 @@
+name: PHP Source Code Exposure
+description: Detects PHP source code in HTTP responses. Exposed PHP source reveals application logic, database queries, and hardcoded credentials that enable further exploitation.
+severity: high
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /index.php
+  - method: GET
+    path: /index.php~
+  - method: GET
+    path: /index.php.bak
+  - method: GET
+    path: /config.php.bak
+
+matchers:
+  - body_contains: "<?php"
+  - regex: "<\\?php\\s+[a-zA-Z$]"
+
+extractors:
+  - name: php_variables
+    regex: "\\$[a-zA-Z_][a-zA-Z0-9_]*\\s*=\\s*['\"]([^'\"]{8,})['\"]"

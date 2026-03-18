@@ -1,0 +1,16 @@
+name: Nginx Configuration File Disclosed
+description: Detects publicly accessible Nginx configuration files. These files may reveal upstream backend addresses, internal network topology, authentication credentials in proxy_pass directives, and SSL certificate paths.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /nginx.conf
+  - method: GET
+    path: /conf/nginx.conf
+
+matchers:
+  - body_contains: "server {"
+  - body_contains: "listen"
+  - body_contains: "proxy_pass"
+  - status_code: 200

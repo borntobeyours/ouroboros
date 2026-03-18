@@ -1,0 +1,16 @@
+name: Oracle WebLogic Admin Console Detection
+description: Detects the Oracle WebLogic Server administration console at /console. The console provides full server management capabilities; default credentials (weblogic/weblogic1) or known CVEs may allow unauthorized access and code execution.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /console/
+  - method: GET
+    path: /console/login/LoginForm.jsp
+
+matchers:
+  - body_contains: "WebLogic Server"
+  - body_contains: "Oracle"
+  - body_contains: "Administration Console"
+  - status_code: 200

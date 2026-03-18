@@ -1,0 +1,21 @@
+name: ActiveMQ Default Credentials
+description: Attempts to authenticate to Apache ActiveMQ Web Console using default admin/admin credentials. Successful login enables message queue manipulation and potential remote code execution via the Hawtio interface.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /admin
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /admin/createDestination.action
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+      Content-Type: application/x-www-form-urlencoded
+    body: "JMSDestination=test&JMSDestinationType=queue"
+
+matchers:
+  - body_contains: "ActiveMQ"
+  - body_contains: "Welcome to the ActiveMQ"
+  - status_code: 200

@@ -1,0 +1,21 @@
+name: Terraform State File Exposure
+description: Detects exposed Terraform state files in HTTP responses. Terraform state files contain all provisioned infrastructure details including credentials, IP addresses, and resource IDs.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /terraform.tfstate
+  - method: GET
+    path: /.terraform/terraform.tfstate
+  - method: GET
+    path: /infra/terraform.tfstate
+
+matchers:
+  - body_contains: "\"terraform_version\""
+  - body_contains: "\"resources\":"
+  - body_contains: "\"format_version\""
+
+extractors:
+  - name: tf_version
+    regex: "\"terraform_version\":\\s*\"([^\"]+)\""

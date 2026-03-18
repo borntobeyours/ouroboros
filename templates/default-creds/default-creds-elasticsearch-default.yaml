@@ -1,0 +1,20 @@
+name: Elasticsearch Default Credentials
+description: Detects Elasticsearch instances accessible without authentication or with default elastic/changeme credentials. Unauthenticated access exposes all indexed data including sensitive documents.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /_cluster/health
+  - method: GET
+    path: /_cat/indices
+    headers:
+      Authorization: "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="
+
+matchers:
+  - body_contains: "cluster_name"
+  - body_contains: "elasticsearch"
+  - regex: "\"version\"\\s*:\\s*\\{"
+  - status_code: 200

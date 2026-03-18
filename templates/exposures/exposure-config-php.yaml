@@ -1,0 +1,24 @@
+name: Generic config.php Exposed
+description: Detects exposed PHP configuration files that commonly contain database credentials, API keys, and application secrets.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /config.php
+  - method: GET
+    path: /config.php.bak
+  - method: GET
+    path: /includes/config.php
+  - method: GET
+    path: /inc/config.php
+
+matchers:
+  - body_contains: "<?php"
+  - body_contains: "DB_PASS"
+  - body_contains: "db_password"
+  - regex: "\\$(?:db|database)_pass(?:word)?\\s*=\\s*['\"]"
+
+extractors:
+  - name: db_password
+    regex: "\\$(?:db|database)_pass(?:word)?\\s*=\\s*['\"]([^'\"]+)['\"]"

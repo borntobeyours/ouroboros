@@ -1,0 +1,14 @@
+name: .htaccess File Exposed
+description: The Apache .htaccess configuration file is publicly accessible, revealing URL rewrite rules, authentication configurations, access control lists, and directory protection settings.
+severity: medium
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /.htaccess
+
+matchers:
+  - status_code: 200
+  - body_contains: "RewriteRule"
+  - body_contains: "Options"
+  - regex: "(Deny|Allow)\\s+from"

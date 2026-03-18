@@ -1,0 +1,20 @@
+name: Braintree Access Token Exposure
+description: Detects exposed Braintree payment gateway access tokens in HTTP responses. Leaked tokens allow unauthorized processing of payments and access to transaction history.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}"
+  - regex: "access_token\\$sandbox\\$[0-9a-z]{16}\\$[0-9a-f]{32}"
+
+extractors:
+  - name: braintree_token
+    regex: "(access_token\\$(?:production|sandbox)\\$[0-9a-z]{16}\\$[0-9a-f]{32})"

@@ -1,0 +1,15 @@
+name: Open Redirect via return Parameter
+description: The application processes a return or returnUrl parameter without proper validation, allowing attackers to redirect users to arbitrary external sites after authentication or form submission.
+severity: medium
+cwe: CWE-601
+
+requests:
+  - method: GET
+    path: /login?return=https://evil.com
+  - method: GET
+    path: /auth?returnUrl=https://evil.com
+
+matchers:
+  - status_code: 301
+  - status_code: 302
+  - header_contains: "Location: https://evil.com"

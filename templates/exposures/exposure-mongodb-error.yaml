@@ -1,0 +1,23 @@
+name: MongoDB Error Message Disclosure
+description: Detects MongoDB error messages in HTTP responses. MongoDB errors reveal collection names, field names, and query structure that facilitate NoSQL injection attacks.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /search
+
+matchers:
+  - body_contains: "MongoError"
+  - body_contains: "MongoServerError"
+  - body_contains: "MongoNetworkError"
+  - regex: "E11000 duplicate key error"
+  - body_contains: "BulkWriteError"
+
+extractors:
+  - name: mongo_error
+    regex: "(Mongo(?:Error|ServerError|NetworkError)[^<\"'\\n]{0,200})"

@@ -1,0 +1,15 @@
+name: X-AspNet-Version Header Disclosure
+description: Detects the X-AspNet-Version response header which reveals the exact ASP.NET runtime version. This information enables targeted exploitation of known ASP.NET vulnerabilities.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - header_contains: "X-AspNet-Version"
+
+extractors:
+  - name: aspnet_version
+    regex: "X-AspNet-Version: ([0-9]+\\.[0-9]+\\.?[0-9]*)"

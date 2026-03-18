@@ -1,0 +1,24 @@
+name: WSDL with Internal Endpoints
+description: Detects WSDL files containing internal service endpoint URLs. Internal SOAP service addresses reveal network topology and may be accessible without proper authentication.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /service?wsdl
+  - method: GET
+    path: /ws?wsdl
+  - method: GET
+    path: /api/soap?wsdl
+  - method: GET
+    path: /service.wsdl
+
+matchers:
+  - body_contains: "<wsdl:definitions"
+  - body_contains: "<definitions"
+  - body_contains: "soap:address location"
+  - regex: "soap:address location=\"https?://(?:10\\.|172\\.|192\\.168\\.)"
+
+extractors:
+  - name: soap_address
+    regex: "soap:address location=\"(https?://[^\"]+)\""

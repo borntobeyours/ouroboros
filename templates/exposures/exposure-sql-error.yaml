@@ -1,0 +1,25 @@
+name: SQL Error Message Disclosure
+description: Detects SQL error messages in HTTP responses. SQL errors expose database type, table names, column names, and query structure enabling targeted SQL injection attacks.
+severity: high
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /search
+
+matchers:
+  - body_contains: "SQL syntax"
+  - body_contains: "mysql_fetch"
+  - body_contains: "ORA-"
+  - body_contains: "Microsoft SQL Server"
+  - body_contains: "PostgreSQL ERROR"
+  - regex: "You have an error in your SQL syntax"
+  - regex: "Unclosed quotation mark after the character string"
+
+extractors:
+  - name: db_error
+    regex: "((?:ORA-[0-9]+|SQLSTATE|MySQL Error|PostgreSQL ERROR)[^<\"'\\n]{0,200})"

@@ -1,0 +1,17 @@
+name: .env.local File Exposed
+description: The .env.local file is publicly accessible. This local environment override file often contains developer-specific or production override credentials and secret keys.
+severity: critical
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /.env.local
+
+matchers:
+  - status_code: 200
+  - body_contains: "="
+  - regex: "[A-Z_]+=.+"
+
+extractors:
+  - name: secret_key
+    regex: "SECRET[_KEY]*=([^\\n]+)"

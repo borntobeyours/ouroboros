@@ -1,0 +1,17 @@
+name: .env.production File Exposed
+description: The .env.production file is publicly accessible. This file contains production environment secrets including database credentials, payment API keys, and third-party service tokens.
+severity: critical
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /.env.production
+
+matchers:
+  - status_code: 200
+  - body_contains: "="
+  - regex: "[A-Z_]+=.+"
+
+extractors:
+  - name: db_password
+    regex: "DB_PASSWORD=([^\\n]+)"

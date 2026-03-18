@@ -1,0 +1,20 @@
+name: Nagios Default Credentials
+description: Attempts to authenticate to Nagios monitoring system using default nagiosadmin/nagios credentials. Successful access exposes infrastructure topology, host/service configurations, and can trigger monitoring actions.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /nagios/
+    headers:
+      Authorization: "Basic bmFnaW9zYWRtaW46bmFnaW9z"
+  - method: GET
+    path: /nagiosxi/login.php
+    headers:
+      Authorization: "Basic bmFnaW9zYWRtaW46bmFnaW9z"
+
+matchers:
+  - body_contains: "Nagios"
+  - body_contains: "nagios"
+  - body_contains: "Monitoring"
+  - status_code: 200

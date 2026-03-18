@@ -1,0 +1,14 @@
+name: CORS Null Origin Allowed
+description: The server accepts null as a valid CORS origin, reflected in Access-Control-Allow-Origin: null. Attackers can exploit this from sandboxed iframes or redirects to make credentialed cross-origin requests.
+severity: medium
+cwe: CWE-942
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Origin: "null"
+
+matchers:
+  - header_contains: "Access-Control-Allow-Origin: null"
+  - status_code: 200

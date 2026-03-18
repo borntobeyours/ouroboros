@@ -1,0 +1,22 @@
+name: Stripe Test API Key Exposure
+description: Detects exposed Stripe test API keys in HTTP responses. While test keys do not process real payments, their exposure reveals application patterns and may indicate poor secret management.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "sk_test_[0-9a-zA-Z]{24,}"
+  - regex: "pk_test_[0-9a-zA-Z]{24,}"
+
+extractors:
+  - name: stripe_test_key
+    regex: "((?:sk|pk)_test_[0-9a-zA-Z]{24,})"

@@ -1,0 +1,21 @@
+name: Joomla Default Admin Credentials
+description: Attempts to authenticate to Joomla CMS administrator backend using default admin/admin credentials. Successful access allows template modification and extension installation leading to remote code execution.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /administrator/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&passwd=admin&option=com_login&task=login&return=aW5kZXgucGhw"
+  - method: POST
+    path: /administrator/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&passwd=password&option=com_login&task=login&return=aW5kZXgucGhw"
+
+matchers:
+  - body_contains: "Control Panel"
+  - body_contains: "Joomla"
+  - header_contains: "joomla_user_state"

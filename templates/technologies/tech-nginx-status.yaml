@@ -1,0 +1,16 @@
+name: Nginx Status Page Exposed
+description: Detects an exposed Nginx stub_status page at /nginx_status. This page reveals the number of active connections, total accepted connections, and requests per connection, providing operational intelligence to attackers.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /nginx_status
+  - method: GET
+    path: /status
+
+matchers:
+  - body_contains: "Active connections:"
+  - body_contains: "server accepts"
+  - body_contains: "nginx"
+  - status_code: 200

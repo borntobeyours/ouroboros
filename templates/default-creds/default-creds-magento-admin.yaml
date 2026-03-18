@@ -1,0 +1,21 @@
+name: Magento Default Admin Credentials
+description: Attempts to authenticate to Magento e-commerce admin panel using default admin/admin123 credentials. Successful access exposes customer data, payment information, and allows server-side template injection.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /index.php/admin/dashboard
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login[username]=admin&login[password]=admin123"
+  - method: POST
+    path: /admin/dashboard
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login[username]=admin&login[password]=admin123"
+
+matchers:
+  - body_contains: "Magento"
+  - body_contains: "Dashboard"
+  - header_contains: "adminhtml"

@@ -1,0 +1,21 @@
+name: Oracle Database Default Credentials
+description: Attempts to authenticate to Oracle Database using default sys/change_on_install and system/manager credentials. These accounts ship with Oracle and provide full database administrator access.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /apex/f
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "p_flow_id=4950&p_flow_step_id=1&p_instance=&p_arg_names=P1_USERNAME&p_arg_values=sys&p_arg_names=P1_PASSWORD&p_arg_values=change_on_install"
+  - method: GET
+    path: /em/console/logon/logon
+    headers:
+      Authorization: "Basic c3lzOmNoYW5nZV9vbl9pbnN0YWxs"
+
+matchers:
+  - body_contains: "Oracle"
+  - body_contains: "Enterprise Manager"
+  - body_contains: "APEX"
+  - status_code: 200

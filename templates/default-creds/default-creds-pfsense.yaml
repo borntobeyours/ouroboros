@@ -1,0 +1,17 @@
+name: pfSense Default Credentials
+description: Attempts to authenticate to pfSense firewall web GUI using default admin/pfsense credentials. Successful access provides full firewall, VPN, and routing configuration control.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "usernamefld=admin&passwordfld=pfsense&login=Sign+In&__csrf_magic="
+
+matchers:
+  - body_contains: "pfSense"
+  - body_contains: "Dashboard"
+  - body_contains: "Firewall"
+  - header_contains: "PHPSESSID"

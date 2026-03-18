@@ -1,0 +1,19 @@
+name: JWT Token in URL
+description: Detects JWT tokens passed as URL parameters. Tokens in URLs may be logged in server access logs, browser history, and proxy logs, enabling session hijacking.
+severity: medium
+cwe: CWE-598
+
+requests:
+  - method: GET
+    path: /api
+  - method: GET
+    path: /callback
+  - method: GET
+    path: /auth/callback
+
+matchers:
+  - regex: "[?&](?:token|jwt|access_token|id_token)=ey[a-zA-Z0-9_\\-]+\\.ey[a-zA-Z0-9_\\-]+\\.[a-zA-Z0-9_\\-]+"
+
+extractors:
+  - name: jwt_token
+    regex: "(ey[a-zA-Z0-9_\\-]+\\.ey[a-zA-Z0-9_\\-]+\\.[a-zA-Z0-9_\\-]+)"

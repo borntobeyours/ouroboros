@@ -1,0 +1,19 @@
+name: Apache Directory Listing Enabled
+description: Apache web server has directory listing (Options Indexes) enabled, allowing attackers to browse directory contents and discover sensitive files, configuration files, and backup data.
+severity: medium
+cwe: CWE-548
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /images/
+  - method: GET
+    path: /uploads/
+  - method: GET
+    path: /static/
+
+matchers:
+  - body_contains: "Index of /"
+  - body_contains: "Parent Directory"
+  - regex: "<title>Index of"

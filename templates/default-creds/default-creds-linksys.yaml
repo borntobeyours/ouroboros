@@ -1,0 +1,20 @@
+name: Linksys Router Default Credentials
+description: Attempts to authenticate to Linksys router web management interface using default admin/admin credentials. Successful access enables full network configuration including DNS and firewall settings.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /setup.cgi
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "Linksys"
+  - body_contains: "LINKSYS"
+  - body_contains: "Cisco"
+  - status_code: 200

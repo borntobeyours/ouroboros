@@ -1,0 +1,14 @@
+name: Laravel .env File Exposed
+description: A Laravel .env environment file is publicly accessible. This file contains APP_KEY, database credentials, API keys, mail server credentials, and other secrets required for the application to function.
+severity: critical
+cwe: CWE-312
+
+requests:
+  - method: GET
+    path: /.env
+
+matchers:
+  - body_contains: "APP_KEY"
+  - body_contains: "DB_PASSWORD"
+  - body_contains: "APP_ENV"
+  - status_code: 200

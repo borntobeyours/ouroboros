@@ -1,0 +1,16 @@
+name: .NET ViewState MAC Validation Disabled
+description: Detects ASP.NET applications with ViewState MAC validation disabled (enableViewStateMac=false). Without MAC validation, attackers can craft malicious ViewState payloads that deserialize arbitrary .NET objects, leading to remote code execution.
+severity: critical
+cwe: CWE-502
+
+requests:
+  - method: POST
+    path: /
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "__VIEWSTATE=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+matchers:
+  - body_contains: "System.Web"
+  - body_contains: "__VIEWSTATE"
+  - status_code: 200

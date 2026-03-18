@@ -1,0 +1,13 @@
+name: AWS Amplify Subdomain Takeover
+description: Detects a dangling CNAME pointing to an AWS Amplify deployment that no longer exists. The app has been deleted while the DNS record still resolves to Amplify infrastructure.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Deployment not found"
+  - body_contains: "There is no deployed app"
+  - status_code: 404

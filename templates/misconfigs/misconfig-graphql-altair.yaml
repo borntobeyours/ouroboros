@@ -1,0 +1,15 @@
+name: GraphQL Altair Client Exposed
+description: The Altair GraphQL client interface is publicly accessible in production, allowing unauthenticated users to interactively query and mutate GraphQL endpoints directly from the browser.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /altair
+  - method: GET
+    path: /graphql/altair
+
+matchers:
+  - body_contains: "Altair"
+  - body_contains: "altair-graphql"
+  - status_code: 200

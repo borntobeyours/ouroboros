@@ -1,0 +1,14 @@
+name: Git Configuration File with Credentials Exposed
+description: Detects a publicly accessible .git/config file. This file may contain remote repository URLs with embedded credentials (https://user:token@github.com/), branch names, and remote configuration exposing repository access tokens.
+severity: high
+cwe: CWE-312
+
+requests:
+  - method: GET
+    path: /.git/config
+
+matchers:
+  - body_contains: "[core]"
+  - body_contains: "repositoryformatversion"
+  - body_contains: "[remote"
+  - status_code: 200

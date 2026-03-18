@@ -1,0 +1,13 @@
+name: Pingdom Public Report Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Pingdom public status report page that has been deleted. An attacker can create a Pingdom account and configure a public report accessible via the victim's subdomain.
+severity: medium
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "This public report page has not been activated"
+  - body_contains: "pingdom"
+  - status_code: 404

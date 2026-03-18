@@ -1,0 +1,12 @@
+name: Missing HTTP Strict Transport Security (HSTS) Header
+description: The application does not set the Strict-Transport-Security header, making it vulnerable to SSL stripping attacks where an attacker can downgrade HTTPS connections to HTTP to intercept traffic.
+severity: medium
+cwe: CWE-319
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - status_code: 200
+  - regex: "^(?!.*Strict-Transport-Security)"

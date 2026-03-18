@@ -1,0 +1,13 @@
+name: BigCartel Subdomain Takeover
+description: Detects a dangling CNAME pointing to a BigCartel store that has been deleted or the custom domain removed. An attacker can create a BigCartel store and map the victim's domain to it.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Oops! We couldn't find that page."
+  - body_contains: "bigcartel"
+  - status_code: 404

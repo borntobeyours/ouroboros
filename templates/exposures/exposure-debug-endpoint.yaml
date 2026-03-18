@@ -1,0 +1,27 @@
+name: Debug Endpoint with Sensitive Info
+description: Detects debug or diagnostic endpoints that expose sensitive runtime information including heap dumps, configuration, and system details in production environments.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /debug
+  - method: GET
+    path: /debug/vars
+  - method: GET
+    path: /_debug
+  - method: GET
+    path: /phpinfo.php
+  - method: GET
+    path: /server-status
+
+matchers:
+  - body_contains: "phpinfo()"
+  - body_contains: "PHP Version"
+  - body_contains: "_SERVER"
+  - body_contains: "_ENV"
+  - body_contains: "go_memstats"
+
+extractors:
+  - name: php_version
+    regex: "PHP Version ([0-9]+\\.[0-9]+\\.[0-9]+)"

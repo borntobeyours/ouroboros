@@ -1,0 +1,21 @@
+name: Adminer Default Database Access
+description: Detects publicly accessible Adminer database management tool. Adminer with no authentication restriction allows connecting to any database server accessible from the server, enabling SSRF and data exfiltration.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /adminer.php
+  - method: GET
+    path: /adminer/adminer.php
+  - method: POST
+    path: /adminer.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "auth[server]=localhost&auth[username]=root&auth[password]=&auth[db]=&auth[driver]=server"
+
+matchers:
+  - body_contains: "adminer"
+  - body_contains: "Adminer"
+  - body_contains: "Login"
+  - status_code: 200

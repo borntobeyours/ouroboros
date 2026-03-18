@@ -1,0 +1,13 @@
+name: Tilda Publishing Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Tilda Publishing project whose custom domain has been removed or the project deleted. An attacker can create a Tilda project and attach the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Domain not found"
+  - body_contains: "tilda.ws"
+  - status_code: 404

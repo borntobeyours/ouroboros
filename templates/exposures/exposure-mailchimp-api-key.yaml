@@ -1,0 +1,19 @@
+name: Mailchimp API Key Exposure
+description: Detects exposed Mailchimp API keys in HTTP responses. Leaked Mailchimp API keys allow access to mailing lists, subscriber data, and the ability to send campaigns.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "[0-9a-f]{32}-us[0-9]{1,2}"
+
+extractors:
+  - name: mailchimp_api_key
+    regex: "([0-9a-f]{32}-us[0-9]{1,2})"

@@ -1,0 +1,13 @@
+name: Launchrock Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Launchrock landing page that has been deleted. An attacker can register a new Launchrock site and map it to the victim's subdomain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "It looks like you may have taken a wrong turn somewhere"
+  - body_contains: "launchrock"
+  - status_code: 404

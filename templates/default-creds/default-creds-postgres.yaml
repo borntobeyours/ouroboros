@@ -1,0 +1,20 @@
+name: PostgreSQL Default Credentials
+description: Attempts to authenticate to PostgreSQL via web interfaces using the default postgres/postgres superuser credentials. Successful access grants full control over all databases.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /phppgadmin/login.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "loginServer=localhost&loginUser=postgres&loginPassword=postgres&loginSubmit=Login"
+  - method: GET
+    path: /pgadmin4/api/role/
+    headers:
+      Authorization: "Basic cG9zdGdyZXM6cG9zdGdyZXM="
+
+matchers:
+  - body_contains: "postgres"
+  - body_contains: "pgAdmin"
+  - status_code: 200

@@ -1,0 +1,22 @@
+name: Java Stack Trace Disclosure
+description: Detects Java stack traces in HTTP responses. Exposed stack traces reveal application internals, class names, file paths, and line numbers that aid in targeted exploitation.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /error
+
+matchers:
+  - regex: "at [a-zA-Z0-9\\.]+\\([a-zA-Z0-9]+\\.java:[0-9]+\\)"
+  - body_contains: "java.lang.NullPointerException"
+  - body_contains: "java.lang.RuntimeException"
+  - body_contains: "Exception in thread"
+
+extractors:
+  - name: exception_class
+    regex: "(java\\.(?:lang|io|net|util)\\.[a-zA-Z]+Exception)"

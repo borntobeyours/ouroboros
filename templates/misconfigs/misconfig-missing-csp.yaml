@@ -1,0 +1,12 @@
+name: Missing Content-Security-Policy Header
+description: The application does not set a Content-Security-Policy header, leaving it vulnerable to cross-site scripting (XSS) attacks and content injection, as browsers will execute all scripts regardless of origin.
+severity: medium
+cwe: CWE-1021
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - status_code: 200
+  - regex: "^(?!.*Content-Security-Policy)"

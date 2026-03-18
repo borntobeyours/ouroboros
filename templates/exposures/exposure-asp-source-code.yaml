@@ -1,0 +1,22 @@
+name: ASP.NET Source Code Exposure
+description: Detects ASP.NET source code in HTTP responses. Exposed source code reveals business logic, database connection details, and security mechanisms.
+severity: high
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /default.aspx.bak
+  - method: GET
+    path: /web.config.bak
+  - method: GET
+    path: /Global.asax
+
+matchers:
+  - body_contains: "<%@ Page"
+  - body_contains: "using System.Web"
+  - body_contains: "Response.Write("
+  - regex: "<%[^%]"
+
+extractors:
+  - name: asp_strings
+    regex: "ConnectionString\\s*=\\s*[\"']([^\"']{10,})[\"']"

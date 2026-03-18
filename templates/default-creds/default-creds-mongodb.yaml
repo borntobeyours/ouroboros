@@ -1,0 +1,21 @@
+name: MongoDB Default Credentials
+description: Attempts to authenticate to MongoDB management interfaces using default admin/admin credentials. MongoDB instances deployed without --auth flag or with default credentials expose all databases.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"admin"}'
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "MongoDB"
+  - body_contains: "mongo-express"
+  - body_contains: "databases"
+  - status_code: 200

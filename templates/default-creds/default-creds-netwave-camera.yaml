@@ -1,0 +1,18 @@
+name: Netwave IP Camera Default Credentials
+description: Attempts to authenticate to Netwave IP cameras using default admin/admin credentials. Many Netwave-based OEM cameras share the same firmware with identical default credentials.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /get_status.cgi
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /videostream.cgi?user=admin&pwd=admin
+
+matchers:
+  - body_contains: "return_code=0"
+  - body_contains: "sys_ver"
+  - body_contains: "ip_addr"
+  - status_code: 200

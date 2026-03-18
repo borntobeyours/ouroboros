@@ -1,0 +1,22 @@
+name: Algolia API Key Exposure
+description: Detects exposed Algolia API keys in HTTP responses. Leaked admin API keys allow modifying search indexes; leaked search keys may expose private data.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /js/app.js
+  - method: GET
+    path: /static/config.js
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "(?i)algolia.{0,20}api.key[\\s=:\"']+[0-9a-f]{32}"
+  - regex: "(?i)ALGOLIA_API_KEY[\\s=:\"']+[0-9a-f]{32}"
+
+extractors:
+  - name: algolia_api_key
+    regex: "(?i)(?:algolia_api_key|api.key)[\\s=:\"']+([0-9a-f]{32})"

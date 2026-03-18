@@ -1,0 +1,19 @@
+name: Apache /server-status Page Exposed
+description: Apache mod_status is enabled and the /server-status page is publicly accessible. This exposes real-time server statistics, active request URLs (which may contain tokens), client IPs, and worker state.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /server-status
+  - method: GET
+    path: /server-status?auto
+
+matchers:
+  - body_contains: "Apache Server Status"
+  - body_contains: "Server Version"
+  - body_contains: "Total Accesses"
+
+extractors:
+  - name: apache_version
+    regex: "Server Version: Apache/([0-9\\.]+)"

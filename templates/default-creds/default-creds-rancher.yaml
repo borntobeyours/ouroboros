@@ -1,0 +1,17 @@
+name: Rancher Kubernetes Management Default Credentials
+description: Attempts to authenticate to Rancher container management platform using default admin/admin credentials. Successful access grants full Kubernetes cluster management including workload deployment.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /v3-public/localProviders/local?action=login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"admin","responseType":"cookie"}'
+
+matchers:
+  - body_contains: "\"type\":\"token\""
+  - body_contains: "R_SESS"
+  - header_contains: "R_SESS"
+  - status_code: 201

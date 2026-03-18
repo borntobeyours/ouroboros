@@ -1,0 +1,19 @@
+name: MongoDB Connection String Exposure
+description: Detects exposed MongoDB connection strings in HTTP responses. Leaked MongoDB URIs contain credentials and host information enabling unauthorized database access.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "mongodb(\\+srv)?:\\/\\/[^:]+:[^@]+@[a-zA-Z0-9.\\-]+"
+
+extractors:
+  - name: mongodb_uri
+    regex: "(mongodb(?:\\+srv)?:\\/\\/[^:]+:[^@]+@[^\\s\"'<>]+)"

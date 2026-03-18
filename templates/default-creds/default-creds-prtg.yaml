@@ -1,0 +1,19 @@
+name: PRTG Network Monitor Default Credentials
+description: Attempts to authenticate to PRTG Network Monitor using default prtgadmin/prtgadmin credentials. Successful access reveals full network topology and may allow sensor script execution leading to RCE.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/getpasshash.htm
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=prtgadmin&password=prtgadmin"
+  - method: GET
+    path: /api/table.xml?content=sensors&output=xml&columns=objid,name&count=1&username=prtgadmin&password=prtgadmin
+
+matchers:
+  - body_contains: "prtgadmin"
+  - body_contains: "PRTG"
+  - body_contains: "passhash"
+  - status_code: 200

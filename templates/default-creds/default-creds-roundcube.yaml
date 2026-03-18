@@ -1,0 +1,22 @@
+name: Roundcube Webmail Default Credentials
+description: Attempts to authenticate to Roundcube webmail using default admin/admin credentials. Successful access exposes email communications and contact data, and may allow server-side plugin manipulation.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "_token=&_task=login&_action=login&_timezone=UTC&_url=&_user=admin&_pass=admin"
+  - method: POST
+    path: /webmail/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "_token=&_task=login&_action=login&_timezone=UTC&_url=&_user=admin&_pass=admin"
+
+matchers:
+  - body_contains: "Roundcube"
+  - body_contains: "rcmloginuser"
+  - header_contains: "roundcube_sessid"
+  - status_code: 200

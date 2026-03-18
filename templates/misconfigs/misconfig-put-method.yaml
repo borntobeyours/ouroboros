@@ -1,0 +1,16 @@
+name: HTTP PUT Method Enabled
+description: The HTTP PUT method is enabled, potentially allowing attackers to upload arbitrary files to the web server if not properly restricted. This can lead to remote code execution through malicious file upload.
+severity: high
+cwe: CWE-650
+
+requests:
+  - method: PUT
+    path: /test-ouroboros-put-check.txt
+    headers:
+      Content-Type: text/plain
+    body: "ouroboros-put-test"
+
+matchers:
+  - status_code: 201
+  - status_code: 204
+  - status_code: 200

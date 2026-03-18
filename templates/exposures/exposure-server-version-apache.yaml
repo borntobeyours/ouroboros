@@ -1,0 +1,16 @@
+name: Apache Version Disclosure
+description: Detects Apache web server version numbers in HTTP response headers. Disclosed versions allow targeted exploitation of known CVEs for that specific Apache version.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - regex: "Apache/[0-9]+\\.[0-9]+"
+  - header_contains: "Apache/"
+
+extractors:
+  - name: apache_version
+    regex: "Apache/([0-9]+\\.[0-9]+\\.?[0-9]*)"

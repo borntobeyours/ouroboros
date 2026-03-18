@@ -1,0 +1,22 @@
+name: SSH Private Key Exposure
+description: Detects exposed SSH private keys in HTTP responses. Leaked SSH keys allow unauthorized access to servers that trust the corresponding public key.
+severity: critical
+cwe: CWE-321
+
+requests:
+  - method: GET
+    path: /id_rsa
+  - method: GET
+    path: /.ssh/id_rsa
+  - method: GET
+    path: /id_dsa
+  - method: GET
+    path: /id_ecdsa
+  - method: GET
+    path: /id_ed25519
+
+matchers:
+  - body_contains: "-----BEGIN OPENSSH PRIVATE KEY-----"
+  - body_contains: "-----BEGIN DSA PRIVATE KEY-----"
+  - body_contains: "-----BEGIN RSA PRIVATE KEY-----"
+  - body_contains: "-----BEGIN EC PRIVATE KEY-----"

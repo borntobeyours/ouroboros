@@ -1,0 +1,17 @@
+name: WordPress XMLRPC Enabled
+description: WordPress XML-RPC interface is enabled at xmlrpc.php. This endpoint can be abused for brute-force amplification attacks (checking thousands of credentials per request), DDoS reflection, and server-side request forgery.
+severity: medium
+cwe: CWE-307
+
+requests:
+  - method: POST
+    path: /xmlrpc.php
+    headers:
+      Content-Type: text/xml
+    body: "<?xml version=\"1.0\"?><methodCall><methodName>system.listMethods</methodName><params></params></methodCall>"
+
+matchers:
+  - body_contains: "<?xml"
+  - body_contains: "methodResponse"
+  - body_contains: "system.listMethods"
+  - status_code: 200

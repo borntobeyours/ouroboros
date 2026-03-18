@@ -1,0 +1,21 @@
+name: Harbor Container Registry Default Credentials
+description: Attempts to authenticate to Harbor container registry using default admin/Harbor12345 credentials. Successful access enables manipulation of container images potentially introducing backdoored images into the supply chain.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /c/login
+    headers:
+      Content-Type: application/json
+    body: '{"principal":"admin","password":"Harbor12345"}'
+  - method: GET
+    path: /api/v2.0/systeminfo
+    headers:
+      Authorization: "Basic YWRtaW46SGFyYm9yMTIzNDU="
+
+matchers:
+  - body_contains: "harbor_version"
+  - body_contains: "Harbor"
+  - header_contains: "sid"
+  - status_code: 200

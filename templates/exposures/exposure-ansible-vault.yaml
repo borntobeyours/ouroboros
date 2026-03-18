@@ -1,0 +1,20 @@
+name: Ansible Vault File Exposure
+description: Detects exposed Ansible Vault files in HTTP responses. While encrypted, their presence may indicate the location of sensitive variable files; weak vault passwords can be brute-forced.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /vault.yml
+  - method: GET
+    path: /group_vars/all/vault.yml
+  - method: GET
+    path: /vars/vault.yml
+
+matchers:
+  - body_contains: "$ANSIBLE_VAULT;"
+  - regex: "\\$ANSIBLE_VAULT;[0-9]+\\.[0-9]+;AES256"
+
+extractors:
+  - name: vault_version
+    regex: "\\$ANSIBLE_VAULT;([0-9]+\\.[0-9]+);([A-Z0-9]+)"

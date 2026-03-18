@@ -1,0 +1,21 @@
+name: Slack Webhook URL Exposure
+description: Detects exposed Slack incoming webhook URLs in HTTP responses. Leaked webhook URLs allow attackers to post arbitrary messages to the configured Slack channel.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "https://hooks\\.slack\\.com/services/T[0-9A-Z]+/B[0-9A-Z]+/[0-9a-zA-Z]+"
+
+extractors:
+  - name: slack_webhook
+    regex: "(https://hooks\\.slack\\.com/services/T[0-9A-Z]+/B[0-9A-Z]+/[0-9a-zA-Z]+)"

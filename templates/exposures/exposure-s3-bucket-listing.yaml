@@ -1,0 +1,19 @@
+name: S3 Bucket Listing Enabled
+description: Detects publicly accessible S3 buckets with directory listing enabled. Listed buckets expose all stored file names and may allow unauthorized file downloads.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "<ListBucketResult"
+  - body_contains: "xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\""
+  - status_code: 200
+
+extractors:
+  - name: bucket_name
+    regex: "<Name>([^<]+)</Name>"
+  - name: keys
+    regex: "<Key>([^<]+)</Key>"

@@ -1,0 +1,15 @@
+name: Oracle APEX Application Exposed
+description: Detects Oracle Application Express (APEX) installations accessible via /apex/ or /pls/apex. APEX provides a web interface to Oracle databases; improper configuration or weak credentials expose database content and administrative functions.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /apex/
+  - method: GET
+    path: /pls/apex/
+
+matchers:
+  - body_contains: "Oracle Application Express"
+  - body_contains: "APEX"
+  - status_code: 200

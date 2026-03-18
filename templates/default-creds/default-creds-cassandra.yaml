@@ -1,0 +1,20 @@
+name: Apache Cassandra Default Credentials
+description: Attempts to authenticate to Apache Cassandra management interfaces using default cassandra/cassandra credentials. Successful access provides full control over all keyspaces and data.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/cassandra/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"cassandra","password":"cassandra"}'
+  - method: GET
+    path: /cassandra/api/v1/cluster/name
+    headers:
+      Authorization: "Basic Y2Fzc2FuZHJhOmNhc3NhbmRyYQ=="
+
+matchers:
+  - body_contains: "cassandra"
+  - body_contains: "cluster_name"
+  - status_code: 200

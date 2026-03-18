@@ -1,0 +1,14 @@
+name: Travis CI Configuration Exposed
+description: Detects a publicly accessible .travis.yml file. Travis CI configurations may contain encrypted environment variables, deployment keys, container registry credentials, and script commands that reveal infrastructure details.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.travis.yml
+
+matchers:
+  - body_contains: "language:"
+  - body_contains: "script:"
+  - body_contains: "travis"
+  - status_code: 200

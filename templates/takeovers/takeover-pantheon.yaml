@@ -1,0 +1,13 @@
+name: Pantheon Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Pantheon-hosted site that has been deleted or the domain association removed. An attacker can associate their Pantheon site with the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "404 error unknown site!"
+  - body_contains: "The gods are wise"
+  - status_code: 404

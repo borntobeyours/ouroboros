@@ -1,0 +1,24 @@
+name: Environment Variables Exposed
+description: Detects endpoints that expose environment variables in HTTP responses. Environment variables often contain credentials, API keys, and service configuration.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /env
+  - method: GET
+    path: /api/env
+  - method: GET
+    path: /_env
+
+matchers:
+  - regex: "(?:[A-Z_]{2,}=[^\\n]{1,500}\\n){3,}"
+  - body_contains: "DATABASE_URL"
+  - body_contains: "SECRET_KEY"
+  - body_contains: "API_KEY"
+
+extractors:
+  - name: env_variable
+    regex: "([A-Z_]+_(?:KEY|SECRET|PASSWORD|TOKEN|URL))=([^\\n]+)"

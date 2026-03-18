@@ -1,0 +1,22 @@
+name: Rails database.yml Exposed
+description: Detects exposed Rails database.yml files containing database credentials for development, test, and production environments.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /config/database.yml
+  - method: GET
+    path: /database.yml
+
+matchers:
+  - body_contains: "adapter: mysql"
+  - body_contains: "adapter: postgresql"
+  - body_contains: "database:"
+  - body_contains: "password:"
+
+extractors:
+  - name: db_password
+    regex: "password:\\s*([^\\n]+)"
+  - name: db_host
+    regex: "host:\\s*([^\\n]+)"

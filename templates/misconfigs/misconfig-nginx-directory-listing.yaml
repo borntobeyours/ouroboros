@@ -1,0 +1,17 @@
+name: Nginx Directory Listing Enabled (autoindex)
+description: Nginx has autoindex directive enabled, allowing directory browsing. Attackers can enumerate files and discover backup files, configuration data, or source code.
+severity: medium
+cwe: CWE-548
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /static/
+  - method: GET
+    path: /files/
+
+matchers:
+  - body_contains: "Index of /"
+  - body_contains: "nginx"
+  - regex: "<a href=\"\\.\\./"

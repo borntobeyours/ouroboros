@@ -1,0 +1,22 @@
+name: Google OAuth Client Secret Exposure
+description: Detects exposed Google OAuth client secrets in HTTP responses. Leaked OAuth client secrets allow attackers to impersonate the application and hijack OAuth flows.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /oauth/config
+
+matchers:
+  - regex: "(?i)google.{0,20}client.secret[\\s=:\"']+[0-9a-zA-Z\\-_]{24,}"
+  - regex: "GOCSPX-[0-9a-zA-Z\\-_]{28}"
+
+extractors:
+  - name: google_oauth_secret
+    regex: "(GOCSPX-[0-9a-zA-Z\\-_]{28})"

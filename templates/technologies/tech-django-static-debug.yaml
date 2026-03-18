@@ -1,0 +1,13 @@
+name: Django Debug Static Files Exposure
+description: Detects Django serving static files with DEBUG=True enabled. In debug mode, Django serves static files directly and may expose STATICFILES_DIRS contents including development configuration or sensitive assets.
+severity: low
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /static/admin/
+
+matchers:
+  - body_contains: "Index of"
+  - body_contains: "django"
+  - status_code: 200

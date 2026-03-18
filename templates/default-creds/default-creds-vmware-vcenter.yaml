@@ -1,0 +1,21 @@
+name: VMware vCenter Default Credentials
+description: Attempts to authenticate to VMware vCenter Server using default administrator@vsphere.local/vmware credentials. Successful access grants full control over all virtual machines and ESXi hosts.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /rest/com/vmware/cis/session
+    headers:
+      Authorization: "Basic YWRtaW5pc3RyYXRvckB2c3BoZXJlLmxvY2FsOnZtd2FyZQ=="
+  - method: POST
+    path: /ui/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=administrator%40vsphere.local&password=vmware"
+
+matchers:
+  - body_contains: "\"value\":"
+  - body_contains: "vSphere"
+  - body_contains: "VMware"
+  - header_contains: "vmware-api-session-id"

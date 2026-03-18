@@ -1,0 +1,16 @@
+name: MailHog No Authentication Required
+description: Detects MailHog email testing tool accessible without authentication. MailHog captures all outgoing emails, and unauthenticated access exposes password reset tokens, user registration links, and sensitive email content.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /api/v1/messages
+  - method: GET
+    path: /api/v2/messages
+
+matchers:
+  - body_contains: "\"items\":"
+  - body_contains: "MailHog"
+  - body_contains: "\"total\":"
+  - status_code: 200

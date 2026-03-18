@@ -1,0 +1,13 @@
+name: Django Debug Mode Enabled
+description: Django application has DEBUG=True enabled, which exposes detailed error pages, stack traces, and environment variables including secret keys.
+severity: high
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /nonexistent-path-to-trigger-404
+
+matchers:
+  - body_contains: "Django Version"
+  - body_contains: "Using the URLconf defined in"
+  - regex: "DEBUG\\s*=\\s*True"

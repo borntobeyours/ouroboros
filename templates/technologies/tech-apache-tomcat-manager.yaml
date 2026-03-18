@@ -1,0 +1,13 @@
+name: Apache Tomcat Manager Detection
+description: Detects the Apache Tomcat Manager application at /manager/html. The manager interface allows deploying and managing web applications. Default or weak credentials enable WAR file deployment and remote code execution.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /manager/html
+
+matchers:
+  - body_contains: "Tomcat Web Application Manager"
+  - body_contains: "Apache Tomcat"
+  - status_code: 200

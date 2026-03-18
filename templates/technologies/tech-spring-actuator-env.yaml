@@ -1,0 +1,16 @@
+name: Spring Boot Actuator /env Endpoint Exposed
+description: Detects an unauthenticated Spring Boot Actuator /env endpoint. This endpoint exposes all environment variables, system properties, and application configuration including database passwords, API keys, and cloud credentials.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /actuator/env
+  - method: GET
+    path: /env
+
+matchers:
+  - body_contains: "activeProfiles"
+  - body_contains: "propertySources"
+  - body_contains: "systemEnvironment"
+  - status_code: 200

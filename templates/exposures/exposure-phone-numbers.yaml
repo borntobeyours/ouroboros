@@ -1,0 +1,20 @@
+name: Phone Number Bulk Exposure
+description: Detects bulk phone number disclosure in HTTP responses. Exposed phone numbers can enable SIM swapping attacks, spam, and social engineering.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /api/users
+  - method: GET
+    path: /api/customers
+  - method: GET
+    path: /api/contacts
+
+matchers:
+  - regex: "\\b(?:\\+1[-\\s]?)?\\(?[2-9]\\d{2}\\)?[-\\s]?[2-9]\\d{2}[-\\s]?\\d{4}\\b"
+  - regex: "\\b\\+?[1-9]\\d{1,14}\\b"
+
+extractors:
+  - name: phone_number
+    regex: "(\\+?[1-9]\\d{6,14})"

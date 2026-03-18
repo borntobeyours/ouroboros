@@ -1,0 +1,23 @@
+name: Swagger Docs with API Keys Exposed
+description: Detects Swagger/OpenAPI documentation that includes example or hardcoded API keys. Exposed Swagger docs with real API keys allow immediate API abuse.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /swagger.json
+  - method: GET
+    path: /api/swagger.json
+  - method: GET
+    path: /v2/api-docs
+  - method: GET
+    path: /swagger/v1/swagger.json
+
+matchers:
+  - body_contains: "\"securityDefinitions\""
+  - body_contains: "apikey"
+  - regex: "(?i)\"x-api-key\"\\s*:\\s*\"[a-zA-Z0-9\\-_]{16,}\""
+
+extractors:
+  - name: api_key
+    regex: "(?i)\"x-api-key\"\\s*:\\s*\"([a-zA-Z0-9\\-_]{16,})\""

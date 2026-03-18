@@ -1,0 +1,14 @@
+name: CORS Wildcard Origin Misconfiguration
+description: The server responds with Access-Control-Allow-Origin set to wildcard (*), allowing any origin to make cross-origin requests. This can expose sensitive API responses to malicious websites.
+severity: medium
+cwe: CWE-942
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Origin: https://evil.com
+
+matchers:
+  - header_contains: "Access-Control-Allow-Origin: *"
+  - status_code: 200

@@ -1,0 +1,13 @@
+name: Django Settings Module Disclosure
+description: Django debug mode reveals the DJANGO_SETTINGS_MODULE environment variable in error pages, disclosing the path to the settings file. Combined with other vulnerabilities, this enables targeted configuration attacks.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "DJANGO_SETTINGS_MODULE"
+  - body_contains: "settings"
+  - status_code: 500

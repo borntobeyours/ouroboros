@@ -1,0 +1,19 @@
+name: Redis URL with Password Exposure
+description: Detects exposed Redis URLs containing passwords in HTTP responses. Leaked Redis credentials allow full read/write access to the cache, potentially exposing session tokens and cached data.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "redis(s)?:\\/\\/:[^@]+@[a-zA-Z0-9.\\-]+:[0-9]+"
+
+extractors:
+  - name: redis_url
+    regex: "(rediss?:\\/\\/:[^@]+@[^\\s\"'<>]+)"

@@ -1,0 +1,14 @@
+name: Laravel Log File Exposed
+description: Laravel application log files in storage/logs are publicly accessible. Log files may contain exception stack traces, SQL queries, user data, authentication tokens, and other sensitive operational information.
+severity: high
+cwe: CWE-532
+
+requests:
+  - method: GET
+    path: /storage/logs/laravel.log
+
+matchers:
+  - body_contains: "local.ERROR"
+  - body_contains: "Laravel"
+  - body_contains: "[stacktrace]"
+  - status_code: 200

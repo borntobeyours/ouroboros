@@ -1,0 +1,24 @@
+name: ASP.NET web.config Exposed
+description: Detects exposed ASP.NET web.config files containing connection strings, app settings, and potentially sensitive configuration data.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /web.config
+  - method: GET
+    path: /Web.config
+  - method: GET
+    path: /web.config.bak
+
+matchers:
+  - body_contains: "<connectionStrings>"
+  - body_contains: "<appSettings>"
+  - body_contains: "<?xml version"
+  - regex: "<add key=\"[^\"]+\" value=\"[^\"]+\""
+
+extractors:
+  - name: connection_string
+    regex: "connectionString=\"([^\"]+)\""
+  - name: app_settings
+    regex: "<add key=\"([^\"]+)\" value=\"([^\"]+)\""

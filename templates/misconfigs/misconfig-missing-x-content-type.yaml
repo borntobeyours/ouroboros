@@ -1,0 +1,12 @@
+name: Missing X-Content-Type-Options Header
+description: The application does not set X-Content-Type-Options: nosniff, allowing browsers to perform MIME type sniffing. This can cause browsers to interpret non-script files as executable scripts, enabling content injection attacks.
+severity: low
+cwe: CWE-16
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - status_code: 200
+  - regex: "^(?!.*X-Content-Type-Options)"

@@ -1,0 +1,14 @@
+name: WordPress license.txt Exposed
+description: The WordPress license.txt file is publicly accessible. While not immediately dangerous, it confirms a WordPress installation and reveals version information used for fingerprinting.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /license.txt
+
+matchers:
+  - status_code: 200
+  - body_contains: "WordPress"
+  - body_contains: "GNU GENERAL PUBLIC LICENSE"
+  - regex: "WordPress - Web publishing software"

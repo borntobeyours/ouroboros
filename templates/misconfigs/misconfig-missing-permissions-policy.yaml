@@ -1,0 +1,12 @@
+name: Missing Permissions-Policy Header
+description: The application does not set a Permissions-Policy (formerly Feature-Policy) header, allowing embedded content full access to browser features like camera, microphone, geolocation, and USB devices.
+severity: low
+cwe: CWE-16
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - status_code: 200
+  - regex: "^(?!.*Permissions-Policy)"

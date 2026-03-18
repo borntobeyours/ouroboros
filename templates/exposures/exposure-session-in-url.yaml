@@ -1,0 +1,19 @@
+name: Session ID in URL
+description: Detects session IDs passed as URL parameters. Session IDs in URLs can be logged, bookmarked, or leaked via the Referer header, enabling session fixation and hijacking.
+severity: medium
+cwe: CWE-598
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /dashboard
+
+matchers:
+  - regex: "[?&](?:JSESSIONID|PHPSESSID|SESSIONID|sid|session_id)=[a-zA-Z0-9]{16,}"
+
+extractors:
+  - name: session_id
+    regex: "(?:JSESSIONID|PHPSESSID|SESSIONID|session_id)=([a-zA-Z0-9]{16,})"

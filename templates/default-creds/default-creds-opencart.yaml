@@ -1,0 +1,17 @@
+name: OpenCart Default Admin Credentials
+description: Attempts to authenticate to OpenCart e-commerce administration panel using default admin/admin credentials. Successful access exposes customer database, order data, and allows file upload for code execution.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /admin/index.php?route=common/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=admin"
+
+matchers:
+  - body_contains: "OpenCart"
+  - body_contains: "Dashboard"
+  - header_contains: "PHPSESSID"
+  - status_code: 200

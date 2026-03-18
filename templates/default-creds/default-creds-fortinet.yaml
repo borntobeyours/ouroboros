@@ -1,0 +1,22 @@
+name: Fortinet FortiGate Default Credentials
+description: Attempts to authenticate to Fortinet FortiGate firewall web interface using default admin with empty password. Successful access grants full firewall policy and network configuration control.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /logincheck
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&secretkey=&ajax=1"
+  - method: POST
+    path: /api/v2/authentication
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","secretkey":"","request_key":"","ajax":1}'
+
+matchers:
+  - body_contains: "\"status\":\"success\""
+  - body_contains: "FortiGate"
+  - header_contains: "APSCOOKIE"
+  - status_code: 200

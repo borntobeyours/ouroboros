@@ -1,0 +1,20 @@
+name: Brother Printer Default Credentials
+description: Attempts to authenticate to Brother printer web management interface using default admin/access credentials. Access allows printer configuration, stored job access, and address book retrieval.
+severity: medium
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /general/status.html
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login_id=admin&login_password=access"
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46YWNjZXNz"
+
+matchers:
+  - body_contains: "Brother"
+  - body_contains: "Web Based Management"
+  - status_code: 200

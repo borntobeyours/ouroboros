@@ -1,0 +1,14 @@
+name: Laravel APP_DEBUG Enabled
+description: Laravel application has APP_DEBUG=true set, which exposes detailed error pages including stack traces, environment variables, and application configuration.
+severity: high
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /nonexistent-path-to-trigger-error
+
+matchers:
+  - body_contains: "Whoops! There was an error."
+  - body_contains: "laravel"
+  - body_contains: "Illuminate\\"
+  - regex: "APP_DEBUG\\s*=\\s*true"

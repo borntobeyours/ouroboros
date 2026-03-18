@@ -1,0 +1,15 @@
+name: Open Redirect via url Parameter
+description: The application accepts an untrusted URL via the url query parameter and redirects users to it without validation. Attackers can use this for phishing, credential harvesting, or OAuth token theft.
+severity: medium
+cwe: CWE-601
+
+requests:
+  - method: GET
+    path: /redirect?url=https://evil.com
+  - method: GET
+    path: /go?url=https://evil.com
+
+matchers:
+  - status_code: 301
+  - status_code: 302
+  - header_contains: "Location: https://evil.com"

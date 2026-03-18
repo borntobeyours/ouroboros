@@ -1,0 +1,23 @@
+name: Spring application.yml Exposed
+description: Detects exposed Spring Boot application.yml files containing datasource credentials, JWT secrets, and other sensitive configuration.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /application.yml
+  - method: GET
+    path: /config/application.yml
+  - method: GET
+    path: /src/main/resources/application.yml
+
+matchers:
+  - body_contains: "spring:"
+  - body_contains: "datasource:"
+  - body_contains: "password:"
+
+extractors:
+  - name: datasource_password
+    regex: "password:\\s*([^\\n]+)"
+  - name: datasource_url
+    regex: "url:\\s*(jdbc:[^\\n]+)"

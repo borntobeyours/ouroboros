@@ -1,0 +1,14 @@
+name: PHP Error Display Enabled
+description: PHP is configured with display_errors=On in production, causing detailed error messages to appear in browser responses. These reveal file paths, function names, database queries, and internal application logic.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /nonexistent-path-to-trigger-error.php
+
+matchers:
+  - body_contains: "Fatal error:"
+  - body_contains: "Warning:"
+  - body_contains: "in /var/www/"
+  - regex: "on line [0-9]+"

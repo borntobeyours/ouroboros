@@ -1,0 +1,21 @@
+name: Shopify Access Token Exposure
+description: Detects exposed Shopify access tokens in HTTP responses. Leaked tokens allow full API access to the Shopify store, including orders, customers, and product management.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "shpat_[0-9a-fA-F]{32}"
+  - regex: "shpss_[0-9a-fA-F]{32}"
+  - regex: "shpca_[0-9a-fA-F]{32}"
+
+extractors:
+  - name: shopify_token
+    regex: "(shp(?:at|ss|ca)_[0-9a-fA-F]{32})"

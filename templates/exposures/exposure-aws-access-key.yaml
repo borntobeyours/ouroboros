@@ -1,0 +1,21 @@
+name: AWS Access Key Exposure
+description: Detects exposed AWS Access Key IDs in HTTP responses. AWS access keys starting with AKIA or ASIA may grant unauthorized access to AWS resources.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /.env
+
+matchers:
+  - regex: "(AKIA|ASIA)[0-9A-Z]{16}"
+
+extractors:
+  - name: aws_access_key
+    regex: "((?:AKIA|ASIA)[0-9A-Z]{16})"

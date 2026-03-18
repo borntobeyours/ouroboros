@@ -1,0 +1,16 @@
+name: Node.js npm-debug.log Exposed
+description: Detects a publicly accessible npm-debug.log file. This log contains verbose npm error output including system paths, npm registry tokens, and dependency installation errors that may reveal sensitive environment details.
+severity: medium
+cwe: CWE-532
+
+requests:
+  - method: GET
+    path: /npm-debug.log
+  - method: GET
+    path: /npm-debug.log.0
+
+matchers:
+  - body_contains: "npm WARN"
+  - body_contains: "npm ERR"
+  - body_contains: "node_modules"
+  - status_code: 200

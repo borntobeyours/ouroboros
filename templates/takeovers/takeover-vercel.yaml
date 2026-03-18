@@ -1,0 +1,13 @@
+name: Vercel Subdomain Takeover
+description: Detects a dangling CNAME pointing to Vercel where the deployment or project no longer exists. An attacker can deploy a new project on Vercel and claim the victim's custom domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "The deployment could not be found on Vercel."
+  - body_contains: "DEPLOYMENT_NOT_FOUND"
+  - status_code: 404

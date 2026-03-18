@@ -1,0 +1,15 @@
+name: Rancher Kubernetes UI Exposed
+description: Rancher Kubernetes management UI is publicly accessible. An unauthorized user could manage clusters, deploy workloads, and escalate privileges within Kubernetes environments.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /v3
+
+matchers:
+  - body_contains: "Rancher"
+  - body_contains: "rancher"
+  - regex: "\"type\":\\s*\"apiVersion\""

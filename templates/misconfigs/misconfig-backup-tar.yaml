@@ -1,0 +1,20 @@
+name: Backup TAR Archive Exposed
+description: A tar or tar.gz archive is publicly accessible from the web server. These archives often contain complete web application source code, configuration files, and database dumps with sensitive information.
+severity: high
+cwe: CWE-530
+
+requests:
+  - method: GET
+    path: /backup.tar.gz
+  - method: GET
+    path: /site.tar.gz
+  - method: GET
+    path: /app.tar
+  - method: GET
+    path: /www.tar.gz
+
+matchers:
+  - status_code: 200
+  - header_contains: "application/gzip"
+  - header_contains: "application/x-tar"
+  - regex: "\\x1f\\x8b\\x08"

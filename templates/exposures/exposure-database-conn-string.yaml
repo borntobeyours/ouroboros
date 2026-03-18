@@ -1,0 +1,23 @@
+name: Database Connection String Exposure
+description: Detects exposed database connection strings in HTTP responses. Leaked connection strings contain credentials and host information enabling direct database access.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /web.config
+
+matchers:
+  - regex: "(?i)(mysql|postgresql|postgres|mssql|oracle|sqlite):\\/\\/[^:]+:[^@]+@[^/]+"
+  - regex: "(?i)Server=.+;Database=.+;User Id=.+;Password=.+"
+  - regex: "(?i)Data Source=.+;Initial Catalog=.+;User ID=.+;Password=.+"
+
+extractors:
+  - name: connection_string
+    regex: "(?i)((?:mysql|postgresql|postgres|mssql):\\/\\/[^:]+:[^@]+@[^\\s\"'<>]+)"

@@ -1,0 +1,21 @@
+name: Docker Registry Exposed Without Authentication
+description: A Docker container registry is publicly accessible without authentication. Attackers can pull proprietary images, enumerate image layers to extract secrets, and push malicious images.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /v2/
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /v2/_catalog
+
+matchers:
+  - body_contains: "repositories"
+  - header_contains: "Docker-Distribution-Api-Version"
+  - status_code: 200
+
+extractors:
+  - name: repositories
+    regex: "\"repositories\":\\[([^\\]]+)\\]"

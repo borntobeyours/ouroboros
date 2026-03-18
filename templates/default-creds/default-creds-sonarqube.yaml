@@ -1,0 +1,21 @@
+name: SonarQube Default Credentials
+description: Attempts to authenticate to SonarQube code quality platform using default admin/admin credentials. Successful access exposes source code analysis results, security vulnerabilities, and project configurations.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/authentication/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "login=admin&password=admin"
+  - method: GET
+    path: /api/system/status
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "\"status\":\"UP\""
+  - body_contains: "SonarQube"
+  - header_contains: "XSRF-TOKEN"
+  - status_code: 200

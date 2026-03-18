@@ -1,0 +1,18 @@
+name: Dockerfile Exposed
+description: A Dockerfile is publicly accessible, revealing the application's build process, base images, exposed ports, environment variables, and potentially hardcoded secrets passed as build arguments.
+severity: medium
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /Dockerfile
+
+matchers:
+  - status_code: 200
+  - body_contains: "FROM "
+  - body_contains: "RUN "
+  - regex: "^FROM\\s+[a-zA-Z]"
+
+extractors:
+  - name: base_image
+    regex: "FROM\\s+([^\\n]+)"

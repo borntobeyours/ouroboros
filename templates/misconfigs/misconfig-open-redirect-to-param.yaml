@@ -1,0 +1,15 @@
+name: Open Redirect via to Parameter
+description: The application uses a to parameter to control post-action redirect destinations without validation. This can be leveraged for OAuth redirect_uri bypass, phishing campaigns, and session token theft.
+severity: medium
+cwe: CWE-601
+
+requests:
+  - method: GET
+    path: /?to=https://evil.com
+  - method: GET
+    path: /logout?to=https://evil.com
+
+matchers:
+  - status_code: 301
+  - status_code: 302
+  - header_contains: "Location: https://evil.com"

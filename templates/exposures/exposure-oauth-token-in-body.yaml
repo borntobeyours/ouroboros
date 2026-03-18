@@ -1,0 +1,19 @@
+name: OAuth Token in Response Body
+description: Detects OAuth access and refresh tokens returned in HTTP response bodies outside of proper token endpoints. Improperly handled tokens can be intercepted and reused.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /api/user
+  - method: GET
+    path: /api/me
+  - method: GET
+    path: /profile
+
+matchers:
+  - regex: "(?i)\"(?:access_token|refresh_token|oauth_token)\"\\s*:\\s*\"[a-zA-Z0-9\\-_\\.]{20,}\""
+
+extractors:
+  - name: oauth_token
+    regex: "(?i)\"(?:access_token|refresh_token)\"\\s*:\\s*\"([a-zA-Z0-9\\-_\\.]{20,})\""

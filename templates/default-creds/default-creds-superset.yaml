@@ -1,0 +1,22 @@
+name: Apache Superset Default Credentials
+description: Attempts to authenticate to Apache Superset data exploration platform using default admin/general credentials. Successful access exposes database connections, dashboards, and potential SQL injection via custom queries.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/v1/security/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"general","provider":"db","refresh":true}'
+  - method: POST
+    path: /login/
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=general&_csrf_token="
+
+matchers:
+  - body_contains: "\"access_token\":"
+  - body_contains: "Superset"
+  - header_contains: "session"
+  - status_code: 200

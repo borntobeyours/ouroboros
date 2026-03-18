@@ -1,0 +1,19 @@
+name: RabbitMQ Default Credentials
+description: Attempts to authenticate to RabbitMQ Management UI using the default guest/guest credentials. This account has full administrator privileges on the message broker.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /api/overview
+    headers:
+      Authorization: "Basic Z3Vlc3Q6Z3Vlc3Q="
+  - method: GET
+    path: /api/whoami
+    headers:
+      Authorization: "Basic Z3Vlc3Q6Z3Vlc3Q="
+
+matchers:
+  - body_contains: "\"name\":\"guest\""
+  - body_contains: "rabbitmq"
+  - status_code: 200

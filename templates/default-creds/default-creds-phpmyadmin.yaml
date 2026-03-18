@@ -1,0 +1,26 @@
+name: phpMyAdmin Root Empty Password
+description: Attempts to authenticate to phpMyAdmin using root account with empty password. This common misconfiguration exposes all MySQL databases to full administrative control via the web interface.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /phpmyadmin/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "pma_username=root&pma_password=&server=1&target=index.php"
+  - method: POST
+    path: /pma/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "pma_username=root&pma_password=&server=1"
+  - method: POST
+    path: /mysql/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "pma_username=root&pma_password=&server=1"
+
+matchers:
+  - body_contains: "pma_navigation"
+  - body_contains: "phpMyAdmin"
+  - body_contains: "Welcome to phpMyAdmin"

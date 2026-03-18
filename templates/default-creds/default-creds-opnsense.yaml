@@ -1,0 +1,21 @@
+name: OPNsense Default Credentials
+description: Attempts to authenticate to OPNsense firewall web interface using default root/opnsense credentials. Successful access enables full firewall policy and network infrastructure control.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /index.php?uri=%2F
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "usernamefld=root&passwordfld=opnsense&login=1"
+  - method: GET
+    path: /api/core/firmware/status
+    headers:
+      Authorization: "Basic cm9vdDpvcG5zZW5zZQ=="
+
+matchers:
+  - body_contains: "OPNsense"
+  - body_contains: "Dashboard"
+  - body_contains: "opnsense"
+  - header_contains: "PHPSESSID"

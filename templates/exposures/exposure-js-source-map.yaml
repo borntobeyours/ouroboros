@@ -1,0 +1,22 @@
+name: JavaScript Source Map Exposure
+description: Detects exposed JavaScript source map files in HTTP responses. Source maps reconstruct original unminified source code, exposing application logic, comments, and sometimes credentials.
+severity: medium
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /js/app.js.map
+  - method: GET
+    path: /static/js/main.chunk.js.map
+  - method: GET
+    path: /assets/app.js.map
+
+matchers:
+  - body_contains: "\"version\":3"
+  - body_contains: "\"sources\":"
+  - body_contains: "\"sourcesContent\":"
+  - header_contains: "application/json"
+
+extractors:
+  - name: source_files
+    regex: "\"sources\":\\[([^\\]]+)\\]"

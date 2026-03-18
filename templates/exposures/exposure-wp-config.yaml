@@ -1,0 +1,26 @@
+name: WordPress wp-config.php Exposed
+description: Detects exposed WordPress configuration files containing database credentials, secret keys, and other sensitive settings.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /wp-config.php
+  - method: GET
+    path: /wp-config.php.bak
+  - method: GET
+    path: /wp-config.php~
+  - method: GET
+    path: /wp-config.txt
+
+matchers:
+  - body_contains: "DB_PASSWORD"
+  - body_contains: "DB_HOST"
+  - body_contains: "AUTH_KEY"
+  - body_contains: "define('DB_"
+
+extractors:
+  - name: db_password
+    regex: "define\\('DB_PASSWORD',\\s*'([^']+)'\\)"
+  - name: db_user
+    regex: "define\\('DB_USER',\\s*'([^']+)'\\)"

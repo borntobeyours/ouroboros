@@ -1,0 +1,14 @@
+name: Laravel APP_DEBUG Enabled
+description: Detects Laravel applications running with APP_DEBUG=true. When enabled, unhandled exceptions display a full stack trace, environment variables, and request data including potentially sensitive configuration values.
+severity: high
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Whoops! There was an error."
+  - body_contains: "laravel"
+  - body_contains: "Illuminate\\"
+  - status_code: 500

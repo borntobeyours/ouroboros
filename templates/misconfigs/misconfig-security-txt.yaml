@@ -1,0 +1,21 @@
+name: security.txt File Analysis
+description: The security.txt file (/.well-known/security.txt) is present. While intentional, it reveals contact information for the security team, policy details, and optionally the security scope that can aid in reconnaissance.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.well-known/security.txt
+  - method: GET
+    path: /security.txt
+
+matchers:
+  - body_contains: "Contact:"
+  - body_contains: "security"
+  - status_code: 200
+
+extractors:
+  - name: contact
+    regex: "Contact:\\s+([^\\n]+)"
+  - name: expires
+    regex: "Expires:\\s+([^\\n]+)"

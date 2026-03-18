@@ -1,0 +1,13 @@
+name: Python requirements.txt Exposed
+description: Detects a publicly accessible Python requirements.txt file. This file lists Python package dependencies and version pins, enabling attackers to identify vulnerable library versions and plan dependency-based exploits.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /requirements.txt
+
+matchers:
+  - body_contains: "=="
+  - regex: "^[a-zA-Z][a-zA-Z0-9_-]*(==|>=|<=|~=)[0-9]"
+  - status_code: 200

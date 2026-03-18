@@ -1,0 +1,22 @@
+name: Splunk Default Credentials
+description: Attempts to authenticate to Splunk SIEM platform using default admin/changeme credentials. Successful access exposes log data, security alerts, dashboards, and may allow search query injection for data exfiltration.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /en-US/account/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=changeme&return_to=%2Fen-US%2F"
+  - method: POST
+    path: /services/auth/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=changeme"
+
+matchers:
+  - body_contains: "sessionKey"
+  - body_contains: "Splunk"
+  - header_contains: "splunkd_9"
+  - status_code: 200

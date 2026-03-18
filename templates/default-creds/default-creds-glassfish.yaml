@@ -1,0 +1,20 @@
+name: GlassFish Application Server Default Credentials
+description: Attempts to authenticate to GlassFish Administration Console using default admin/adminadmin credentials. Successful access allows arbitrary application deployment and server configuration changes.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=admin&j_password=adminadmin&loginButton=Login"
+  - method: GET
+    path: /management/domain
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW5hZG1pbg=="
+
+matchers:
+  - body_contains: "GlassFish"
+  - body_contains: "Administration Console"
+  - status_code: 200

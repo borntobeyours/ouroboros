@@ -1,0 +1,17 @@
+name: Apache /server-info Page Exposed
+description: Apache mod_info is enabled and the /server-info page is publicly accessible. This reveals all loaded Apache modules, configuration directives, and detailed server build information useful for fingerprinting.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /server-info
+
+matchers:
+  - body_contains: "Apache Server Information"
+  - body_contains: "Module Name"
+  - body_contains: "Server Settings"
+
+extractors:
+  - name: apache_version
+    regex: "Apache/([0-9\\.]+)"

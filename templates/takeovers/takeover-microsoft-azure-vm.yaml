@@ -1,0 +1,13 @@
+name: Microsoft Azure Virtual Machine Subdomain Takeover
+description: Detects a dangling DNS record pointing to an Azure VM public IP that has been deallocated or the DNS label released. An attacker can create a new Azure VM and claim the public DNS label.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "This virtual machine is currently stopped"
+  - body_contains: "cloudapp.azure.com"
+  - status_code: 404

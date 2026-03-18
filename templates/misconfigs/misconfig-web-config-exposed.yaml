@@ -1,0 +1,18 @@
+name: ASP.NET web.config Exposed
+description: The ASP.NET web.config file is publicly accessible, potentially exposing database connection strings, encryption keys, authentication settings, and application secrets.
+severity: high
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /web.config
+
+matchers:
+  - status_code: 200
+  - body_contains: "<?xml"
+  - body_contains: "connectionStrings"
+  - body_contains: "configuration"
+
+extractors:
+  - name: connection_string
+    regex: "connectionString=\"([^\"]+)\""

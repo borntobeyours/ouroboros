@@ -1,0 +1,21 @@
+name: RSA Private Key Exposure
+description: Detects exposed RSA private key material in HTTP responses, which could allow attackers to impersonate servers or decrypt traffic.
+severity: critical
+cwe: CWE-321
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /private.key
+  - method: GET
+    path: /server.key
+  - method: GET
+    path: /ssl/server.key
+
+matchers:
+  - body_contains: "-----BEGIN RSA PRIVATE KEY-----"
+  - body_contains: "-----BEGIN PRIVATE KEY-----"
+  - body_contains: "-----BEGIN EC PRIVATE KEY-----"

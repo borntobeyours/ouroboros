@@ -1,0 +1,22 @@
+name: Ubiquiti Network Device Default Credentials
+description: Attempts to authenticate to Ubiquiti UniFi or AirOS devices using default ubnt/ubnt credentials. Successful login enables network configuration changes and access to network topology data.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/login
+    headers:
+      Content-Type: application/json
+    body: '{"username":"ubnt","password":"ubnt"}'
+  - method: POST
+    path: /login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=ubnt&password=ubnt"
+
+matchers:
+  - body_contains: "\"meta\":{\"rc\":\"ok\"}"
+  - body_contains: "ubiquiti"
+  - header_contains: "unifises"
+  - status_code: 200

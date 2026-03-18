@@ -1,0 +1,19 @@
+name: Kubernetes etcd Exposed Unauthenticated
+description: The Kubernetes etcd data store is accessible without authentication. etcd stores all cluster state including secrets, service account tokens, and configuration, making this a critical exposure.
+severity: critical
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /health
+  - method: GET
+    path: /v2/keys/
+
+matchers:
+  - body_contains: "etcd"
+  - body_contains: "\"action\":"
+  - status_code: 200
+
+extractors:
+  - name: etcd_version
+    regex: "\"etcdserver\":\"([^\"]+)\""

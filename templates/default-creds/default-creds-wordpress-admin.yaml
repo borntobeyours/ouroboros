@@ -1,0 +1,21 @@
+name: WordPress Default Admin Credentials
+description: Attempts to authenticate to WordPress admin dashboard using default admin/admin credentials. Successful login allows theme/plugin modification enabling PHP remote code execution.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /wp-login.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "log=admin&pwd=admin&wp-submit=Log+In&redirect_to=%2Fwp-admin%2F&testcookie=1"
+  - method: POST
+    path: /wp-login.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "log=admin&pwd=password&wp-submit=Log+In&redirect_to=%2Fwp-admin%2F&testcookie=1"
+
+matchers:
+  - body_contains: "Dashboard"
+  - body_contains: "wp-admin"
+  - header_contains: "wordpress_logged_in"

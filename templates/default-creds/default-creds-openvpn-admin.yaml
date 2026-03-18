@@ -1,0 +1,22 @@
+name: OpenVPN Admin Interface Default Credentials
+description: Attempts to authenticate to OpenVPN Access Server admin web interface using default admin/openvpn credentials. Successful access enables VPN configuration changes, user management, and network routing manipulation.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /rest/GetSession
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"openvpn"}'
+  - method: POST
+    path: /admin/__/logon
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=openvpn"
+
+matchers:
+  - body_contains: "OpenVPN"
+  - body_contains: "session"
+  - header_contains: "openvpn_as_session"
+  - status_code: 200

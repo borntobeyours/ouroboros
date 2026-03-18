@@ -1,0 +1,21 @@
+name: Stripe Live API Key Exposure
+description: Detects exposed Stripe live secret API keys in HTTP responses. Leaked Stripe live keys allow attackers to make real charges, issue refunds, and access customer payment data.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "sk_live_[0-9a-zA-Z]{24,}"
+
+extractors:
+  - name: stripe_live_key
+    regex: "(sk_live_[0-9a-zA-Z]{24,})"

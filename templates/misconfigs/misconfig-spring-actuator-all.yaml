@@ -1,0 +1,21 @@
+name: Spring Boot Actuator Wildcard Exposure
+description: The Spring Boot Actuator base endpoint is publicly accessible with management.endpoints.web.exposure.include=*, exposing all actuator endpoints including env, heapdump, shutdown, and jolokia for potential RCE.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /actuator
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /actuator/shutdown
+
+matchers:
+  - body_contains: "\"_links\":"
+  - body_contains: "actuator"
+  - status_code: 200
+
+extractors:
+  - name: endpoints
+    regex: "\"([a-z]+)\":\\{\"href\":\"[^\"]+\""

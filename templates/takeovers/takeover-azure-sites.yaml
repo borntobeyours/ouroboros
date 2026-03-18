@@ -1,0 +1,13 @@
+name: Azure Static Web Apps Subdomain Takeover
+description: Detects a dangling CNAME pointing to an Azure Static Web App that has been removed. An attacker can register the same Static Web App name and serve malicious content under the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Site not found"
+  - body_contains: "Static web app not configured"
+  - status_code: 404

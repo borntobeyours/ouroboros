@@ -1,0 +1,14 @@
+name: Ruby on Rails Development Mode Enabled
+description: Detects a Ruby on Rails application running in development mode (RAILS_ENV=development). Development mode enables detailed error pages with source code, request parameters, and session data visible in exceptions.
+severity: high
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /nonexistent-rails-path
+
+matchers:
+  - body_contains: "ActionController::RoutingError"
+  - body_contains: "Rails.application.routes"
+  - body_contains: "No route matches"
+  - status_code: 404

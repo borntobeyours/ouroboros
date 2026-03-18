@@ -1,0 +1,14 @@
+name: AWS SES Domain Validation Subdomain Takeover
+description: Detects a dangling CNAME or TXT record used for AWS Simple Email Service domain verification that is no longer actively managed. An attacker can take control of the SES verification record and potentially send email as the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "NoSuchDomain"
+  - body_contains: "amazonses.com"
+  - regex: "_amazonses\\."
+  - status_code: 404

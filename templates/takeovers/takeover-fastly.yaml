@@ -1,0 +1,13 @@
+name: Fastly CDN Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Fastly CDN service whose backend configuration has been removed. An attacker can configure a new Fastly service pointing to malicious origin content.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Fastly error: unknown domain"
+  - body_contains: "Please check that this domain has been added to a service"
+  - status_code: 500

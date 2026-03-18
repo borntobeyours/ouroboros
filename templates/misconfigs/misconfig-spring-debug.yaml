@@ -1,0 +1,18 @@
+name: Spring Boot Debug Mode Enabled
+description: Spring Boot application is running with debug logging or developer tools enabled, potentially exposing internal application state and auto-restart features.
+severity: medium
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /actuator/loggers
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /actuator/env
+
+matchers:
+  - body_contains: "\"TRACE\""
+  - body_contains: "\"DEBUG\""
+  - body_contains: "spring.devtools"
+  - regex: "\"level\"\\s*:\\s*\"DEBUG\""

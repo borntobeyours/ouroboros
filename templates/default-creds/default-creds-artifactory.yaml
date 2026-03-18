@@ -1,0 +1,21 @@
+name: JFrog Artifactory Default Credentials
+description: Attempts to authenticate to JFrog Artifactory using default admin/password credentials. Successful access enables artifact manipulation, supply chain attacks, and access to proprietary build artifacts.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /artifactory/api/system/ping
+    headers:
+      Authorization: "Basic YWRtaW46cGFzc3dvcmQ="
+  - method: POST
+    path: /ui/api/v1/ui/auth/login
+    headers:
+      Content-Type: application/json
+    body: '{"user":"admin","password":"password","type":"login"}'
+
+matchers:
+  - body_contains: "OK"
+  - body_contains: "Artifactory"
+  - header_contains: "ARTIFACTORY_SESSION"
+  - status_code: 200

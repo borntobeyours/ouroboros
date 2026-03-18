@@ -1,0 +1,22 @@
+name: pgAdmin Default Credentials
+description: Attempts to authenticate to pgAdmin PostgreSQL administration tool using default admin@pgadmin.org/admin credentials. Successful access exposes PostgreSQL databases and may allow server-side command execution.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "email=admin%40pgadmin.org&password=admin&next=%2F"
+  - method: POST
+    path: /api/v1/authenticate/login
+    headers:
+      Content-Type: application/json
+    body: '{"email":"admin@pgadmin.org","password":"admin"}'
+
+matchers:
+  - body_contains: "pgAdmin"
+  - body_contains: "pga4_session"
+  - header_contains: "pga4_session"
+  - status_code: 200

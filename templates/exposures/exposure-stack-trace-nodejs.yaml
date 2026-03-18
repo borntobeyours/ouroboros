@@ -1,0 +1,22 @@
+name: Node.js Error Stack Disclosure
+description: Detects Node.js error stack traces in HTTP responses. Exposed Node.js stacks reveal module paths, file names, and application logic that assist in targeted exploitation.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /error
+
+matchers:
+  - regex: "at [a-zA-Z0-9._<>]+ \\([a-zA-Z0-9/_\\-.:]+:[0-9]+:[0-9]+\\)"
+  - body_contains: "Error: Cannot find module"
+  - body_contains: "node_modules"
+  - regex: "at Object\\.<anonymous>"
+
+extractors:
+  - name: nodejs_file
+    regex: "at [^\\(]+ \\(([^:]+):[0-9]+:[0-9]+\\)"

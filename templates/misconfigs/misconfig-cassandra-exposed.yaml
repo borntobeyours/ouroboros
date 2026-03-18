@@ -1,0 +1,13 @@
+name: Apache Cassandra Exposed Without Authentication
+description: Cassandra database is accessible without authentication via its native transport or JMX port. An attacker can query all keyspaces and tables, modify data, and potentially execute OS commands via JMX.
+severity: critical
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Cassandra"
+  - body_contains: "cassandra"
+  - regex: "cluster_name"

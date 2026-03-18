@@ -1,0 +1,17 @@
+name: GraphQL Playground Exposed
+description: The GraphQL Playground interactive IDE is publicly accessible, providing a browser-based interface to explore and execute GraphQL queries and mutations against the API without authentication.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /graphql
+    headers:
+      Accept: text/html
+  - method: GET
+    path: /playground
+
+matchers:
+  - body_contains: "GraphQL Playground"
+  - body_contains: "graphql-playground"
+  - status_code: 200

@@ -1,0 +1,22 @@
+name: JSP Source Code Exposure
+description: Detects JSP source code in HTTP responses. Exposed JSP source reveals Java application logic, database queries, and potential credentials.
+severity: high
+cwe: CWE-540
+
+requests:
+  - method: GET
+    path: /index.jsp.bak
+  - method: GET
+    path: /login.jsp~
+  - method: GET
+    path: /WEB-INF/web.xml
+
+matchers:
+  - body_contains: "<%@ page"
+  - body_contains: "<%@ taglib"
+  - body_contains: "import=\"java."
+  - regex: "<%[!=@]"
+
+extractors:
+  - name: jsp_imports
+    regex: "import=\"([a-z][a-z0-9.]+)\""

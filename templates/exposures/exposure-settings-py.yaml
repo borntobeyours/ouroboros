@@ -1,0 +1,23 @@
+name: Django settings.py Exposed
+description: Detects exposed Django settings.py files containing SECRET_KEY, database credentials, and other sensitive configuration.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /settings.py
+  - method: GET
+    path: /config/settings.py
+  - method: GET
+    path: /myapp/settings.py
+
+matchers:
+  - body_contains: "SECRET_KEY"
+  - body_contains: "DATABASES"
+  - body_contains: "INSTALLED_APPS"
+
+extractors:
+  - name: secret_key
+    regex: "SECRET_KEY\\s*=\\s*['\"]([^'\"]{20,})['\"]"
+  - name: db_password
+    regex: "'PASSWORD':\\s*'([^']+)'"

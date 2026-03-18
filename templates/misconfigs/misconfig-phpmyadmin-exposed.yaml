@@ -1,0 +1,19 @@
+name: phpMyAdmin Exposed
+description: phpMyAdmin database management interface is publicly accessible, providing a web-based UI to manage MySQL/MariaDB databases. Unauthenticated or default credential access could lead to full database compromise.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /phpmyadmin/
+  - method: GET
+    path: /pma/
+  - method: GET
+    path: /phpMyAdmin/
+  - method: GET
+    path: /db/
+
+matchers:
+  - body_contains: "phpMyAdmin"
+  - body_contains: "pma_username"
+  - status_code: 200

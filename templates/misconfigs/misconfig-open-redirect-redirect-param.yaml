@@ -1,0 +1,15 @@
+name: Open Redirect via redirect Parameter
+description: The application uses a redirect parameter to determine where to send users after an action, but does not validate the destination. Attackers can redirect victims to malicious sites after legitimate-looking interactions.
+severity: medium
+cwe: CWE-601
+
+requests:
+  - method: GET
+    path: /login?redirect=https://evil.com
+  - method: GET
+    path: /?redirect=https://evil.com
+
+matchers:
+  - status_code: 301
+  - status_code: 302
+  - header_contains: "Location: https://evil.com"

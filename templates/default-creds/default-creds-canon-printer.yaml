@@ -1,0 +1,26 @@
+name: Canon Printer Default Credentials
+description: Attempts to authenticate to Canon printer Remote UI using the default PIN 7654321. This default PIN is documented in Canon manuals and often left unchanged in corporate environments.
+severity: medium
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /login.html
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "PIN=7654321&SelectLang=English&Mode=User"
+  - method: POST
+    path: /rui/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "admin_pass=7654321"
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46NzY1NDMyMQ=="
+
+matchers:
+  - body_contains: "Canon"
+  - body_contains: "Remote UI"
+  - body_contains: "imageRUNNER"
+  - status_code: 200

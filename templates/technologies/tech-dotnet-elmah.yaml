@@ -1,0 +1,16 @@
+name: .NET ELMAH Error Log Exposed
+description: Detects an exposed ELMAH (Error Logging Modules and Handlers) endpoint. ELMAH logs all unhandled exceptions in ASP.NET applications, capturing full stack traces, HTTP headers, form data, and server variables including credentials.
+severity: high
+cwe: CWE-532
+
+requests:
+  - method: GET
+    path: /elmah.axd
+  - method: GET
+    path: /admin/elmah.axd
+
+matchers:
+  - body_contains: "Error Log"
+  - body_contains: "ELMAH"
+  - body_contains: "Application"
+  - status_code: 200

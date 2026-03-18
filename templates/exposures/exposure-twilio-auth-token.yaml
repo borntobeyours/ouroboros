@@ -1,0 +1,20 @@
+name: Twilio Auth Token Exposure
+description: Detects exposed Twilio authentication tokens in HTTP responses. Leaked Twilio auth tokens allow attackers to send SMS, make calls, and access communications data billed to the account.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "(?i)twilio.{0,20}auth.token[\\s=:\"']+[0-9a-f]{32}"
+  - regex: "(?i)TWILIO_AUTH_TOKEN[\\s=:\"']+[0-9a-f]{32}"
+
+extractors:
+  - name: twilio_auth_token
+    regex: "(?i)(?:twilio_auth_token|auth_token)[\\s=:\"']+([0-9a-f]{32})"

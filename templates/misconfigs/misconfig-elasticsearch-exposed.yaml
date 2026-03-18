@@ -1,0 +1,20 @@
+name: Elasticsearch Unauthenticated Access
+description: Elasticsearch instance is accessible without authentication, potentially exposing all indexed data.
+severity: critical
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /_cat/indices
+
+matchers:
+  - body_contains: "\"tagline\" : \"You Know, for Search\""
+  - body_contains: "elasticsearch"
+
+extractors:
+  - name: es_version
+    regex: "\"number\" : \"([^\"]+)\""

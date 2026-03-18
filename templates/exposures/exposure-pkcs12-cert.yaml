@@ -1,0 +1,19 @@
+name: PKCS12 Certificate Exposure
+description: Detects exposed PKCS12 certificate bundles in HTTP responses. PKCS12 files contain both the certificate and private key, enabling full TLS impersonation.
+severity: critical
+cwe: CWE-321
+
+requests:
+  - method: GET
+    path: /cert.p12
+  - method: GET
+    path: /keystore.p12
+  - method: GET
+    path: /server.pfx
+  - method: GET
+    path: /ssl/keystore.pfx
+
+matchers:
+  - regex: "(?i)\\.p12|\\.pfx"
+  - status_code: 200
+  - header_contains: "application/x-pkcs12"

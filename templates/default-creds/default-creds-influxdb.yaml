@@ -1,0 +1,23 @@
+name: InfluxDB Default Credentials
+description: Attempts to authenticate to InfluxDB time-series database using default admin/admin credentials or unauthenticated access. Exposure allows reading and writing metrics data including sensitive telemetry.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /query?q=SHOW+DATABASES&db=_internal
+  - method: POST
+    path: /api/v2/signin
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"admin"}'
+  - method: GET
+    path: /api/v2/setup
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "\"results\":"
+  - body_contains: "databases"
+  - body_contains: "influxdb"
+  - status_code: 200

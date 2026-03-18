@@ -1,0 +1,14 @@
+name: Rails Web Console Exposed
+description: Detects the Rails Web Console accessible in error pages or as a standalone endpoint. The web console provides an interactive Ruby REPL in the browser, enabling full remote code execution on the server.
+severity: critical
+cwe: CWE-94
+
+requests:
+  - method: GET
+    path: /console
+
+matchers:
+  - body_contains: "Web Console"
+  - body_contains: "Rails Console"
+  - body_contains: "__rc"
+  - status_code: 200

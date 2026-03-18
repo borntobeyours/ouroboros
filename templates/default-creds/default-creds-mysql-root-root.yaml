@@ -1,0 +1,21 @@
+name: MySQL Root/Root Default Credentials
+description: Checks for MySQL root account with password set to "root". This is a common misconfiguration in development environments promoted to production without credential hardening.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /phpmyadmin/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "pma_username=root&pma_password=root&server=1&target=index.php&token="
+  - method: POST
+    path: /pma/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "pma_username=root&pma_password=root&server=1"
+
+matchers:
+  - body_contains: "phpMyAdmin"
+  - body_contains: "pma_navigation"
+  - body_contains: "Welcome to phpMyAdmin"

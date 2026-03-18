@@ -1,0 +1,22 @@
+name: HashiCorp Vault Default Root Token
+description: Detects HashiCorp Vault instances accessible with a known or default root token. Unauthenticated or default-token access exposes all stored secrets including API keys, certificates, and database credentials.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /v1/sys/health
+  - method: GET
+    path: /v1/secret/
+    headers:
+      X-Vault-Token: "root"
+  - method: GET
+    path: /v1/sys/mounts
+    headers:
+      X-Vault-Token: "root"
+
+matchers:
+  - body_contains: "\"initialized\":"
+  - body_contains: "Vault"
+  - body_contains: "\"version\":"
+  - status_code: 200

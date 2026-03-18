@@ -1,0 +1,28 @@
+name: Verbose Health Check with Version Details
+description: Detects health check endpoints that return verbose information including dependency versions, database connection details, internal service URLs, and system metrics.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /health
+  - method: GET
+    path: /healthz
+  - method: GET
+    path: /health/detailed
+  - method: GET
+    path: /actuator/health
+  - method: GET
+    path: /status
+
+matchers:
+  - body_contains: "version"
+  - body_contains: "database"
+  - body_contains: "uptime"
+  - regex: "(?i)\"version\":\\s*\"[0-9]+\\."
+
+extractors:
+  - name: service_version
+    regex: "(?i)\"version\":\\s*\"([0-9]+\\.[0-9]+\\.?[0-9]*)\""
+  - name: db_status
+    regex: "(?i)\"(?:database|db)\":\\s*\\{([^}]+)\\}"

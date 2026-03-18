@@ -1,0 +1,20 @@
+name: Encryption Key Exposure
+description: Detects exposed encryption keys in HTTP responses. Leaked AES or other symmetric encryption keys allow decryption of encrypted data stored in databases or transmitted over the wire.
+severity: critical
+cwe: CWE-321
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+
+matchers:
+  - regex: "(?i)(?:ENCRYPTION|AES|CIPHER)_KEY[\\s=:\"']+[a-zA-Z0-9+/=]{16,}"
+  - regex: "(?i)APP_KEY[\\s=:\"']+base64:[a-zA-Z0-9+/=]{32,}"
+
+extractors:
+  - name: encryption_key
+    regex: "(?i)(?:ENCRYPTION_KEY|AES_KEY|APP_KEY)[\\s=:\"']+([a-zA-Z0-9+/=]{16,})"

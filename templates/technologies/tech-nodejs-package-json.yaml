@@ -1,0 +1,14 @@
+name: Node.js package.json Exposed
+description: Detects a publicly accessible Node.js package.json file. This file reveals application name, version, dependencies with their versions (enabling known-vulnerability targeting), and scripts that may contain sensitive build commands or tokens.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /package.json
+
+matchers:
+  - body_contains: "\"dependencies\""
+  - body_contains: "\"name\":"
+  - body_contains: "\"version\":"
+  - status_code: 200

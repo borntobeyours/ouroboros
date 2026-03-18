@@ -1,0 +1,21 @@
+name: Azure Blob Storage URL Exposure
+description: Detects exposed Azure Blob Storage URLs in HTTP responses. Disclosed Azure storage account names and container names can enable unauthorized access if ACLs are misconfigured.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "https?://([a-z0-9]+)\\.blob\\.core\\.windows\\.net/([a-z0-9\\-]+)"
+
+extractors:
+  - name: azure_storage_account
+    regex: "https?://([a-z0-9]+)\\.blob\\.core\\.windows\\.net"
+  - name: azure_container
+    regex: "blob\\.core\\.windows\\.net/([a-z0-9\\-]+)"

@@ -1,0 +1,16 @@
+name: Nginx proxy_pass SSRF Misconfiguration
+description: Detects potential SSRF via Nginx proxy_pass misconfigurations. When proxy_pass uses the request URI without normalization, attackers can use encoded characters or special paths to reach internal services not intended to be proxied.
+severity: high
+cwe: CWE-918
+
+requests:
+  - method: GET
+    path: /proxy/http://169.254.169.254/latest/meta-data/
+  - method: GET
+    path: /api/http://localhost:8080/admin
+
+matchers:
+  - body_contains: "ami-id"
+  - body_contains: "instance-id"
+  - body_contains: "meta-data"
+  - status_code: 200

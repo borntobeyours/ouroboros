@@ -1,0 +1,21 @@
+name: ASUS Router Default Credentials
+description: Attempts to authenticate to ASUS router web management interface using default admin/admin credentials. Successful access enables complete router configuration modification including AiCloud and AiDisk features.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /login.cgi
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "group_id=&action_mode=&action_script=&action_wait=5&current_page=Main_Login.asp&next_page=index.asp&login_authorization=YWRtaW46YWRtaW4="
+  - method: GET
+    path: /appGet.cgi?hook=nvram_get(productid)
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "ASUS"
+  - body_contains: "AsusWrt"
+  - body_contains: "asus_token"
+  - status_code: 200

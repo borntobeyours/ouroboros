@@ -1,0 +1,16 @@
+name: IIS Version Disclosure via Server Header
+description: Microsoft IIS is disclosing its version number in the Server HTTP response header. This aids attackers in identifying vulnerable IIS versions and targeting known CVEs.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - header_contains: "Microsoft-IIS"
+  - regex: "Microsoft-IIS/[0-9\\.]+"
+
+extractors:
+  - name: iis_version
+    regex: "Microsoft-IIS/([0-9\\.]+)"

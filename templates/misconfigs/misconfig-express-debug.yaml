@@ -1,0 +1,14 @@
+name: Express.js Debug Mode Enabled
+description: Express.js application is running with debug mode or detailed error stack traces enabled, leaking internal file paths and stack frames.
+severity: medium
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /nonexistent-path-to-trigger-error
+
+matchers:
+  - body_contains: "Error:"
+  - body_contains: "at Object."
+  - regex: "node_modules/express"
+  - body_contains: "SyntaxError"

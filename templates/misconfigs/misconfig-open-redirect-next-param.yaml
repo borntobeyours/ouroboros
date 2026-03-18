@@ -1,0 +1,15 @@
+name: Open Redirect via next Parameter
+description: The application uses a next parameter (common in Django, Next.js, and other frameworks) to redirect after authentication, but does not restrict the redirect target, enabling open redirect abuse.
+severity: medium
+cwe: CWE-601
+
+requests:
+  - method: GET
+    path: /login?next=https://evil.com
+  - method: GET
+    path: /accounts/login/?next=https://evil.com
+
+matchers:
+  - status_code: 301
+  - status_code: 302
+  - header_contains: "Location: https://evil.com"

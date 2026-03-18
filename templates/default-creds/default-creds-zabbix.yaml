@@ -1,0 +1,22 @@
+name: Zabbix Default Credentials
+description: Attempts to authenticate to Zabbix monitoring platform using default Admin/zabbix credentials. Successful access allows script execution on monitored hosts via Zabbix agent commands.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "name=Admin&password=zabbix&autologin=1&enter=Sign+in"
+  - method: POST
+    path: /api_jsonrpc.php
+    headers:
+      Content-Type: application/json
+    body: '{"jsonrpc":"2.0","method":"user.login","params":{"user":"Admin","password":"zabbix"},"id":1}'
+
+matchers:
+  - body_contains: "\"result\":"
+  - body_contains: "Zabbix"
+  - body_contains: "zbx_sessionid"
+  - header_contains: "zbx_sessionid"

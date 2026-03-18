@@ -1,0 +1,20 @@
+name: .env File Exposed
+description: The application's .env configuration file is publicly accessible. This file typically contains database credentials, API keys, secret tokens, and other sensitive configuration values.
+severity: critical
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /.env
+
+matchers:
+  - status_code: 200
+  - body_contains: "APP_"
+  - body_contains: "DB_PASSWORD"
+  - regex: "[A-Z_]+=.+"
+
+extractors:
+  - name: db_host
+    regex: "DB_HOST=([^\\n]+)"
+  - name: app_key
+    regex: "APP_KEY=([^\\n]+)"

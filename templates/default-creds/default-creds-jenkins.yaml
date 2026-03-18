@@ -1,0 +1,26 @@
+name: Jenkins Default Credentials
+description: Attempts to authenticate to Jenkins using default admin credentials. Jenkins installations without proper initial setup may retain default or auto-generated credentials that are trivially guessable.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /j_acegi_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=admin&j_password=admin&from=%2F&Submit=Sign+in"
+  - method: POST
+    path: /j_spring_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=admin&j_password=password&from=%2F&Submit=Sign+in"
+  - method: GET
+    path: /api/json
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "\"_class\""
+  - body_contains: "dashboard"
+  - header_contains: "JSESSIONID"
+  - status_code: 200

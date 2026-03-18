@@ -1,0 +1,24 @@
+name: JBoss Application Server Default Credentials
+description: Attempts to authenticate to JBoss/WildFly Administration Console using default admin/admin credentials. Access allows deployment of malicious WAR files leading to remote code execution.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /management
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /jmx-console
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /admin-console
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+
+matchers:
+  - body_contains: "JBoss"
+  - body_contains: "WildFly"
+  - body_contains: "Management Console"
+  - status_code: 200

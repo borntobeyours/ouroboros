@@ -1,0 +1,21 @@
+name: Ruby Backtrace Disclosure
+description: Detects Ruby backtraces in HTTP responses. Ruby backtraces expose gem paths, application structure, and code logic that aid in exploitation.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /error
+
+matchers:
+  - regex: "[a-zA-Z0-9/_\\-]+\\.rb:[0-9]+:in `[^']+'"
+  - body_contains: "ActionController::RoutingError"
+  - body_contains: "ActiveRecord::"
+
+extractors:
+  - name: ruby_file
+    regex: "([a-zA-Z0-9/_\\-]+\\.rb):([0-9]+):in"

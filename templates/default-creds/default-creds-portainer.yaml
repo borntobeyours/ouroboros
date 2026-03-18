@@ -1,0 +1,16 @@
+name: Portainer Default Credentials
+description: Attempts to authenticate to Portainer Docker management UI using default admin/portainer credentials. Successful access enables container creation, image deployment, and potential container escape to host.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/auth
+    headers:
+      Content-Type: application/json
+    body: '{"username":"admin","password":"portainer"}'
+
+matchers:
+  - body_contains: "\"jwt\":"
+  - body_contains: "portainer"
+  - status_code: 200

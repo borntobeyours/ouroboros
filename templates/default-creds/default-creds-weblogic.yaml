@@ -1,0 +1,26 @@
+name: Oracle WebLogic Default Credentials
+description: Attempts to authenticate to Oracle WebLogic Server Administration Console using default weblogic/weblogic credentials. Successful login enables remote deployment and Java deserialization attacks.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /console/j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=weblogic&j_password=weblogic&j_character_encoding=UTF-8"
+  - method: POST
+    path: /console/j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=weblogic&j_password=welcome1&j_character_encoding=UTF-8"
+  - method: POST
+    path: /console/j_security_check
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "j_username=admin&j_password=admin&j_character_encoding=UTF-8"
+
+matchers:
+  - body_contains: "WebLogic Server Administration Console"
+  - body_contains: "Domain Structure"
+  - header_contains: "ADMINCONSOLESESSION"

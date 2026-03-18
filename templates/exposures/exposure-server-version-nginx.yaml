@@ -1,0 +1,16 @@
+name: Nginx Version Disclosure
+description: Detects Nginx web server version numbers in HTTP response headers. Disclosed versions allow targeted exploitation of known CVEs for that specific Nginx version.
+severity: info
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - regex: "nginx/[0-9]+\\.[0-9]+"
+  - header_contains: "nginx/"
+
+extractors:
+  - name: nginx_version
+    regex: "nginx/([0-9]+\\.[0-9]+\\.?[0-9]*)"

@@ -1,0 +1,21 @@
+name: D-Link Router Default Credentials
+description: Attempts to authenticate to D-Link router web management interface using default admin account with empty password. This is the factory default for most D-Link consumer and SMB routers.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46"
+  - method: POST
+    path: /login.cgi
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "html_response_page=login_ok.htm&login_name=admin&login_pass="
+
+matchers:
+  - body_contains: "D-Link"
+  - body_contains: "D_Link"
+  - body_contains: "dlink"
+  - status_code: 200

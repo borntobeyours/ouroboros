@@ -1,0 +1,13 @@
+name: WordPress debug.log Exposed
+description: WordPress debug.log is publicly accessible. When WP_DEBUG_LOG is enabled, this file captures PHP errors, notices, and warnings that may contain database credentials, file paths, and other sensitive information.
+severity: high
+cwe: CWE-532
+
+requests:
+  - method: GET
+    path: /wp-content/debug.log
+
+matchers:
+  - body_contains: "PHP"
+  - body_contains: "WordPress"
+  - status_code: 200

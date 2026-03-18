@@ -1,0 +1,13 @@
+name: Flask Debug Mode Enabled
+description: Flask application is running with debug mode enabled, which activates the interactive Werkzeug debugger and allows arbitrary code execution via the debug console PIN.
+severity: critical
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /nonexistent-path-to-trigger-404
+
+matchers:
+  - body_contains: "Werkzeug Debugger"
+  - body_contains: "werkzeug"
+  - regex: "The debugger caught an exception"

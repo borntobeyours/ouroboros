@@ -1,0 +1,15 @@
+name: Spring Boot Actuator /heapdump Endpoint Exposed
+description: Detects an unauthenticated Spring Boot Actuator /heapdump endpoint. Downloading a JVM heap dump allows attackers to extract plaintext secrets, session tokens, passwords, and application data from memory.
+severity: critical
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /actuator/heapdump
+  - method: GET
+    path: /heapdump
+
+matchers:
+  - body_contains: "JAVA PROFILE"
+  - body_contains: "java.lang"
+  - status_code: 200

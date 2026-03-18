@@ -1,0 +1,21 @@
+name: AWS ARN Disclosure
+description: Detects exposed AWS ARNs (Amazon Resource Names) in HTTP responses. ARNs reveal account IDs, resource types, and names that can assist in AWS reconnaissance and privilege escalation.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /health
+
+matchers:
+  - regex: "arn:aws:[a-z0-9\\-]+:[a-z0-9\\-]*:[0-9]{12}:[a-zA-Z0-9\\-_/:]+"
+
+extractors:
+  - name: aws_arn
+    regex: "(arn:aws:[a-z0-9\\-]+:[a-z0-9\\-]*:[0-9]{12}:[a-zA-Z0-9\\-_/:]+)"

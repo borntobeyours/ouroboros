@@ -1,0 +1,22 @@
+name: MinIO Default Credentials
+description: Attempts to authenticate to MinIO object storage using default minioadmin/minioadmin credentials. Successful access exposes all stored objects and may allow arbitrary file upload or deletion affecting application integrity.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /minio/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "accessKey=minioadmin&secretKey=minioadmin"
+  - method: POST
+    path: /api/v1/login
+    headers:
+      Content-Type: application/json
+    body: '{"accessKey":"minioadmin","secretKey":"minioadmin"}'
+
+matchers:
+  - body_contains: "minio"
+  - body_contains: "MinIO"
+  - header_contains: "token"
+  - status_code: 200

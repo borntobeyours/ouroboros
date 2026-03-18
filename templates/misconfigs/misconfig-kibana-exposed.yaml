@@ -1,0 +1,17 @@
+name: Kibana Dashboard Exposed
+description: Kibana dashboard is publicly accessible without authentication, exposing all indexed Elasticsearch data, dashboards, and the ability to query arbitrary indices.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /api/status
+
+matchers:
+  - body_contains: "kibana"
+  - body_contains: "Kibana"
+  - regex: "\"name\":\\s*\"kibana\""

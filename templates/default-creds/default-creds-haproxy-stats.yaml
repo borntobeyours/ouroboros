@@ -1,0 +1,20 @@
+name: HAProxy Stats Page Default Credentials
+description: Detects HAProxy statistics page accessible with default or no credentials. Access exposes backend server topology, health status, and connection statistics enabling targeted attacks against backend services.
+severity: medium
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /haproxy_stats
+  - method: GET
+    path: /stats
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: GET
+    path: /haproxy?stats
+
+matchers:
+  - body_contains: "HAProxy"
+  - body_contains: "Statistics Report"
+  - body_contains: "haproxy"
+  - status_code: 200

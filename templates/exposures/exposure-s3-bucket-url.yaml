@@ -1,0 +1,20 @@
+name: AWS S3 Bucket URL Exposure
+description: Detects exposed AWS S3 bucket URLs in HTTP responses. Disclosed bucket names enable enumeration of bucket contents and may reveal sensitive files if the bucket is misconfigured.
+severity: low
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "https?://([a-z0-9\\-\\.]+)\\.s3(?:\\.[a-z0-9\\-]+)?\\.amazonaws\\.com"
+  - regex: "https?://s3(?:\\.[a-z0-9\\-]+)?\\.amazonaws\\.com/([a-z0-9\\-\\.]+)"
+
+extractors:
+  - name: s3_bucket_name
+    regex: "https?://([a-z0-9\\-\\.]+)\\.s3(?:\\.[a-z0-9\\-]+)?\\.amazonaws\\.com"

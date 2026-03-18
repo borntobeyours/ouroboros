@@ -1,0 +1,13 @@
+name: Wix Website Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Wix-hosted website that no longer exists or has had its custom domain removed. An attacker can create a Wix site and associate the victim's domain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "website is not published"
+  - body_contains: "Looks like this website doesn't exist"
+  - status_code: 404

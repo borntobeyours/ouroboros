@@ -1,0 +1,21 @@
+name: Docker API Exposed Without Authentication
+description: The Docker Engine API is accessible over TCP without TLS authentication. Attackers can create privileged containers, mount the host filesystem, and achieve full host code execution.
+severity: critical
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /v1.41/info
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /v1.41/containers/json
+
+matchers:
+  - body_contains: "\"DockerRootDir\""
+  - body_contains: "ServerVersion"
+  - status_code: 200
+
+extractors:
+  - name: docker_version
+    regex: "\"ServerVersion\":\"([^\"]+)\""

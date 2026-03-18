@@ -1,0 +1,20 @@
+name: PHP phpinfo() Page Exposed
+description: Detects a publicly accessible phpinfo() output page. This page discloses PHP version, loaded extensions, configuration values, environment variables (including credentials), server paths, and compile-time options.
+severity: medium
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /phpinfo.php
+  - method: GET
+    path: /info.php
+  - method: GET
+    path: /php-info.php
+  - method: GET
+    path: /test.php
+
+matchers:
+  - body_contains: "PHP Version"
+  - body_contains: "phpinfo()"
+  - body_contains: "PHP License"
+  - status_code: 200

@@ -1,0 +1,15 @@
+name: PHP Object Deserialization Vulnerability Detection
+description: Probes for PHP object deserialization vulnerabilities via cookie, parameter, or request body injection. Malicious serialized PHP objects can trigger magic methods (__wakeup, __destruct) in installed libraries leading to remote code execution.
+severity: critical
+cwe: CWE-502
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Cookie: "data=O:8:\"stdClass\":0:{}"
+
+matchers:
+  - body_contains: "unserialize"
+  - body_contains: "fatal error"
+  - status_code: 500

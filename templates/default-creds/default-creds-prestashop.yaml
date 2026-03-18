@@ -1,0 +1,22 @@
+name: PrestaShop Default Admin Credentials
+description: Attempts to authenticate to PrestaShop e-commerce back-office using default admin credentials. Successful access exposes customer data, orders, and payment information.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /admin/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "email=admin@prestashop.com&passwd=admin&submitLogin=1"
+  - method: POST
+    path: /adminpanel/index.php
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "email=demo@prestashop.com&passwd=prestashop_demo&submitLogin=1"
+
+matchers:
+  - body_contains: "PrestaShop"
+  - body_contains: "Dashboard"
+  - header_contains: "PHPSESSID"
+  - status_code: 200

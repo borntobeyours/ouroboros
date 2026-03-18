@@ -1,0 +1,17 @@
+name: pgAdmin Exposed
+description: pgAdmin PostgreSQL management interface is publicly accessible. An attacker could attempt to log in with default or weak credentials and gain full control over PostgreSQL databases.
+severity: high
+cwe: CWE-306
+
+requests:
+  - method: GET
+    path: /pgadmin/
+  - method: GET
+    path: /pgadmin4/
+  - method: GET
+    path: /browser/
+
+matchers:
+  - body_contains: "pgAdmin"
+  - body_contains: "pgadmin"
+  - status_code: 200

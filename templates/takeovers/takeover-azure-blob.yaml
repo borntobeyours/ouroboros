@@ -1,0 +1,14 @@
+name: Azure Blob Storage Subdomain Takeover
+description: Detects a dangling CNAME pointing to an Azure Blob Storage container that has been deleted. An attacker can create a new storage account with the same name and serve arbitrary content.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "BlobServiceProperties"
+  - body_contains: "The specified resource does not exist"
+  - body_contains: "No such host"
+  - status_code: 404

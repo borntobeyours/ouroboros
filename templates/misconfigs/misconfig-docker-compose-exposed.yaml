@@ -1,0 +1,20 @@
+name: docker-compose.yml Exposed
+description: A docker-compose configuration file is publicly accessible, revealing service architecture, environment variables with secrets, port mappings, volume mounts, and network configuration.
+severity: high
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /docker-compose.yml
+  - method: GET
+    path: /docker-compose.yaml
+
+matchers:
+  - status_code: 200
+  - body_contains: "version:"
+  - body_contains: "services:"
+  - regex: "image:\\s+[a-zA-Z]"
+
+extractors:
+  - name: services
+    regex: "  ([a-zA-Z0-9_-]+):\\n    image:"

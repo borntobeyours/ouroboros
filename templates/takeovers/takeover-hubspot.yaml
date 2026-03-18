@@ -1,0 +1,13 @@
+name: HubSpot Domain Subdomain Takeover
+description: Detects a dangling CNAME pointing to a HubSpot-hosted page or domain that has been removed. An attacker can configure a HubSpot portal to serve content at the victim's subdomain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Domain not found"
+  - body_contains: "does not exist in our system"
+  - status_code: 404

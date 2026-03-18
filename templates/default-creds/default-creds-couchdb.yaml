@@ -1,0 +1,20 @@
+name: CouchDB Default Credentials
+description: Attempts to authenticate to Apache CouchDB using default admin/admin credentials. Access exposes the Fauxton web interface and REST API allowing full database manipulation.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /_session
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /_session
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "name=admin&password=admin"
+
+matchers:
+  - body_contains: "\"ok\":true"
+  - body_contains: "\"name\":\"admin\""
+  - body_contains: "_admin"

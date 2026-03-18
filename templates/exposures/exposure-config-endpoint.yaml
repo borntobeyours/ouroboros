@@ -1,0 +1,26 @@
+name: Config/Settings Endpoint Exposure
+description: Detects configuration or settings API endpoints that return sensitive application configuration including credentials, service URLs, and feature flags.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /settings
+  - method: GET
+    path: /api/settings
+  - method: GET
+    path: /env
+
+matchers:
+  - body_contains: "password"
+  - body_contains: "secret"
+  - body_contains: "api_key"
+  - regex: "(?i)\"(?:password|secret|api_key|token)\"\\s*:\\s*\"[^\"]{4,}\""
+
+extractors:
+  - name: config_secret
+    regex: "(?i)\"((?:password|secret|api_key|token))\"\\s*:\\s*\"([^\"]{4,})\""

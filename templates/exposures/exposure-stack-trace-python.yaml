@@ -1,0 +1,21 @@
+name: Python Traceback Disclosure
+description: Detects Python tracebacks in HTTP responses. Exposed Python tracebacks reveal application structure, file paths, and variable names that facilitate targeted attacks.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /api
+  - method: GET
+    path: /debug
+
+matchers:
+  - body_contains: "Traceback (most recent call last):"
+  - body_contains: "File \"/usr/"
+  - regex: "File \"[^\"]+\\.py\", line [0-9]+"
+
+extractors:
+  - name: python_file
+    regex: "File \"([^\"]+\\.py)\", line ([0-9]+)"

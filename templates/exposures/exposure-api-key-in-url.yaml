@@ -1,0 +1,19 @@
+name: API Key in URL Parameters
+description: Detects API keys passed as URL query parameters. API keys in URLs can be logged in server logs, proxies, and browser history, enabling unauthorized API access.
+severity: medium
+cwe: CWE-598
+
+requests:
+  - method: GET
+    path: /api
+  - method: GET
+    path: /v1
+  - method: GET
+    path: /v2
+
+matchers:
+  - regex: "[?&](?:api_key|apikey|key|api-key)=[a-zA-Z0-9\\-_\\.]{16,}"
+
+extractors:
+  - name: api_key
+    regex: "(?:api_key|apikey|key)=([a-zA-Z0-9\\-_\\.]{16,})"

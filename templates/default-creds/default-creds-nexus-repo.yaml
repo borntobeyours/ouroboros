@@ -1,0 +1,21 @@
+name: Nexus Repository Manager Default Credentials
+description: Attempts to authenticate to Sonatype Nexus Repository Manager using default admin/admin123 credentials. Successful login allows artifact upload including malicious libraries affecting downstream builds.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /service/rest/v1/status
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4xMjM="
+  - method: POST
+    path: /service/rapture/session
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=admin123"
+
+matchers:
+  - body_contains: "\"edition\":"
+  - body_contains: "Nexus"
+  - body_contains: "NXSESSIONID"
+  - status_code: 200

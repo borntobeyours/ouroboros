@@ -1,0 +1,13 @@
+name: Zendesk Help Center Subdomain Takeover
+description: Detects a dangling CNAME pointing to a Zendesk Help Center instance that has been closed or the custom domain removed. An attacker can configure their Zendesk to respond to the victim's subdomain.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "Help Center Closed"
+  - body_contains: "Oops, this help center no longer exists"
+  - status_code: 404

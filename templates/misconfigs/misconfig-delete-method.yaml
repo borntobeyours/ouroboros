@@ -1,0 +1,13 @@
+name: HTTP DELETE Method Enabled Without Authorization
+description: The HTTP DELETE method is enabled and accessible without proper authorization checks. Attackers may delete arbitrary resources on the server, causing data loss or application disruption.
+severity: medium
+cwe: CWE-650
+
+requests:
+  - method: DELETE
+    path: /test-ouroboros-delete-check.txt
+
+matchers:
+  - status_code: 200
+  - status_code: 204
+  - status_code: 200

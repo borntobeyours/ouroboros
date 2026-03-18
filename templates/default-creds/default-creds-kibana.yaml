@@ -1,0 +1,22 @@
+name: Kibana Default Credentials
+description: Attempts to authenticate to Kibana using default elastic/changeme credentials shipped with older Elastic Stack installations. Exposure allows access to all indexed Elasticsearch data.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/security/v1/login
+    headers:
+      Content-Type: application/json
+      kbn-xsrf: "true"
+    body: '{"username":"elastic","password":"changeme"}'
+  - method: GET
+    path: /api/status
+    headers:
+      Authorization: "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="
+      kbn-xsrf: "true"
+
+matchers:
+  - body_contains: "\"status\""
+  - body_contains: "kibana"
+  - status_code: 200

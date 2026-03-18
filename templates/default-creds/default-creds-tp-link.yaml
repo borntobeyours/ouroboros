@@ -1,0 +1,21 @@
+name: TP-Link Router Default Credentials
+description: Attempts to authenticate to TP-Link router web management interface using default admin/admin credentials. Successful access allows DNS, routing, and wireless configuration changes.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Authorization: "Basic YWRtaW46YWRtaW4="
+  - method: POST
+    path: /userRpm/LoginRpm.htm
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "username=admin&password=admin"
+
+matchers:
+  - body_contains: "TP-LINK"
+  - body_contains: "TP-Link"
+  - body_contains: "tplink"
+  - status_code: 200

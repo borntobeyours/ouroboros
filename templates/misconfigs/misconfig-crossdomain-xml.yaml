@@ -1,0 +1,13 @@
+name: Permissive crossdomain.xml Policy
+description: The crossdomain.xml file allows all domains (allow-access-from domain="*") to make cross-domain requests via Flash and legacy browsers. This can allow malicious sites to read authenticated responses and steal user data.
+severity: medium
+cwe: CWE-942
+
+requests:
+  - method: GET
+    path: /crossdomain.xml
+
+matchers:
+  - status_code: 200
+  - body_contains: "cross-domain-policy"
+  - regex: "allow-access-from\\s+domain=\"\\*\""

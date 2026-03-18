@@ -1,0 +1,21 @@
+name: Gitea Default Credentials
+description: Attempts to authenticate to Gitea self-hosted Git service using default gitea/gitea credentials. Successful access exposes source code repositories and may allow pushing malicious code to repositories.
+severity: high
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /api/v1/users/search
+    headers:
+      Authorization: "Basic Z2l0ZWE6Z2l0ZWE="
+  - method: POST
+    path: /user/login
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: "_csrf=&user_name=gitea&password=gitea"
+
+matchers:
+  - body_contains: "Gitea"
+  - body_contains: "gitea"
+  - header_contains: "i_like_gitea"
+  - status_code: 200

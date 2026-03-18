@@ -1,0 +1,23 @@
+name: PHP Error/Stack Trace Disclosure
+description: Detects PHP error messages and stack traces in HTTP responses. PHP errors expose file paths, line numbers, and application logic that can assist attackers.
+severity: medium
+cwe: CWE-209
+
+requests:
+  - method: GET
+    path: /
+  - method: GET
+    path: /index.php
+  - method: GET
+    path: /api
+
+matchers:
+  - body_contains: "Fatal error:"
+  - body_contains: "Parse error:"
+  - body_contains: "Warning: "
+  - regex: "on line [0-9]+ in /.+\\.php"
+  - body_contains: "Stack trace:"
+
+extractors:
+  - name: php_file_path
+    regex: "in (/[^\\s<>\"']+\\.php) on line ([0-9]+)"

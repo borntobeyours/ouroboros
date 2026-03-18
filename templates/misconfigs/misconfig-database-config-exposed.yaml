@@ -1,0 +1,24 @@
+name: Database Configuration File Exposed
+description: A database configuration file is publicly accessible, exposing database hostnames, usernames, passwords, and connection parameters for MySQL, PostgreSQL, or other database systems.
+severity: critical
+cwe: CWE-538
+
+requests:
+  - method: GET
+    path: /config/database.yml
+  - method: GET
+    path: /database.php
+  - method: GET
+    path: /config/database.php
+  - method: GET
+    path: /app/config/database.yml
+
+matchers:
+  - status_code: 200
+  - body_contains: "password"
+  - body_contains: "username"
+  - regex: "(mysql|postgres|mongodb|sqlite)"
+
+extractors:
+  - name: db_password
+    regex: "password['\"]?:\\s*['\"]?([^'\"\\n,]+)"

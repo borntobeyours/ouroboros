@@ -1,0 +1,20 @@
+name: Date of Birth Exposure
+description: Detects date of birth fields in API responses. Exposed birthdates are sensitive PII that can enable identity theft and account takeover via knowledge-based authentication.
+severity: medium
+cwe: CWE-312
+
+requests:
+  - method: GET
+    path: /api/users
+  - method: GET
+    path: /api/profile
+  - method: GET
+    path: /api/customers
+
+matchers:
+  - regex: "(?i)(?:dob|date_of_birth|birth_date|birthdate)[\"'\\s]*:[\"'\\s]*[\"']?\\d{4}-\\d{2}-\\d{2}"
+  - regex: "(?i)\"dateOfBirth\"\\s*:\\s*\"\\d{4}-\\d{2}-\\d{2}\""
+
+extractors:
+  - name: date_of_birth
+    regex: "(?i)(?:dob|date_of_birth|birthdate)[\"'\\s]*:[\"'\\s]*[\"']?(\\d{4}-\\d{2}-\\d{2})"

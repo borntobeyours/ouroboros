@@ -1,0 +1,21 @@
+name: CouchDB Admin Party Mode Enabled
+description: CouchDB is running in Admin Party mode with no administrator accounts configured, granting everyone admin-level access. Attackers can read, modify, and delete all databases and execute arbitrary code via the built-in Erlang evaluator.
+severity: critical
+cwe: CWE-1188
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Accept: application/json
+  - method: GET
+    path: /_all_dbs
+
+matchers:
+  - body_contains: "\"couchdb\":\"Welcome\""
+  - body_contains: "\"version\":"
+  - status_code: 200
+
+extractors:
+  - name: couchdb_version
+    regex: "\"version\":\"([^\"]+)\""

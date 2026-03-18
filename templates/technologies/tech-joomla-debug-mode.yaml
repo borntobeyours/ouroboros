@@ -1,0 +1,14 @@
+name: Joomla Debug Mode Enabled
+description: Detects Joomla running in debug mode ($debug = '1' in configuration.php). Debug mode outputs verbose error messages, stack traces, and database queries that expose sensitive application internals.
+severity: high
+cwe: CWE-489
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "JDEBUG"
+  - body_contains: "Joomla Debug Console"
+  - body_contains: "Profile Information"
+  - status_code: 200

@@ -1,0 +1,14 @@
+name: AWS API Gateway Subdomain Takeover
+description: Detects a dangling CNAME pointing to an AWS API Gateway custom domain that has been removed. An attacker can reclaim the custom domain name and intercept API traffic.
+severity: high
+cwe: CWE-116
+
+requests:
+  - method: GET
+    path: /
+
+matchers:
+  - body_contains: "{"message":"Forbidden"}"
+  - body_contains: "Invalid API Key"
+  - body_contains: "\"message\": \"Not Found\""
+  - status_code: 403

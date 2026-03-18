@@ -1,0 +1,21 @@
+name: Citrix XenServer Default Credentials
+description: Attempts to authenticate to Citrix XenServer (XCP-ng) management interface using default root/xenroot credentials. Successful access provides full hypervisor and virtual machine control.
+severity: critical
+cwe: CWE-1392
+
+requests:
+  - method: POST
+    path: /
+    headers:
+      Content-Type: text/xml
+    body: '<?xml version="1.0"?><methodCall><methodName>session.login_with_password</methodName><params><param><value><string>root</string></value></param><param><value><string>xenroot</string></value></param></params></methodCall>'
+  - method: GET
+    path: /ui/
+    headers:
+      Authorization: "Basic cm9vdDp4ZW5yb290"
+
+matchers:
+  - body_contains: "session_id"
+  - body_contains: "XenServer"
+  - body_contains: "xcp-ng"
+  - status_code: 200

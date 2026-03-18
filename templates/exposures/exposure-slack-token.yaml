@@ -1,0 +1,21 @@
+name: Slack Bot/User Token Exposure
+description: Detects exposed Slack API tokens in HTTP responses. Leaked Slack tokens allow attackers to read messages, send messages as the bot or user, and access workspace data.
+severity: high
+cwe: CWE-200
+
+requests:
+  - method: GET
+    path: /.env
+  - method: GET
+    path: /config
+  - method: GET
+    path: /api/config
+  - method: GET
+    path: /js/app.js
+
+matchers:
+  - regex: "xox[baprs]-[0-9a-zA-Z\\-]{10,}"
+
+extractors:
+  - name: slack_token
+    regex: "(xox[baprs]-[0-9a-zA-Z\\-]{10,})"

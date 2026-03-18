@@ -1,0 +1,17 @@
+name: PGP Private Key Block Exposure
+description: Detects exposed PGP/GPG private key blocks in HTTP responses. Leaked PGP private keys allow decrypting messages and forging signatures.
+severity: critical
+cwe: CWE-321
+
+requests:
+  - method: GET
+    path: /private.key
+  - method: GET
+    path: /pgp-key.txt
+  - method: GET
+    path: /gpg-key.txt
+  - method: GET
+    path: /api/keys
+
+matchers:
+  - body_contains: "-----BEGIN PGP PRIVATE KEY BLOCK-----"
