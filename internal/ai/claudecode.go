@@ -33,7 +33,7 @@ func NewClaudeCode(model string) *ClaudeCode {
 	return &ClaudeCode{
 		model:      model,
 		binaryPath: binaryPath,
-		timeout:    300 * time.Second,
+		timeout:    600 * time.Second,
 	}
 }
 
@@ -61,9 +61,21 @@ func (c *ClaudeCode) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 	// The actual prompt goes last
 	args = append(args, prompt)
 
-	// Create command with context timeout
-	cmdCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	// Create command with its own timeout context (independent of parent).
+	// We use context.Background() because the parent ctx may get canceled
+	// by scan phases transitioning, which kills the claude CLI process.
+	// The timeout here is the sole cancellation mechanism.
+	cmdCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
+
+	// But still respect explicit parent cancellation (e.g., SIGINT)
+	go func() {
+		select {
+		case <-ctx.Done():
+			cancel()
+		case <-cmdCtx.Done():
+		}
+	}()
 
 	cmd := exec.CommandContext(cmdCtx, c.binaryPath, args...)
 
@@ -76,16 +88,20 @@ func (c *ClaudeCode) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 	elapsed := time.Since(start)
 
 	if err != nil {
-		// Check if it's a timeout
+		// Check if parent was canceled (user interrupt)
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("claude-code canceled by user")
+		}
+		// Check if it's our timeout
 		if cmdCtx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("claude-code timeout after %s", c.timeout)
+			return nil, fmt.Errorf("claude-code timeout after %s (elapsed: %s)", c.timeout, elapsed)
 		}
 		// Try to extract useful error from stderr
 		errMsg := strings.TrimSpace(stderr.String())
 		if errMsg == "" {
 			errMsg = err.Error()
 		}
-		return nil, fmt.Errorf("claude-code error: %s", errMsg)
+		return nil, fmt.Errorf("claude-code error (after %s): %s", elapsed, errMsg)
 	}
 
 	// Parse JSON output
