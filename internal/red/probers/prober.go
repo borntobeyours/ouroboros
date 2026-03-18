@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/borntobeyours/ouroboros/internal/auth"
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
@@ -90,6 +91,21 @@ type ProberConfig struct {
 	Client          *http.Client
 	BaseFingerprint string // SHA256 prefix of base URL response (SPA detection)
 	Classified      *types.ClassifiedEndpoints
+	AuthSession     *auth.AuthSession // full auth state (cookies + headers)
+}
+
+// currentAuthSession is a package-level auth session set by the engine before
+// running probers. It is thread-safe via AuthSession's own mutex.
+var currentAuthSession *auth.AuthSession
+
+// SetAuthSession stores the global auth session so all probers pick it up.
+func SetAuthSession(s *auth.AuthSession) {
+	currentAuthSession = s
+}
+
+// GetAuthSession returns the current global auth session (nil if not set).
+func GetAuthSession() *auth.AuthSession {
+	return currentAuthSession
 }
 
 // NewProberConfig creates a ProberConfig from a target.
@@ -106,6 +122,15 @@ func NewProberConfig(target types.Target) *ProberConfig {
 				return http.ErrUseLastResponse
 			},
 		},
+		AuthSession: currentAuthSession, // inherit global auth session
+	}
+	// If no global session but target has cookies, build a minimal session
+	if cfg.AuthSession == nil && len(target.Cookies) > 0 {
+		sess := auth.NewAuthSession()
+		for k, v := range target.Cookies {
+			sess.SetCookie(k, v)
+		}
+		cfg.AuthSession = sess
 	}
 	// Fingerprint the base URL for SPA detection
 	cfg.BaseFingerprint = cfg.fingerprintURL(cfg.BaseURL)
@@ -160,6 +185,9 @@ func (c *ProberConfig) DoRequest(method, url string, body io.Reader, headers map
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	if c.AuthSession != nil {
+		c.AuthSession.InjectInto(req)
+	}
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
@@ -187,6 +215,9 @@ func (c *ProberConfig) DoRequest(method, url string, body io.Reader, headers map
 		for k, v := range headers {
 			req2.Header.Set(k, v)
 		}
+		if c.AuthSession != nil {
+			c.AuthSession.InjectInto(req2)
+		}
 		resp, err = c.Client.Do(req2)
 		if err != nil {
 			return 0, nil, "", err
@@ -209,6 +240,9 @@ func (c *ProberConfig) DoRequestRaw(method, url string, body io.Reader, headers 
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
+	}
+	if c.AuthSession != nil {
+		c.AuthSession.InjectInto(req)
 	}
 	return c.Client.Do(req)
 }

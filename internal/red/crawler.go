@@ -11,15 +11,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/borntobeyours/ouroboros/internal/auth"
 	"github.com/gocolly/colly/v2"
 )
 
 // Crawler discovers endpoints on a target using web crawling.
 type Crawler struct {
-	logger    *log.Logger
-	maxDepth  int
-	rateLimit time.Duration
-	timeout   time.Duration
+	logger      *log.Logger
+	maxDepth    int
+	rateLimit   time.Duration
+	timeout     time.Duration
+	authSession *auth.AuthSession
 }
 
 // NewCrawler creates a new web crawler.
@@ -30,6 +32,11 @@ func NewCrawler(logger *log.Logger) *Crawler {
 		rateLimit: 100 * time.Millisecond,
 		timeout:   30 * time.Second,
 	}
+}
+
+// SetAuth configures an auth session to inject into crawl requests.
+func (c *Crawler) SetAuth(s *auth.AuthSession) {
+	c.authSession = s
 }
 
 // commonDiscoveryPaths contains well-known paths to brute-force on any web target.
@@ -154,6 +161,19 @@ func (c *Crawler) htmlCrawl(targetURL string, mu *sync.Mutex, urls map[string]bo
 
 	collector.SetRequestTimeout(c.timeout)
 
+	// Inject auth session into every colly request
+	if c.authSession != nil {
+		authSess := c.authSession
+		collector.OnRequest(func(r *colly.Request) {
+			for k, v := range authSess.Headers {
+				r.Headers.Set(k, v)
+			}
+			if cookie := authSess.CookieHeader(); cookie != "" {
+				r.Headers.Set("Cookie", cookie)
+			}
+		})
+	}
+
 	_ = collector.Limit(&colly.LimitRule{
 		DomainGlob:  "*",
 		Parallelism: 3,
@@ -244,7 +264,14 @@ func (c *Crawler) parseJSFiles(targetURL string, mu *sync.Mutex, urls map[string
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	for _, jsURL := range jsURLs {
-		resp, err := client.Get(jsURL)
+		req, err := http.NewRequest("GET", jsURL, nil)
+		if err != nil {
+			continue
+		}
+		if c.authSession != nil {
+			c.authSession.InjectInto(req)
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			continue
 		}
@@ -303,7 +330,14 @@ func (c *Crawler) bruteforceAPIPaths(targetURL string, mu *sync.Mutex, urls map[
 			continue
 		}
 
-		resp, err := client.Get(fullURL)
+		req, err := http.NewRequest("GET", fullURL, nil)
+		if err != nil {
+			continue
+		}
+		if c.authSession != nil {
+			c.authSession.InjectInto(req)
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			continue
 		}

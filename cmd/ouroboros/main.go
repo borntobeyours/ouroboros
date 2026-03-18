@@ -65,6 +65,14 @@ func newScanCmd() *cobra.Command {
 		reconEnabled  bool
 		noRecon       bool
 		reconModules  string
+		// Auth flags
+		authUser    string
+		authPass    string
+		authURL     string
+		authMethod  string
+		authToken   string
+		authHeaders []string
+		authCookies []string
 	)
 
 	cmd := &cobra.Command{
@@ -103,7 +111,34 @@ Examples:
 				rc.Modules = strings.Split(reconModules, ",")
 			}
 
-			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy, rc)
+			// Build AuthConfig from flags
+			authCfg := types.AuthConfig{
+				Username: authUser,
+				Password: authPass,
+				LoginURL: authURL,
+				Method:   authMethod,
+				Token:    authToken,
+			}
+			if len(authHeaders) > 0 {
+				authCfg.Headers = make(map[string]string, len(authHeaders))
+				for _, h := range authHeaders {
+					parts := strings.SplitN(h, ":", 2)
+					if len(parts) == 2 {
+						authCfg.Headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+					}
+				}
+			}
+			if len(authCookies) > 0 {
+				authCfg.Cookies = make(map[string]string, len(authCookies))
+				for _, c := range authCookies {
+					parts := strings.SplitN(c, "=", 2)
+					if len(parts) == 2 {
+						authCfg.Cookies[parts[0]] = parts[1]
+					}
+				}
+			}
+
+			return runScan(targetURL, maxLoops, finalBoss, provider, model, output, minConfidence, minCVSS, sortBy, authCfg, rc)
 		},
 	}
 
@@ -120,6 +155,14 @@ Examples:
 	cmd.Flags().BoolVar(&reconEnabled, "recon", false, "Enable recon phase before attack loop")
 	cmd.Flags().BoolVar(&noRecon, "no-recon", false, "Disable recon phase")
 	cmd.Flags().StringVar(&reconModules, "recon-modules", "", "Comma-separated recon modules: portscan,techfp,jsextract,wayback,params")
+	// Auth flags
+	cmd.Flags().StringVar(&authUser, "auth-user", "", "Login username/email")
+	cmd.Flags().StringVar(&authPass, "auth-pass", "", "Login password")
+	cmd.Flags().StringVar(&authURL, "auth-url", "", "Custom login URL (auto-detect if empty)")
+	cmd.Flags().StringVar(&authMethod, "auth-method", "", "Auth method: form/json/bearer/cookie/auto (default: auto)")
+	cmd.Flags().StringVar(&authToken, "auth-token", "", "Direct bearer token")
+	cmd.Flags().StringArrayVar(&authHeaders, "auth-header", nil, "Custom auth header 'Name: Value' (repeatable)")
+	cmd.Flags().StringArrayVar(&authCookies, "auth-cookie", nil, "Custom cookie 'name=value' (repeatable)")
 
 	return cmd
 }
@@ -180,7 +223,7 @@ func applyProfile(profile string, cmd *cobra.Command, maxLoops *int, finalBoss *
 	}
 }
 
-func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, reconCfg ...types.ReconConfig) error {
+func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model, output string, minConfidence int, minCVSS float64, sortBy string, authCfg types.AuthConfig, reconCfg ...types.ReconConfig) error {
 	logger := log.New(os.Stderr, "[ouroboros] ", log.LstdFlags)
 
 	// Set up context with signal handling
@@ -232,11 +275,12 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, providerName, model
 
 	// Build scan config
 	config := types.ScanConfig{
-		Target:    types.Target{URL: targetURL},
-		MaxLoops:  maxLoops,
-		FinalBoss: finalBoss,
-		Provider:  providerName,
-		Model:     model,
+		Target:     types.Target{URL: targetURL},
+		MaxLoops:   maxLoops,
+		FinalBoss:  finalBoss,
+		Provider:   providerName,
+		Model:      model,
+		AuthConfig: authCfg,
 	}
 	if len(reconCfg) > 0 {
 		config.ReconConfig = reconCfg[0]
@@ -781,7 +825,7 @@ Examples:
 					}
 
 					err := runScan(targetURL, maxLoops, finalBoss, scanProvider, scanModel,
-						subOutput, minConfidence, minCVSS, "cvss")
+						subOutput, minConfidence, minCVSS, "cvss", types.AuthConfig{})
 					if err != nil {
 						fmt.Printf("  \033[31m✗ Error scanning %s: %v\033[0m\n\n", sub.Name, err)
 						continue

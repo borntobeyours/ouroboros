@@ -6,11 +6,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/borntobeyours/ouroboros/internal/auth"
 	"github.com/borntobeyours/ouroboros/internal/blue"
 	"github.com/borntobeyours/ouroboros/internal/boss"
 	"github.com/borntobeyours/ouroboros/internal/memory"
 	"github.com/borntobeyours/ouroboros/internal/recon"
 	"github.com/borntobeyours/ouroboros/internal/red"
+	"github.com/borntobeyours/ouroboros/internal/red/probers"
 	"github.com/borntobeyours/ouroboros/internal/report"
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
@@ -77,6 +79,31 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		printReconSummary(reconResult)
 		progress = report.NewProgress(config.MaxLoops)
 		progress.Start()
+	}
+
+	// === AUTH PHASE ===
+	ac := config.AuthConfig
+	if !ac.NoAuth && (ac.Username != "" || ac.Token != "" || len(ac.Headers) > 0 || len(ac.Cookies) > 0 || ac.Method != "") {
+		progress.SetPhase("Auth")
+		progress.SetStep("Authenticating...")
+
+		authenticator := auth.NewAuthenticator(ac, config.Target.URL, nil)
+		authSession, authErr := authenticator.Authenticate(ctx)
+		if authErr != nil {
+			progress.Stop()
+			e.reporter.PrintError(fmt.Sprintf("Auth failed (continuing unauthenticated): %v", authErr))
+			progress = report.NewProgress(config.MaxLoops)
+			progress.Start()
+		} else if authSession.IsValid() {
+			e.logger.Printf("[AUTH] Authentication successful (method: %s)", authSession.Method)
+			probers.SetAuthSession(authSession)
+			e.redAgent.SetAuth(authSession)
+
+			// Wire refresh so mid-scan re-auth is possible
+			authSession.SetRefresh(func(rCtx context.Context) (*auth.AuthSession, error) {
+				return auth.NewAuthenticator(ac, config.Target.URL, nil).Authenticate(rCtx)
+			})
+		}
 	}
 
 	for loop := 1; loop <= config.MaxLoops; loop++ {

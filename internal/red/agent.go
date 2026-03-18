@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/borntobeyours/ouroboros/internal/ai"
+	"github.com/borntobeyours/ouroboros/internal/auth"
 	"github.com/borntobeyours/ouroboros/internal/red/probers"
 	target_pkg "github.com/borntobeyours/ouroboros/internal/target"
 	"github.com/borntobeyours/ouroboros/pkg/types"
@@ -38,6 +39,12 @@ func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 		activeExploit: NewActiveExploiter(provider, logger),
 		logger:        logger,
 	}
+}
+
+// SetAuth configures the auth session on the crawler and global probers.
+func (a *Agent) SetAuth(s *auth.AuthSession) {
+	a.crawler.SetAuth(s)
+	probers.SetAuthSession(s)
 }
 
 // Attack performs a full attack cycle against the target.
@@ -67,9 +74,9 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	// Phase 2: Technique-specific active probers
 	a.logger.Printf("[RED] Phase 2: Running technique-specific probers...")
 
-	// On first loop, try to authenticate for deeper scanning
+	// On first loop, try to authenticate for deeper scanning (skip if session already set)
 	proberTarget := target
-	if loop == 1 {
+	if loop == 1 && probers.GetAuthSession() == nil {
 		a.logger.Printf("[RED] Attempting authentication...")
 		token, err := probers.AttemptAuth(target.URL, classified)
 		if err != nil {

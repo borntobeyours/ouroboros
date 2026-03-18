@@ -65,14 +65,27 @@ type ClassifiedEndpoints struct {
 	GraphQL    []Endpoint
 }
 
+// AuthConfig holds authentication configuration for a scan session.
+type AuthConfig struct {
+	Method   string            `json:"method,omitempty"`   // form, json, bearer, cookie, header, auto
+	LoginURL string            `json:"login_url,omitempty"`
+	Username string            `json:"username,omitempty"`
+	Password string            `json:"password,omitempty"`
+	Token    string            `json:"token,omitempty"`
+	Headers  map[string]string `json:"headers,omitempty"`
+	Cookies  map[string]string `json:"cookies,omitempty"`
+	NoAuth   bool              `json:"no_auth,omitempty"`
+}
+
 // ScanConfig holds configuration for a scan session.
 type ScanConfig struct {
-	Target       Target      `json:"target"`
-	MaxLoops     int         `json:"max_loops"`
-	FinalBoss    bool        `json:"final_boss"`
-	Provider     string      `json:"provider"`
-	Model        string      `json:"model"`
-	ReconConfig  ReconConfig `json:"recon_config,omitempty"`
+	Target      Target      `json:"target"`
+	MaxLoops    int         `json:"max_loops"`
+	FinalBoss   bool        `json:"final_boss"`
+	Provider    string      `json:"provider"`
+	Model       string      `json:"model"`
+	ReconConfig ReconConfig `json:"recon_config,omitempty"`
+	AuthConfig  AuthConfig  `json:"auth_config,omitempty"`
 }
 
 // ScanSession represents an entire scan lifecycle.
