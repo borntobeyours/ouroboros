@@ -153,6 +153,9 @@ func (p *PluginProber) Tags() []string {
 	return inferTagsFromFilename(p.filename)
 }
 
+// Severity returns the raw severity string from the plugin definition.
+func (p *PluginProber) Severity() string { return p.def.Severity }
+
 // Filename returns the source YAML filename.
 func (p *PluginProber) Filename() string { return p.filename }
 

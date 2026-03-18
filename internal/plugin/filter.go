@@ -81,7 +81,13 @@ func filterGenericOnly(ps []*PluginProber) []*PluginProber {
 func shouldRun(p *PluginProber, techSet map[string]bool) bool {
 	tags := p.Tags()
 	if len(tags) == 0 || containsTag(tags, "generic") {
-		return true
+		// For generic templates, only run critical/high severity to reduce noise.
+		// This brings ~290 generic templates down to ~80-100.
+		sev := strings.ToLower(p.Severity())
+		if sev == "critical" || sev == "high" || sev == "medium" {
+			return true
+		}
+		return false
 	}
 	for _, tag := range tags {
 		if techSet[strings.ToLower(tag)] {
