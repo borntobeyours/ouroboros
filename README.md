@@ -8,6 +8,10 @@
 
 AI-powered security scanner with adversarial Red/Blue AI loops. Red AI attacks, Blue AI defends, repeat until nothing breaks. Every finding includes real HTTP evidence, CVSS scores, and exploit proof — not theoretical speculation.
 
+<p align="center">
+  <img src="demo.gif" alt="Ouroboros scanning OWASP Juice Shop" width="720">
+</p>
+
 ```
 ┌─────────┐     findings      ┌──────────┐
 │  Red AI  │ ───────────────► │  Blue AI  │

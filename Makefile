@@ -13,6 +13,13 @@ build:
 test:
 	go test -v -race ./...
 
+test-short:
+	go test -race -count=1 ./pkg/types/ ./internal/red/ ./internal/red/probers/ -run "^Test[^P]"
+
+test-cover:
+	go test -race -coverprofile=coverage.out ./pkg/types/ ./internal/red/ ./internal/red/probers/
+	go tool cover -func=coverage.out | tail -1
+
 run: build
 	./$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
 
