@@ -294,15 +294,26 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		}
 
 		// === DEFEND PHASE ===
-		e.emitEvent("progress", "Defending", loop, len(allFindings))
-		if config.SkipBlue && len(newFindings) > 0 {
-			e.logger.Printf("[ENGINE] Blue AI skipped (--skip-blue / claude-code provider)")
+		// Filter: only send non-template findings to Blue AI
+		var aiFindings []types.Finding
+		for _, f := range newFindings {
+			if !strings.HasPrefix(f.Technique, "plugin:") {
+				aiFindings = append(aiFindings, f)
+			}
 		}
-		if len(newFindings) > 0 && !config.SkipBlue {
+		templateCount := len(newFindings) - len(aiFindings)
+		if templateCount > 0 {
+			e.logger.Printf("[ENGINE] %d findings from templates (skip Blue AI), %d from probers/AI (analyze)", templateCount, len(aiFindings))
+		}
+		e.emitEvent("progress", "Defending", loop, len(allFindings))
+		if config.SkipBlue && len(aiFindings) > 0 {
+			e.logger.Printf("[ENGINE] Blue AI skipped (--skip-blue)")
+		}
+		if len(aiFindings) > 0 && !config.SkipBlue {
 			progress.SetPhase("Defending")
 			progress.SetStep("Blue AI analyzing...")
 
-			patches, err := e.blueAgent.Defend(ctx, newFindings)
+			patches, err := e.blueAgent.Defend(ctx, aiFindings)
 			if err != nil {
 				progress.Stop()
 				e.reporter.PrintError(fmt.Sprintf("Blue AI: %v", err))
