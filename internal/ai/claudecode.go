@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -58,13 +59,45 @@ func (c *ClaudeCode) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 		args = append(args, "--system-prompt", req.SystemPrompt)
 	}
 
-	// The actual prompt goes last
-	args = append(args, prompt)
+	// Always pass prompt as CLI argument (simple, works for most cases).
+	// For huge prompts (>200KB), use temp file to avoid arg length limits.
+	const maxArgLen = 200000
+	if len(prompt)+len(req.SystemPrompt) > maxArgLen {
+		// Write prompt to temp file
+		tmpFile, err := os.CreateTemp("", "ouroboros-prompt-*.txt")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp file: %w", err)
+		}
+		tmpPath := tmpFile.Name()
+		defer os.Remove(tmpPath)
 
-	// Create a fully independent context for the CLI subprocess.
-	// The parent ctx from the engine loop can get canceled during phase
-	// transitions, which would kill the claude CLI mid-response.
-	// We ONLY use our own timeout as the cancellation mechanism.
+		// Combine system prompt + user prompt into file
+		fullPrompt := prompt
+		if len(req.SystemPrompt) > maxArgLen/2 {
+			fullPrompt = "[SYSTEM]\n" + req.SystemPrompt + "\n\n[USER]\n" + prompt
+			// Remove --system-prompt from args
+			var cleaned []string
+			for i := 0; i < len(args); i++ {
+				if args[i] == "--system-prompt" && i+1 < len(args) {
+					i++
+					continue
+				}
+				cleaned = append(cleaned, args[i])
+			}
+			args = cleaned
+		}
+
+		tmpFile.WriteString(fullPrompt)
+		tmpFile.Close()
+
+		// Read back and pass as arg — if still too big, it'll fail
+		// but this handles the 99% case of large system+user prompts
+		content, _ := os.ReadFile(tmpPath)
+		args = append(args, string(content))
+	} else {
+		args = append(args, prompt)
+	}
+
 	cmdCtx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 

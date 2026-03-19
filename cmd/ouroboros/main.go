@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -262,19 +261,8 @@ Examples:
 
 // shouldEnableRecon returns true for domain targets, false for localhost/IP.
 func shouldEnableRecon(targetURL string) bool {
-	lower := strings.ToLower(targetURL)
-	if strings.Contains(lower, "localhost") || strings.Contains(lower, "127.0.0.1") ||
-		strings.Contains(lower, "0.0.0.0") || strings.Contains(lower, "[::1]") {
-		return false
-	}
-	// Check if host is an IP address
-	host := strings.TrimPrefix(lower, "https://")
-	host = strings.TrimPrefix(host, "http://")
-	host = strings.Split(host, "/")[0]
-	host = strings.Split(host, ":")[0]
-	if net.ParseIP(host) != nil {
-		return false
-	}
+	// Always enable recon — JS extraction and endpoint discovery are
+	// critical for SPA targets (Angular, React, Vue) even on localhost.
 	return true
 }
 

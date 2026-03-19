@@ -93,6 +93,8 @@ func (s *Scanner) scanBatch(ctx context.Context, t types.Target, urls []string, 
 	systemPrompt := BuildAttackPrompt()
 	userPrompt := BuildUserPrompt(t, urls, endpoints, previousFindings, patches)
 
+	s.logger.Printf("[SCANNER] Prompt: %d chars system, %d chars user, %d URLs", len(systemPrompt), len(userPrompt), len(urls))
+
 	resp, err := s.provider.Chat(ctx, ai.ChatRequest{
 		Messages: []ai.Message{
 			{Role: "user", Content: userPrompt},
@@ -105,11 +107,18 @@ func (s *Scanner) scanBatch(ctx context.Context, t types.Target, urls []string, 
 		return nil, fmt.Errorf("AI scan failed: %w", err)
 	}
 
+	s.logger.Printf("[SCANNER] AI response: %d chars, model: %s", len(resp.Content), resp.Model)
+	if len(resp.Content) < 200 {
+		s.logger.Printf("[SCANNER] Full response: %s", resp.Content)
+	}
+
 	findings, err := ParseFindings(resp.Content, loop)
 	if err != nil {
 		s.logger.Printf("[SCANNER] Warning: could not parse AI response: %v", err)
+		s.logger.Printf("[SCANNER] Response preview: %.500s", resp.Content)
 		return []types.Finding{}, nil
 	}
 
+	s.logger.Printf("[SCANNER] Parsed %d findings from AI", len(findings))
 	return findings, nil
 }
