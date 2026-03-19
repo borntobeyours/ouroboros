@@ -57,7 +57,24 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	if err != nil {
 		return nil, fmt.Errorf("crawl target: %w", err)
 	}
-	a.logger.Printf("[RED] Discovered %d URLs", len(urls))
+	a.logger.Printf("[RED] Crawled %d URLs", len(urls))
+
+	// Merge recon-discovered URLs (from JS extraction, wayback, etc.)
+	if len(target.ReconURLs) > 0 {
+		seen := make(map[string]bool, len(urls))
+		for _, u := range urls {
+			seen[u] = true
+		}
+		added := 0
+		for _, ru := range target.ReconURLs {
+			if !seen[ru] {
+				urls = append(urls, ru)
+				seen[ru] = true
+				added++
+			}
+		}
+		a.logger.Printf("[RED] Merged %d recon URLs (total: %d)", added, len(urls))
+	}
 
 	// Get endpoint context
 	endpoints := target_pkg.DiscoverEndpoints(urls, target.Headers)

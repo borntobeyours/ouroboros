@@ -221,15 +221,11 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 		progress.SetStep("Discovering endpoints...")
 		e.emitEvent("progress", "Crawling", loop, len(allFindings))
 
-		// Feed recon-discovered URLs into target for this loop
+		// Feed recon-discovered URLs directly into attack target
 		attackTarget := config.Target
 		if reconResult != nil && len(reconResult.DiscoveredURLs) > 0 {
-			// Enrich target with recon data (Red AI will use these as additional crawl seeds)
-			if attackTarget.Headers == nil {
-				attackTarget.Headers = make(map[string]string)
-			}
-			// Pass discovered URLs as a header hint (Red agent reads X-Recon-URLs)
-			attackTarget.Headers["X-Recon-URLs"] = joinURLs(reconResult.DiscoveredURLs, 100)
+			attackTarget.ReconURLs = reconResult.DiscoveredURLs
+			e.logger.Printf("[ENGINE] Feeding %d recon URLs to Red AI", len(reconResult.DiscoveredURLs))
 		}
 
 		// === ATTACK PHASE ===

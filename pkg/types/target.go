@@ -8,9 +8,10 @@ import (
 
 // Target represents a scan target.
 type Target struct {
-	URL     string            `json:"url"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Cookies map[string]string `json:"cookies,omitempty"`
+	URL       string            `json:"url"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	Cookies   map[string]string `json:"cookies,omitempty"`
+	ReconURLs []string          `json:"recon_urls,omitempty"` // URLs discovered by recon module
 }
 
 // EndpointCategory classifies the role of a discovered endpoint.
