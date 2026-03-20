@@ -12,22 +12,47 @@ var (
 	// <meta content="..." name="csrf-token">
 	metaCSRFRe2 = regexp.MustCompile(`(?i)<meta[^>]+content=["']([^"']+)["'][^>]+name=["'](?:csrf[-_]?token|_token|xsrf[-_]?token)["']`)
 	// <input type="hidden" name="_csrf" value="...">
-	inputCSRFRe = regexp.MustCompile(`(?i)<input[^>]+type=["']hidden["'][^>]+name=["'](?:_?csrf[-_]?(?:token)?|_token|xsrf[-_]?(?:token)?|authenticity_token)["'][^>]+value=["']([^"']+)["']`)
+	inputCSRFRe = regexp.MustCompile(`(?i)<input[^>]+type=["']hidden["'][^>]+name=["'](?:_?csrf[-_]?(?:token)?|_token|xsrf[-_]?(?:token)?|authenticity_token|user_token|[a-z_]*token[a-z_]*)["'][^>]+value=["']([^"']+)["']`)
 	// alternate order of attributes
-	inputCSRFRe2 = regexp.MustCompile(`(?i)<input[^>]+name=["'](?:_?csrf[-_]?(?:token)?|_token|xsrf[-_]?(?:token)?|authenticity_token)["'][^>]+value=["']([^"']+)["']`)
+	inputCSRFRe2 = regexp.MustCompile(`(?i)<input[^>]+name=["'](?:_?csrf[-_]?(?:token)?|_token|xsrf[-_]?(?:token)?|authenticity_token|user_token|[a-z_]*token[a-z_]*)["'][^>]+value=["']([^"']+)["']`)
 )
 
 // ExtractCSRFFromHTML extracts a CSRF token from an HTML body.
 // Returns empty string if none is found.
 func ExtractCSRFFromHTML(html string) string {
-	for _, re := range []*regexp.Regexp{metaCSRFRe, metaCSRFRe2, inputCSRFRe, inputCSRFRe2} {
+	tok, _ := ExtractCSRFFromHTMLWithField(html)
+	return tok
+}
+
+// inputCSRFFieldRe captures both the field name and value from hidden inputs
+// that look like CSRF tokens.
+var inputCSRFFieldRe = regexp.MustCompile(`(?i)<input[^>]+type=["']hidden["'][^>]+name=["']([a-z_]*(?:csrf|token|xsrf|authenticity)[a-z_]*)["'][^>]+value=["']([^"']+)["']`)
+var inputCSRFFieldRe2 = regexp.MustCompile(`(?i)<input[^>]+name=["']([a-z_]*(?:csrf|token|xsrf|authenticity)[a-z_]*)["'][^>]+type=["']hidden["'][^>]+value=["']([^"']+)["']`)
+var inputCSRFFieldRe3 = regexp.MustCompile(`(?i)<input[^>]+name=["']([a-z_]*(?:csrf|token|xsrf|authenticity)[a-z_]*)["'][^>]+value=["']([^"']+)["']`)
+
+// ExtractCSRFFromHTMLWithField extracts a CSRF token AND its field name from HTML.
+func ExtractCSRFFromHTMLWithField(html string) (token, fieldName string) {
+	// Try meta tags first (no field name)
+	for _, re := range []*regexp.Regexp{metaCSRFRe, metaCSRFRe2} {
 		if m := re.FindStringSubmatch(html); len(m) > 1 {
 			if tok := strings.TrimSpace(m[1]); tok != "" {
-				return tok
+				return tok, "_csrf"
 			}
 		}
 	}
-	return ""
+
+	// Try hidden input fields — these capture both name and value
+	for _, re := range []*regexp.Regexp{inputCSRFFieldRe, inputCSRFFieldRe2, inputCSRFFieldRe3} {
+		if m := re.FindStringSubmatch(html); len(m) > 2 {
+			name := strings.TrimSpace(m[1])
+			tok := strings.TrimSpace(m[2])
+			if tok != "" && name != "" {
+				return tok, name
+			}
+		}
+	}
+
+	return "", ""
 }
 
 // ExtractCSRFFromResponse extracts a CSRF token from HTTP response headers,
@@ -52,9 +77,12 @@ func ExtractCSRFFromResponse(resp *http.Response, body string) (token, fieldName
 		}
 	}
 	// Fall back to HTML parsing
-	tok := ExtractCSRFFromHTML(body)
+	tok, field := ExtractCSRFFromHTMLWithField(body)
 	if tok != "" {
-		return tok, "_csrf"
+		if field == "" {
+			field = "_csrf"
+		}
+		return tok, field
 	}
 	return "", ""
 }
