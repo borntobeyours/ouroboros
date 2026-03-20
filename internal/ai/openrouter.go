@@ -19,9 +19,29 @@ type OpenRouter struct {
 	client *http.Client
 }
 
+// openrouterModelMap translates canonical/direct API model names to OpenRouter equivalents.
+var openrouterModelMap = map[string]string{
+	"anthropic/claude-sonnet-4-20250514":   "anthropic/claude-sonnet-4",
+	"anthropic/claude-opus-4-20250514":     "anthropic/claude-opus-4",
+	"claude-sonnet-4-20250514":             "anthropic/claude-sonnet-4",
+	"claude-opus-4-20250514":               "anthropic/claude-opus-4",
+	"claude-3-5-sonnet-20241022":           "anthropic/claude-3.5-sonnet",
+	"claude-3-7-sonnet-20250219":           "anthropic/claude-3.7-sonnet",
+}
+
+// normalizeOpenRouterModel maps direct API model names to OpenRouter equivalents.
+func normalizeOpenRouterModel(model string) string {
+	if mapped, ok := openrouterModelMap[model]; ok {
+		return mapped
+	}
+	return model
+}
+
 func NewOpenRouter(apiKey, model string) *OpenRouter {
 	if model == "" {
-		model = "anthropic/claude-sonnet-4-20250514"
+		model = "anthropic/claude-sonnet-4"
+	} else {
+		model = normalizeOpenRouterModel(model)
 	}
 	return &OpenRouter{
 		apiKey: apiKey,
@@ -36,6 +56,8 @@ func (o *OpenRouter) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, 
 	model := req.Model
 	if model == "" {
 		model = o.model
+	} else {
+		model = normalizeOpenRouterModel(model)
 	}
 	maxTokens := req.MaxTokens
 	if maxTokens == 0 {
