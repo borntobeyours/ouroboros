@@ -117,9 +117,23 @@ func (c *Crawler) Crawl(ctx context.Context, targetURL string) ([]string, error)
 	var mu sync.Mutex
 	urls := make(map[string]bool)
 
-	// Phase 1: HTML crawling with colly
+	// Overall crawl timeout to prevent SPA infinite loops
+	crawlCtx, crawlCancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer crawlCancel()
+
+	// Phase 1: HTML crawling with colly (with timeout)
 	c.logger.Printf("[CRAWLER] Phase 1: HTML crawling...")
-	c.htmlCrawl(targetURL, &mu, urls)
+	done := make(chan struct{})
+	go func() {
+		c.htmlCrawl(targetURL, &mu, urls)
+		close(done)
+	}()
+	select {
+	case <-done:
+		// completed normally
+	case <-crawlCtx.Done():
+		c.logger.Printf("[CRAWLER] HTML crawl timed out after 2m, continuing with %d URLs found so far", len(urls))
+	}
 
 	// Phase 2: JS file parsing for API routes
 	c.logger.Printf("[CRAWLER] Phase 2: Parsing JS files for API routes...")
