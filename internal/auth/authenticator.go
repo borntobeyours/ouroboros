@@ -93,13 +93,37 @@ func collectLoginURLs(baseURL, loginURL string, classified *types.ClassifiedEndp
 
 	// Common fallbacks
 	common := []string{
-		"/login", "/api/login", "/auth/login", "/api/auth/login",
-		"/rest/user/login", "/signin", "/api/signin",
-		"/api/Users/login", "/oauth/token", "/api/authenticate",
-		"/api/session", "/api/token",
+		"/login", "/login.php", "/login.html", "/login.asp", "/login.aspx",
+		"/api/login", "/auth/login", "/api/auth/login",
+		"/rest/user/login", "/signin", "/signin.php",
+		"/api/signin", "/api/Users/login", "/oauth/token",
+		"/api/authenticate", "/api/session", "/api/token",
+		"/user/login", "/account/login", "/admin/login",
+		"/wp-login.php", "/administrator/index.php",
 	}
 	for _, p := range common {
 		add(baseURL + p)
+	}
+
+	// Follow the base URL itself — many apps redirect / to the login page
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	if resp, err := client.Get(baseURL + "/"); err == nil {
+		resp.Body.Close()
+		if loc := resp.Header.Get("Location"); loc != "" {
+			// Resolve relative redirects
+			if !strings.HasPrefix(loc, "http") {
+				loc = baseURL + "/" + strings.TrimLeft(loc, "/")
+			}
+			add(loc)
+		}
 	}
 
 	return urls
