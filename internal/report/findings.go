@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -331,13 +332,47 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 	findings = types.DeduplicateFindings(findings)
 	var sb strings.Builder
 
-	sb.WriteString("# Ouroboros Security Report\n\n")
-	sb.WriteString(fmt.Sprintf("**Session:** %s\n\n", session.ID))
-	sb.WriteString(fmt.Sprintf("**Target:** %s\n\n", session.Config.Target.URL))
-	sb.WriteString(fmt.Sprintf("**Date:** %s\n\n", session.StartedAt.Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("**Loops:** %d | **Converged:** %v | **Total Findings:** %d\n\n", len(session.Loops), session.Converged, session.TotalFindings))
-	sb.WriteString("---\n\n")
-	sb.WriteString("## Findings\n\n")
+	sb.WriteString("# 🐍 Ouroboros Security Report\n\n")
+
+	// Scan summary table
+	duration := session.FinishedAt.Sub(session.StartedAt).Round(time.Second)
+	sb.WriteString("## Scan Summary\n\n")
+	sb.WriteString("| Property | Value |\n")
+	sb.WriteString("|----------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| **Target** | `%s` |\n", session.Config.Target.URL))
+	sb.WriteString(fmt.Sprintf("| **Session ID** | `%s` |\n", session.ID))
+	sb.WriteString(fmt.Sprintf("| **Started** | %s |\n", session.StartedAt.Format("2006-01-02 15:04:05")))
+	sb.WriteString(fmt.Sprintf("| **Duration** | %s |\n", duration))
+	sb.WriteString(fmt.Sprintf("| **Provider** | %s |\n", session.Config.Provider))
+	sb.WriteString(fmt.Sprintf("| **Model** | %s |\n", session.Config.Model))
+	sb.WriteString(fmt.Sprintf("| **Loops** | %d (max %d) |\n", len(session.Loops), session.Config.MaxLoops))
+	sb.WriteString(fmt.Sprintf("| **Converged** | %v |\n", session.Converged))
+	sb.WriteString(fmt.Sprintf("| **Total Findings** | %d |\n", len(findings)))
+	sb.WriteString("\n")
+
+	// Severity breakdown
+	sevCounts := map[string]int{"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
+	for _, f := range findings {
+		sevCounts[f.Severity.String()]++
+	}
+	sb.WriteString("## Findings by Severity\n\n")
+	sb.WriteString("| Severity | Count |\n")
+	sb.WriteString("|----------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| 🔴 Critical | %d |\n", sevCounts["Critical"]))
+	sb.WriteString(fmt.Sprintf("| 🟠 High | %d |\n", sevCounts["High"]))
+	sb.WriteString(fmt.Sprintf("| 🟡 Medium | %d |\n", sevCounts["Medium"]))
+	sb.WriteString(fmt.Sprintf("| 🔵 Low | %d |\n", sevCounts["Low"]))
+	sb.WriteString(fmt.Sprintf("| ⚪ Info | %d |\n", sevCounts["Info"]))
+	sb.WriteString("\n---\n\n")
+	sb.WriteString("## Detailed Findings\n\n")
+
+	// Sort by CVSS score descending, then severity
+	sort.Slice(findings, func(i, j int) bool {
+		if findings[i].CVSS.Score != findings[j].CVSS.Score {
+			return findings[i].CVSS.Score > findings[j].CVSS.Score
+		}
+		return findings[i].Severity > findings[j].Severity
+	})
 
 	for i, f := range findings {
 		status := "⚠️ Unconfirmed"

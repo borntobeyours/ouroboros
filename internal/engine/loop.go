@@ -105,6 +105,12 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	logWriter := &report.LogWriter{Progress: progress}
 	e.logger.SetOutput(logWriter)
 
+	// Wire Red agent progress into the spinner
+	e.redAgent.SetProgressCallback(func(phase, step string) {
+		progress.SetPhase(phase)
+		progress.SetStep(step)
+	})
+
 	var allFindings []types.Finding
 	var allPatches []types.Patch
 
@@ -306,8 +312,8 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 			e.logger.Printf("[ENGINE] Blue AI skipped (--skip-blue)")
 		}
 		if len(aiFindings) > 0 && !config.SkipBlue {
-			progress.SetPhase("Defending")
-			progress.SetStep("Blue AI analyzing...")
+			progress.SetPhase("Blue AI")
+			progress.SetStep("Defensive validation...")
 
 			patches, err := e.blueAgent.Defend(ctx, aiFindings)
 			if err != nil {
@@ -374,6 +380,14 @@ func (e *Engine) Run(ctx context.Context, config types.ScanConfig) (*types.ScanS
 	}
 
 	lv.PrintSummaryBox(session, allFindings)
+
+	// === MARKDOWN REPORT EXPORT ===
+	reportFile := fmt.Sprintf("ouroboros-report-%s.md", session.ID[:8])
+	if err := report.ExportMarkdown(allFindings, session, reportFile); err != nil {
+		e.logger.Printf("[ENGINE] Failed to export markdown report: %v", err)
+	} else {
+		fmt.Printf("\n  📄 Report saved to %s\n", reportFile)
+	}
 
 	// === WEBHOOK NOTIFICATION ===
 	if e.notifier != nil {

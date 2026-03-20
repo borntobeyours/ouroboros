@@ -18,15 +18,19 @@ import (
 	"github.com/borntobeyours/ouroboros/pkg/types"
 )
 
+// ProgressCallbackFn is called by the agent to report phase changes.
+type ProgressCallbackFn func(phase, step string)
+
 // Agent is the Red AI attacker agent.
 type Agent struct {
-	provider      ai.Provider
-	crawler       *Crawler
-	scanner       *Scanner
-	exploiter     *Exploiter
-	activeExploit *ActiveExploiter
-	logger        *log.Logger
-	lastEndpoints []types.Endpoint // cached from last crawl
+	provider         ai.Provider
+	crawler          *Crawler
+	scanner          *Scanner
+	exploiter        *Exploiter
+	activeExploit    *ActiveExploiter
+	logger           *log.Logger
+	lastEndpoints    []types.Endpoint // cached from last crawl
+	progressCallback ProgressCallbackFn
 }
 
 // NewAgent creates a new Red AI agent.
@@ -41,6 +45,18 @@ func NewAgent(provider ai.Provider, logger *log.Logger) *Agent {
 	}
 }
 
+// SetProgressCallback attaches an optional callback for phase updates.
+func (a *Agent) SetProgressCallback(cb ProgressCallbackFn) {
+	a.progressCallback = cb
+}
+
+// emitProgress calls the progress callback if set.
+func (a *Agent) emitProgress(phase, step string) {
+	if a.progressCallback != nil {
+		a.progressCallback(phase, step)
+	}
+}
+
 // SetAuth configures the auth session on the crawler and global probers.
 func (a *Agent) SetAuth(s *auth.AuthSession) {
 	a.crawler.SetAuth(s)
@@ -52,6 +68,7 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	a.logger.Printf("[RED] Starting attack loop %d against %s", loop, target.URL)
 
 	// Phase 1: Crawl and discover endpoints
+	a.emitProgress("Crawling", "Discovering endpoints...")
 	a.logger.Printf("[RED] Phase 1: Crawling target...")
 	urls, err := a.crawler.Crawl(ctx, target.URL)
 	if err != nil {
@@ -89,6 +106,7 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 		len(classified.UserData))
 
 	// Phase 2: Technique-specific active probers
+	a.emitProgress("Probing", "Running technique probers...")
 	a.logger.Printf("[RED] Phase 2: Running technique-specific probers...")
 
 	// On first loop, try to authenticate for deeper scanning (skip if session already set)
@@ -111,6 +129,7 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 	a.logger.Printf("[RED] Probers found %d findings", len(proberFindings))
 
 	// Phase 3: AI-powered vulnerability analysis (supplements probers)
+	a.emitProgress("Red AI", "AI vulnerability scanning...")
 	a.logger.Printf("[RED] Phase 3: AI-powered vulnerability scanning...")
 	aiFindings, err := a.scanner.Scan(ctx, target, urls, previousFindings, patches, loop)
 	if err != nil {
@@ -125,6 +144,7 @@ func (a *Agent) Attack(ctx context.Context, target types.Target, previousFinding
 
 	if len(aiFindings) > 0 {
 		// Phase 4: AI-guided active exploitation of AI-discovered findings
+		a.emitProgress("Exploiting", "AI-guided exploitation...")
 		a.logger.Printf("[RED] Phase 4: AI-guided active exploitation (%d AI targets)...", len(aiFindings))
 		activeResults := a.activeExploit.ExploitAll(ctx, aiFindings, target, endpoints)
 
