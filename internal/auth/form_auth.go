@@ -62,6 +62,12 @@ func (f *FormAuthenticator) tryJSONLogin(ctx context.Context, loginURL, username
 		{"login": username, "password": password},
 	}
 
+	// Don't follow redirects — capture 302 + cookies directly
+	noRedirectClient := *f.client
+	noRedirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
 	for _, fields := range fieldVariants {
 		payload, _ := json.Marshal(fields)
 		req, err := http.NewRequestWithContext(ctx, "POST", loginURL, strings.NewReader(string(payload)))
@@ -72,7 +78,7 @@ func (f *FormAuthenticator) tryJSONLogin(ctx context.Context, loginURL, username
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
-		resp, err := f.client.Do(req)
+		resp, err := noRedirectClient.Do(req)
 		if err != nil {
 			continue
 		}
@@ -118,6 +124,13 @@ func (f *FormAuthenticator) tryFormLogin(ctx context.Context, loginURL, username
 	// Build form data variants
 	formVariants := buildFormVariants(username, password, userField, passField, csrfToken, csrfField)
 
+	// Use a non-redirecting client for login POSTs so we can capture
+	// the 302 response with its Set-Cookie header directly.
+	noRedirectClient := *f.client
+	noRedirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
 	for _, formData := range formVariants {
 		req, err := http.NewRequestWithContext(ctx, "POST", loginURL,
 			strings.NewReader(formData.Encode()))
@@ -133,7 +146,7 @@ func (f *FormAuthenticator) tryFormLogin(ctx context.Context, loginURL, username
 			req.AddCookie(c)
 		}
 
-		postResp, err := f.client.Do(req)
+		postResp, err := noRedirectClient.Do(req)
 		if err != nil {
 			continue
 		}
