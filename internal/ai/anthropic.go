@@ -87,7 +87,13 @@ func (a *Anthropic) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, e
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anthropic API error (status %d): %s", resp.StatusCode, string(respBody))
+		// On 400 errors, retry once without temperature (may trigger content filter edge cases)
+		if resp.StatusCode == 400 && req.Temperature > 0 {
+			req.Temperature = 0
+			return a.Chat(ctx, req) // single retry
+		}
+		return nil, fmt.Errorf("anthropic API error (status %d): %s [model=%s, msgs=%d, maxTokens=%d]",
+			resp.StatusCode, string(respBody), model, len(messages), maxTokens)
 	}
 
 	var apiResp struct {

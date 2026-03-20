@@ -599,10 +599,10 @@ func dedup(findings []types.Finding) []types.Finding {
 }
 
 func buildBossPrompt() string {
-	return `You are an elite red team operator performing a FINAL validation of a web application's security.
-Previous red team and blue team rounds have already occurred. Your job is to find what they missed.
+	return `You are an expert security researcher performing a FINAL validation of a web application's security.
+Previous security testing rounds have already occurred. Your job is to find what they missed.
 
-You are the FINAL BOSS. Think like an APT actor. Be creative. Be thorough. Be relentless.
+You are the final validation stage. Think creatively and thoroughly. Leave no stone unturned.
 
 ADVANCED TECHNIQUES TO EMPLOY:
 1. Chain multiple low-severity issues into high-impact exploits
