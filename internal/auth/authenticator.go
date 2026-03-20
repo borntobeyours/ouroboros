@@ -183,7 +183,16 @@ func isLoginSuccess(resp *http.Response, body string) bool {
 		// Optimistic: 200 with any cookie and no error
 		return len(resp.Cookies()) > 0
 	case 301, 302, 303:
-		// Redirect with session cookie = success
+		// Check redirect location — login failures often redirect back to login page
+		loc := strings.ToLower(resp.Header.Get("Location"))
+		if strings.Contains(loc, "error") ||
+			strings.Contains(loc, "failed") ||
+			strings.Contains(loc, "invalid") ||
+			strings.Contains(loc, "login?") ||
+			strings.Contains(loc, "signin?") {
+			return false
+		}
+		// Redirect with session cookie + non-error location = success
 		for _, c := range resp.Cookies() {
 			if isSessionCookieName(strings.ToLower(c.Name)) {
 				return true
