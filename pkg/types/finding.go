@@ -91,8 +91,10 @@ func (f *Finding) AdjustSeverity() {
 }
 
 // Signature returns a unique hash for deduplication.
-// It uses endpoint + method + technique + CWE (NOT title, since AI and probers
-// may use different titles for the same vulnerability).
+// It uses endpoint + method + technique + CWE + title keywords.
+// Title keywords distinguish genuinely different vulnerabilities at the same
+// endpoint (e.g., "error-based SQLi" vs "UNION SQLi") while still catching
+// duplicates where probers/AI use slightly different wording.
 func (f *Finding) Signature() string {
 	// Normalize endpoint: strip query params and trailing slashes for consistent dedup
 	ep := f.Endpoint
@@ -108,12 +110,59 @@ func (f *Finding) Signature() string {
 	// Normalize CWE
 	cwe := strings.ToUpper(strings.TrimSpace(f.CWE))
 
-	// Use endpoint + method + technique + CWE for dedup.
-	// Title is intentionally excluded because probers and AI report
-	// the same vuln with different titles.
-	data := fmt.Sprintf("%s|%s|%s|%s", ep, f.Method, technique, cwe)
+	// Extract distinguishing keywords from the title.
+	// This preserves different attack variants (error-based vs UNION vs blind)
+	// while still deduplicating same-vuln-different-wording reports.
+	titleKey := extractTitleKey(f.Title)
+
+	data := fmt.Sprintf("%s|%s|%s|%s|%s", ep, f.Method, technique, cwe, titleKey)
 	hash := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("%x", hash[:8])
+}
+
+// extractTitleKey returns a normalized, dedup-friendly key from a finding title.
+// It keeps attack-variant keywords (union, blind, error, time-based, etc.)
+// while stripping noise words so similar titles still match.
+func extractTitleKey(title string) string {
+	title = strings.ToLower(title)
+
+	// Keywords that distinguish attack variants — order matters for consistency
+	variantKeywords := []string{
+		"union", "blind", "time-based", "error-based", "boolean",
+		"stacked", "out-of-band", "stored", "reflected", "dom",
+		"open redirect", "ssrf", "file upload", "path traversal",
+		"command injection", "prototype pollution", "deserialization",
+		"algorithm confusion", "none algorithm", "jwt", "cors",
+		"rate limit", "brute", "enumeration", "disclosure",
+		"stack trace", "wildcard", "missing", "bypass",
+	}
+
+	var matched []string
+	for _, kw := range variantKeywords {
+		if strings.Contains(title, kw) {
+			matched = append(matched, kw)
+		}
+	}
+
+	if len(matched) == 0 {
+		// Fallback: use first 3 significant words
+		words := strings.Fields(title)
+		noise := map[string]bool{
+			"the": true, "a": true, "an": true, "in": true, "on": true,
+			"at": true, "via": true, "with": true, "for": true, "of": true,
+			"to": true, "-": true, "and": true, "or": true, "is": true,
+		}
+		for _, w := range words {
+			if !noise[w] && len(w) > 2 {
+				matched = append(matched, w)
+				if len(matched) >= 3 {
+					break
+				}
+			}
+		}
+	}
+
+	return strings.Join(matched, "+")
 }
 
 // DeduplicateFindings removes duplicate findings based on their signature.
