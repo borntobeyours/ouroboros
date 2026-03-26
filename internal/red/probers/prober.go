@@ -326,6 +326,7 @@ func AllProbers() []Prober {
 		&AdditionalProber{},
 		&GraphQLProber{},
 		&WebSocketProber{},
+		&BOLAProber{},
 	}
 	if len(extraProbers) == 0 {
 		return builtin
