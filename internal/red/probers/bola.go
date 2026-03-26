@@ -20,6 +20,14 @@ import (
 // method tampering, and function-level authz bypasses.
 type BOLAProber struct{}
 
+const (
+	// maxBOLAEndpoints limits how many endpoints each sub-test processes.
+	// High-value endpoints (user-data, admin, API) are prioritized.
+	maxBOLAEndpoints = 50
+	// maxBFLAEndpoints limits admin/user-data endpoints for BFLA tests.
+	maxBFLAEndpoints = 30
+)
+
 func (p *BOLAProber) Name() string { return "bola" }
 
 // uuidPattern matches standard UUID/GUID patterns in URLs.
@@ -38,22 +46,61 @@ func (p *BOLAProber) Probe(ctx context.Context, target types.Target, endpoints [
 	}
 	var findings []types.Finding
 
+	// Prioritize endpoints: user-data and API endpoints first, skip static/redirects
+	prioritized := prioritizeBOLAEndpoints(endpoints)
+
 	// 1. Horizontal privilege escalation: auth vs no-auth on same resources
-	findings = append(findings, p.testHorizontalPrivEsc(ctx, cfg, endpoints)...)
+	findings = append(findings, p.testHorizontalPrivEsc(ctx, cfg, prioritized)...)
 
 	// 2. HTTP method tampering on discovered endpoints
-	findings = append(findings, p.testMethodTampering(ctx, cfg, endpoints)...)
+	findings = append(findings, p.testMethodTampering(ctx, cfg, prioritized)...)
 
 	// 3. UUID/GUID object reference manipulation
-	findings = append(findings, p.testUUIDManipulation(ctx, cfg, endpoints)...)
+	findings = append(findings, p.testUUIDManipulation(ctx, cfg, prioritized)...)
 
 	// 4. Parameter-based object access swapping
-	findings = append(findings, p.testParamObjectAccess(ctx, cfg, endpoints)...)
+	findings = append(findings, p.testParamObjectAccess(ctx, cfg, prioritized)...)
 
 	// 5. BFLA: function-level authorization bypass
 	findings = append(findings, p.testBFLA(ctx, cfg)...)
 
 	return findings
+}
+
+// prioritizeBOLAEndpoints sorts endpoints by BOLA relevance: endpoints with
+// object identifiers, API paths, and user-data paths come first. Static assets
+// and redirects are dropped entirely.
+func prioritizeBOLAEndpoints(endpoints []types.Endpoint) []types.Endpoint {
+	var highPriority, normalPriority []types.Endpoint
+
+	for _, ep := range endpoints {
+		path := extractPath(ep.URL)
+		if IsStaticAssetURL(ep.URL) {
+			continue
+		}
+
+		lower := strings.ToLower(path)
+
+		// High priority: paths with object IDs, API paths, user-data keywords
+		if hasObjectIdentifier(path) ||
+			strings.Contains(lower, "/api/") ||
+			strings.Contains(lower, "/user") ||
+			strings.Contains(lower, "/account") ||
+			strings.Contains(lower, "/profile") ||
+			strings.Contains(lower, "/admin") ||
+			strings.Contains(lower, "/order") {
+			highPriority = append(highPriority, ep)
+		} else {
+			normalPriority = append(normalPriority, ep)
+		}
+	}
+
+	// Combine: high priority first, then normal, capped at maxBOLAEndpoints
+	result := append(highPriority, normalPriority...)
+	if len(result) > maxBOLAEndpoints {
+		result = result[:maxBOLAEndpoints]
+	}
+	return result
 }
 
 // testHorizontalPrivEsc requests resource endpoints WITH auth, then replays
@@ -390,7 +437,12 @@ func (p *BOLAProber) testAdminMethodOverride(ctx context.Context, cfg *ProberCon
 		{"X-HTTP-Method", "GET"},
 	}
 
-	for _, ep := range cfg.Classified.Admin {
+	adminEps := cfg.Classified.Admin
+	if len(adminEps) > maxBFLAEndpoints {
+		adminEps = adminEps[:maxBFLAEndpoints]
+	}
+
+	for _, ep := range adminEps {
 		select {
 		case <-ctx.Done():
 			return findings
@@ -468,7 +520,12 @@ func (p *BOLAProber) testUserDataNoAuth(ctx context.Context, cfg *ProberConfig) 
 		return findings
 	}
 
-	for _, ep := range cfg.Classified.UserData {
+	userDataEps := cfg.Classified.UserData
+	if len(userDataEps) > maxBFLAEndpoints {
+		userDataEps = userDataEps[:maxBFLAEndpoints]
+	}
+
+	for _, ep := range userDataEps {
 		select {
 		case <-ctx.Done():
 			return findings
