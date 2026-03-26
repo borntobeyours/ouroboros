@@ -55,6 +55,7 @@ type Finding struct {
 	FoundAt          time.Time         `json:"found_at"`
 	Loop             int               `json:"loop"`
 	Compliance       []ComplianceMapping `json:"compliance,omitempty"`
+	Count            int               `json:"count,omitempty"` // Number of collapsed duplicates
 }
 
 // AdjustSeverity recalculates severity based on confidence.
@@ -184,6 +185,58 @@ func DeduplicateFindings(findings []Finding) []Finding {
 			seen[sig] = len(result)
 			result = append(result, f)
 		}
+	}
+	return result
+}
+
+// IsTemplateNoise returns true if this is a low-confidence plugin/template finding.
+func (f *Finding) IsTemplateNoise() bool {
+	return strings.HasPrefix(f.Technique, "plugin:") && f.Confidence < 50
+}
+
+// normalizeTitleKey returns a case-insensitive key with endpoint-specific parts stripped.
+func normalizeTitleKey(title string) string {
+	t := strings.ToLower(title)
+	// Strip common endpoint-specific suffixes like "at /api/foo" or "on /path"
+	for _, sep := range []string{" at /", " on /", " in /", " via /", " — /", " - /"} {
+		if idx := strings.Index(t, sep); idx != -1 {
+			t = t[:idx]
+		}
+	}
+	return strings.TrimSpace(t)
+}
+
+// CollapseByTitle groups findings by normalized title (case-insensitive, endpoint-stripped).
+// Keeps the highest-confidence finding from each group, sets Count to the group size.
+func CollapseByTitle(findings []Finding) []Finding {
+	type group struct {
+		bestIdx int
+		count   int
+	}
+	groups := make(map[string]*group)
+	order := make([]string, 0, len(findings))
+
+	for i, f := range findings {
+		key := normalizeTitleKey(f.Title)
+		if g, exists := groups[key]; exists {
+			g.count++
+			best := findings[g.bestIdx]
+			if f.Confidence > best.Confidence ||
+				(f.Confidence == best.Confidence && f.Severity > best.Severity) {
+				g.bestIdx = i
+			}
+		} else {
+			groups[key] = &group{bestIdx: i, count: 1}
+			order = append(order, key)
+		}
+	}
+
+	result := make([]Finding, 0, len(groups))
+	for _, key := range order {
+		g := groups[key]
+		f := findings[g.bestIdx]
+		f.Count = g.count
+		result = append(result, f)
 	}
 	return result
 }

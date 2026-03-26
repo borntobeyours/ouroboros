@@ -255,6 +255,17 @@ func (lv *LiveView) PrintSummaryBox(session *types.ScanSession, findings []types
 	fmt.Printf("  Session:  %s\n", session.ID[:8])
 	fmt.Println()
 
+	// Count validated vs template noise
+	validated := 0
+	templateNoise := 0
+	for _, f := range findings {
+		if f.IsTemplateNoise() {
+			templateNoise++
+		} else {
+			validated++
+		}
+	}
+
 	// Severity breakdown with bar
 	total := len(findings)
 	fmt.Print("  Severity: ")
@@ -274,6 +285,19 @@ func (lv *LiveView) PrintSummaryBox(session *types.ScanSession, findings []types
 		dim.Printf("%d info ", info)
 	}
 	fmt.Printf("(%d total)\n", total)
+
+	// Findings quality line with filtered counts
+	fmt.Print("  Findings: ")
+	fmt.Printf("%d findings", total)
+	if validated > 0 || templateNoise > 0 {
+		fmt.Print(" (")
+		green.Printf("%d validated", validated)
+		if templateNoise > 0 {
+			dim.Printf(", %d template noise filtered", templateNoise)
+		}
+		fmt.Print(")")
+	}
+	fmt.Println()
 
 	// Confidence bar
 	fmt.Print("  Quality:  ")

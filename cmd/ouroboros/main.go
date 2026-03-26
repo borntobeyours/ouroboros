@@ -72,6 +72,7 @@ type scanOpts struct {
 	disablePlugins bool
 	allTemplates   bool     // --all-templates: disable smart filtering
 	templateTags   []string // --template-tags: manual tech tag override
+	allFindings    bool     // --all-findings: show all findings including low-confidence template noise
 }
 
 func newScanCmd() *cobra.Command {
@@ -113,6 +114,8 @@ func newScanCmd() *cobra.Command {
 		// Batch flags
 		targetsFile string
 		parallel    int
+		// Output flags
+		allFindings bool
 	)
 
 	cmd := &cobra.Command{
@@ -184,6 +187,7 @@ Examples:
 				disablePlugins: disablePlugins,
 				allTemplates:   allTemplates,
 				templateTags:   parsedTemplateTags,
+				allFindings:    allFindings,
 			}
 
 			// Batch mode: --targets file provided
@@ -255,6 +259,8 @@ Examples:
 	// Batch flags
 	cmd.Flags().StringVar(&targetsFile, "targets", "", "File with one URL per line for batch scanning")
 	cmd.Flags().IntVar(&parallel, "parallel", 3, "Number of concurrent scans when using --targets")
+	// Output flags
+	cmd.Flags().BoolVar(&allFindings, "all-findings", false, "Show all findings including low-confidence template noise in reports")
 
 	return cmd
 }
@@ -429,7 +435,7 @@ func runScan(targetURL string, maxLoops int, finalBoss bool, skipBlue bool, verb
 			// Sort
 			sortFindings(findings, sortBy)
 
-			if err := exportReport(output, findings, session); err != nil {
+			if err := exportReport(output, findings, session, opts.allFindings); err != nil {
 				return fmt.Errorf("export report: %w", err)
 			}
 			filtered := ""
@@ -857,7 +863,8 @@ func sortFindings(findings []types.Finding, sortBy string) {
 	}
 }
 
-func exportReport(path string, findings []types.Finding, session *types.ScanSession) error {
+func exportReport(path string, findings []types.Finding, session *types.ScanSession, allFindings ...bool) error {
+	showAll := len(allFindings) > 0 && allFindings[0]
 	if strings.HasSuffix(path, ".sarif") {
 		return report.ExportSARIF(findings, session, path)
 	}
@@ -868,7 +875,7 @@ func exportReport(path string, findings []types.Finding, session *types.ScanSess
 		return report.ExportJSON(findings, session, path)
 	}
 	if strings.HasSuffix(path, ".md") {
-		return report.ExportMarkdown(findings, session, path)
+		return report.ExportMarkdown(findings, session, path, showAll)
 	}
 	// Default to JSON
 	return report.ExportJSON(findings, session, path)

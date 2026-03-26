@@ -327,9 +327,32 @@ func ExportJSON(findings []types.Finding, session *types.ScanSession, path strin
 }
 
 // ExportMarkdown writes findings as Markdown to a file.
-func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path string) error {
+// When showAll is false (default), low-confidence template noise is filtered and
+// findings with identical titles are collapsed into a single entry.
+func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path string, showAll ...bool) error {
 	// Final dedup pass before export
 	findings = types.DeduplicateFindings(findings)
+
+	allMode := len(showAll) > 0 && showAll[0]
+	totalCount := len(findings)
+
+	// Separate validated vs template noise, then collapse by title
+	var visible, filtered []types.Finding
+	if allMode {
+		visible = findings
+	} else {
+		for _, f := range findings {
+			if f.IsTemplateNoise() {
+				filtered = append(filtered, f)
+			} else {
+				visible = append(visible, f)
+			}
+		}
+		// Title dedup pass — collapse identical titles, keep highest confidence
+		visible = types.CollapseByTitle(visible)
+	}
+	filteredCount := len(filtered)
+
 	var sb strings.Builder
 
 	sb.WriteString("# 🐍 Ouroboros Security Report\n\n")
@@ -347,34 +370,52 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 	sb.WriteString(fmt.Sprintf("| **Model** | %s |\n", session.Config.Model))
 	sb.WriteString(fmt.Sprintf("| **Loops** | %d (max %d) |\n", len(session.Loops), session.Config.MaxLoops))
 	sb.WriteString(fmt.Sprintf("| **Converged** | %v |\n", session.Converged))
-	sb.WriteString(fmt.Sprintf("| **Total Findings** | %d |\n", len(findings)))
+	if allMode || filteredCount == 0 {
+		sb.WriteString(fmt.Sprintf("| **Total Findings** | %d |\n", totalCount))
+	} else {
+		sb.WriteString(fmt.Sprintf("| **Total Findings** | %d shown (%d total, %d template noise filtered) |\n", len(visible), totalCount, filteredCount))
+	}
 	sb.WriteString("\n")
 
-	// Severity breakdown
+	// Severity breakdown — show both filtered and total counts
 	sevCounts := map[string]int{"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
-	for _, f := range findings {
+	sevCountsTotal := map[string]int{"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
+	for _, f := range visible {
 		sevCounts[f.Severity.String()]++
 	}
+	for _, f := range findings {
+		sevCountsTotal[f.Severity.String()]++
+	}
 	sb.WriteString("## Findings by Severity\n\n")
-	sb.WriteString("| Severity | Count |\n")
-	sb.WriteString("|----------|-------|\n")
-	sb.WriteString(fmt.Sprintf("| 🔴 Critical | %d |\n", sevCounts["Critical"]))
-	sb.WriteString(fmt.Sprintf("| 🟠 High | %d |\n", sevCounts["High"]))
-	sb.WriteString(fmt.Sprintf("| 🟡 Medium | %d |\n", sevCounts["Medium"]))
-	sb.WriteString(fmt.Sprintf("| 🔵 Low | %d |\n", sevCounts["Low"]))
-	sb.WriteString(fmt.Sprintf("| ⚪ Info | %d |\n", sevCounts["Info"]))
+	if !allMode && filteredCount > 0 {
+		sb.WriteString("| Severity | Shown | Total |\n")
+		sb.WriteString("|----------|-------|-------|\n")
+		sb.WriteString(fmt.Sprintf("| 🔴 Critical | %d | %d |\n", sevCounts["Critical"], sevCountsTotal["Critical"]))
+		sb.WriteString(fmt.Sprintf("| 🟠 High | %d | %d |\n", sevCounts["High"], sevCountsTotal["High"]))
+		sb.WriteString(fmt.Sprintf("| 🟡 Medium | %d | %d |\n", sevCounts["Medium"], sevCountsTotal["Medium"]))
+		sb.WriteString(fmt.Sprintf("| 🔵 Low | %d | %d |\n", sevCounts["Low"], sevCountsTotal["Low"]))
+		sb.WriteString(fmt.Sprintf("| ⚪ Info | %d | %d |\n", sevCounts["Info"], sevCountsTotal["Info"]))
+	} else {
+		sb.WriteString("| Severity | Count |\n")
+		sb.WriteString("|----------|-------|\n")
+		sb.WriteString(fmt.Sprintf("| 🔴 Critical | %d |\n", sevCounts["Critical"]))
+		sb.WriteString(fmt.Sprintf("| 🟠 High | %d |\n", sevCounts["High"]))
+		sb.WriteString(fmt.Sprintf("| 🟡 Medium | %d |\n", sevCounts["Medium"]))
+		sb.WriteString(fmt.Sprintf("| 🔵 Low | %d |\n", sevCounts["Low"]))
+		sb.WriteString(fmt.Sprintf("| ⚪ Info | %d |\n", sevCounts["Info"]))
+	}
 	sb.WriteString("\n---\n\n")
 	sb.WriteString("## Detailed Findings\n\n")
 
 	// Sort by CVSS score descending, then severity
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].CVSS.Score != findings[j].CVSS.Score {
-			return findings[i].CVSS.Score > findings[j].CVSS.Score
+	sort.Slice(visible, func(i, j int) bool {
+		if visible[i].CVSS.Score != visible[j].CVSS.Score {
+			return visible[i].CVSS.Score > visible[j].CVSS.Score
 		}
-		return findings[i].Severity > findings[j].Severity
+		return visible[i].Severity > visible[j].Severity
 	})
 
-	for i, f := range findings {
+	for i, f := range visible {
 		status := "⚠️ Unconfirmed"
 		if f.Confidence >= 95 {
 			status = "✅ PROVEN"
@@ -396,7 +437,12 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 			sevChange = fmt.Sprintf(" (was %s)", f.Severity)
 		}
 
-		sb.WriteString(fmt.Sprintf("### %d. [%s%s] %s — %s\n\n", i+1, displaySev, sevChange, f.Title, status))
+		titleSuffix := ""
+		if f.Count > 1 {
+			titleSuffix = fmt.Sprintf(" (%d similar)", f.Count)
+		}
+
+		sb.WriteString(fmt.Sprintf("### %d. [%s%s] %s%s — %s\n\n", i+1, displaySev, sevChange, f.Title, titleSuffix, status))
 		sb.WriteString(fmt.Sprintf("- **Endpoint:** `%s %s`\n", f.Method, f.Endpoint))
 		sb.WriteString(fmt.Sprintf("- **CWE:** %s\n", f.CWE))
 		sb.WriteString(fmt.Sprintf("- **Technique:** %s\n", f.Technique))
@@ -428,6 +474,11 @@ func ExportMarkdown(findings []types.Finding, session *types.ScanSession, path s
 			sb.WriteString("\n")
 		}
 		sb.WriteString("---\n\n")
+	}
+
+	// Summary of filtered findings
+	if !allMode && filteredCount > 0 {
+		sb.WriteString(fmt.Sprintf("> **%d additional low-confidence findings omitted** (run with `--all-findings` to see)\n\n", filteredCount))
 	}
 
 	return os.WriteFile(path, []byte(sb.String()), 0o644)
