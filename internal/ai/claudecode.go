@@ -175,7 +175,7 @@ func (c *ClaudeCode) buildPrompt(req ChatRequest) string {
 func (c *ClaudeCode) parseOutput(data []byte) (string, error) {
 	// Claude Code --output-format json returns:
 	// {"type":"result","result":"...","usage":{...},...}
-	var result struct {
+	type resultObj struct {
 		Type    string `json:"type"`
 		Result  string `json:"result"`
 		IsError bool   `json:"is_error"`
@@ -185,9 +185,57 @@ func (c *ClaudeCode) parseOutput(data []byte) (string, error) {
 		} `json:"usage"`
 	}
 
+	var result resultObj
 	if err := json.Unmarshal(data, &result); err == nil {
 		if result.Result != "" {
 			return result.Result, nil
+		}
+	}
+
+	// JSONL handling: Claude Code CLI may return newline-delimited JSON objects.
+	// Split by newlines and look for the result object in each line.
+	lines := bytes.Split(data, []byte("\n"))
+	if len(lines) > 1 {
+		// First pass: look for {"type":"result",...} lines
+		for _, line := range lines {
+			line = bytes.TrimSpace(line)
+			if len(line) == 0 {
+				continue
+			}
+			var r resultObj
+			if err := json.Unmarshal(line, &r); err == nil && r.Type == "result" && r.Result != "" {
+				return r.Result, nil
+			}
+		}
+		// Second pass: look for assistant messages with text content
+		type turnObj struct {
+			Type    string `json:"type"`
+			Role    string `json:"role"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+			Text string `json:"text"`
+		}
+		// Iterate backwards to find the last assistant text
+		for i := len(lines) - 1; i >= 0; i-- {
+			line := bytes.TrimSpace(lines[i])
+			if len(line) == 0 {
+				continue
+			}
+			var t turnObj
+			if err := json.Unmarshal(line, &t); err == nil {
+				if t.Role == "assistant" {
+					for _, c := range t.Content {
+						if c.Type == "text" && c.Text != "" {
+							return c.Text, nil
+						}
+					}
+				}
+				if t.Text != "" {
+					return t.Text, nil
+				}
+			}
 		}
 	}
 
