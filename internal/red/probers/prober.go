@@ -337,9 +337,19 @@ func AllProbers() []Prober {
 	return all
 }
 
+// proberTimeout is the maximum time any single prober can run before being cancelled.
+const proberTimeout = 5 * time.Minute
+
+// maxProberEndpoints caps the number of endpoints passed to each prober.
+// High-value endpoints (API, user-data, admin) are prioritized.
+const maxProberEndpoints = 100
+
 // RunAllProbers runs every prober against the target and returns combined findings.
+// Each prober gets a per-prober timeout to prevent any single prober from stalling.
 func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.Endpoint, classified *types.ClassifiedEndpoints, loop int) []types.Finding {
-	// Store classified endpoints in target headers for probers to access via config
+	// Cap endpoints globally — prioritize high-value ones
+	capped := capEndpoints(endpoints, maxProberEndpoints)
+
 	var all []types.Finding
 	for _, p := range AllProbers() {
 		select {
@@ -347,7 +357,10 @@ func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.E
 			return all
 		default:
 		}
-		findings := p.Probe(ctx, target, endpoints)
+		// Per-prober timeout
+		proberCtx, cancel := context.WithTimeout(ctx, proberTimeout)
+		findings := p.Probe(proberCtx, target, capped)
+		cancel()
 		for i := range findings {
 			findings[i].Loop = loop
 			findings[i].ID = findings[i].Signature()
@@ -355,6 +368,57 @@ func RunAllProbers(ctx context.Context, target types.Target, endpoints []types.E
 		all = append(all, findings...)
 	}
 	return all
+}
+
+// capEndpoints limits endpoints to maxN, prioritizing API, user-data, and admin
+// endpoints over static/redirect/generic pages.
+func capEndpoints(endpoints []types.Endpoint, maxN int) []types.Endpoint {
+	if len(endpoints) <= maxN {
+		return endpoints
+	}
+
+	var high, medium, low []types.Endpoint
+	for _, ep := range endpoints {
+		lower := strings.ToLower(ep.URL)
+		if IsStaticAssetURL(ep.URL) {
+			continue // drop entirely
+		}
+		if strings.Contains(lower, "/api/") ||
+			strings.Contains(lower, "/user") ||
+			strings.Contains(lower, "/account") ||
+			strings.Contains(lower, "/admin") ||
+			strings.Contains(lower, "/profile") ||
+			strings.Contains(lower, "/order") ||
+			strings.Contains(lower, "/payment") ||
+			strings.Contains(lower, "/auth") {
+			high = append(high, ep)
+		} else if strings.Contains(lower, "?") || strings.Contains(lower, "/rest/") {
+			medium = append(medium, ep)
+		} else {
+			low = append(low, ep)
+		}
+	}
+
+	result := make([]types.Endpoint, 0, maxN)
+	result = append(result, high...)
+	if len(result) < maxN {
+		remaining := maxN - len(result)
+		if len(medium) > remaining {
+			medium = medium[:remaining]
+		}
+		result = append(result, medium...)
+	}
+	if len(result) < maxN {
+		remaining := maxN - len(result)
+		if len(low) > remaining {
+			low = low[:remaining]
+		}
+		result = append(result, low...)
+	}
+	if len(result) > maxN {
+		result = result[:maxN]
+	}
+	return result
 }
 
 // readOnlyParams are query parameters that are typically read-only cache busters
