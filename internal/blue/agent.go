@@ -113,7 +113,11 @@ func (a *Agent) analyzeBatch(ctx context.Context, findings []types.Finding) ([]t
 
 	patches, err := ParsePatches(resp.Content)
 	if err != nil {
-		a.logger.Printf("[BLUE] Warning: could not parse AI response: %v", err)
+		preview := resp.Content
+		if len(preview) > 300 {
+			preview = preview[:300] + "..."
+		}
+		a.logger.Printf("[BLUE] Warning: could not parse AI response: %v (preview: %s)", err, preview)
 		return []types.Patch{}, nil
 	}
 
@@ -237,8 +241,22 @@ func ParsePatches(response string) ([]types.Patch, error) {
 		}
 	}
 
-	// Last resort: try json.Decoder for streaming/concatenated JSON objects
-	dec := json.NewDecoder(strings.NewReader(response))
+	// Try wrapping comma-separated objects in an array.
+	// Claude sometimes returns {obj1}, {obj2} without the outer [...].
+	trimmed := strings.TrimSpace(response)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		wrapped := "[" + trimmed + "]"
+		wrapped = fixTrailingCommas(wrapped)
+		wrapped = fixJSONEscaping(wrapped)
+		if err := json.Unmarshal([]byte(wrapped), &allPatches); err == nil && len(allPatches) > 0 {
+			return allPatches, nil
+		}
+	}
+
+	// Last resort: try json.Decoder for streaming/concatenated JSON objects,
+	// stripping commas between top-level values.
+	cleaned := stripInterObjectCommas(response)
+	dec := json.NewDecoder(strings.NewReader(cleaned))
 	for dec.More() {
 		var patch types.Patch
 		if err := dec.Decode(&patch); err != nil {
@@ -340,6 +358,50 @@ func fixTrailingCommas(s string) string {
 				// Skip this trailing comma
 				continue
 			}
+		}
+		result.WriteByte(ch)
+	}
+	return result.String()
+}
+
+// stripInterObjectCommas removes commas between top-level JSON objects/arrays.
+// Input like `{...}, {...}` or `[...], [...]` becomes `{...} {...}` or `[...] [...]`.
+func stripInterObjectCommas(s string) string {
+	var result strings.Builder
+	inStr := false
+	esc := false
+	depth := 0
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if esc {
+			result.WriteByte(ch)
+			esc = false
+			continue
+		}
+		if ch == '\\' && inStr {
+			result.WriteByte(ch)
+			esc = true
+			continue
+		}
+		if ch == '"' {
+			inStr = !inStr
+			result.WriteByte(ch)
+			continue
+		}
+		if inStr {
+			result.WriteByte(ch)
+			continue
+		}
+		if ch == '{' || ch == '[' {
+			depth++
+		} else if ch == '}' || ch == ']' {
+			depth--
+		}
+		// Skip commas at depth 0 (between top-level values)
+		if ch == ',' && depth == 0 {
+			result.WriteByte(' ')
+			continue
 		}
 		result.WriteByte(ch)
 	}
